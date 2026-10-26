@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const { t } = require('./i18n_stub.cjs');
 const source = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const functions = source.slice(source.indexOf('    async function fetchFinalPrompt('), source.indexOf('    function getFeatureName('))
   + source.slice(source.indexOf('    let agentRunners ='), source.indexOf('    /* ──────────── CONSUMER NDJSON'))
@@ -15,7 +16,7 @@ const nodes = {'agent-runner-select':select('codex'),'agent-model-select':select
   'agent-attempts-select':select('1'),'agent-run-btn':{disabled:false,title:''},
   'final-prompt-box':{textContent:'OLD'},'agent-output':{style:{},textContent:''}};
 const calls = [], copied = [], errors = [];
-const context = vm.createContext({URLSearchParams,featureName:'same',devType:'backend',sessionRevision:0,
+const context = vm.createContext({URLSearchParams,featureName:'same',devType:'backend',sessionRevision:0,t,
   TextDecoder, localStorage:{getItem:()=>''},refreshGateReview:async()=>{},
   validationRefs:new Map(),blockedAttempts:new Map(),openPointsSummary:()=>'',consumeNdjson:async()=>{},
   Option: function(text,value){this.text=text;this.value=value;this.disabled=false;},

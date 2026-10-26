@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const { t } = require('./i18n_stub.cjs');
 const html = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const code = html.slice(html.indexOf('    function gateApiError('), html.indexOf('    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK'));
 const nodes = {}, checks = [], requests = [], errors = [];
@@ -23,7 +24,7 @@ const data = {validation_id:'val-old', comparison:{validation_id:'val-old',
   spec_hash:'spec-hash', gate:{open_points_status:'valid', reasons:[], warnings:[]},
   structural_findings:[finding], point_decisions:[{point_hash:'point-hash', status:'unaddressed', point:{id:'OP-001', question:'Caso negativo?'}}]};
 let responseStatus = 'passed';
-const context = vm.createContext({URLSearchParams, featureName:'demo', JSON,
+const context = vm.createContext({URLSearchParams, featureName:'demo', JSON, t,
   Option: function(text, value) {this.text = text; this.value = value;},
   window:{__VIBECRAFT_AGENT_API_KEY__:'test'}, localStorage:{getItem:()=>null},
   document:{getElementById:id=>nodes[id], createElement:node, createTextNode:text=>({textContent:text}),

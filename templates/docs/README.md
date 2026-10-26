@@ -46,6 +46,8 @@ tags:
   - baseline
 ---
 
+Italiano | [English](README.en.md)
+
 # Baseline Documentale Cross-Progetto
 
 Questa cartella non documenta un'applicazione: è la **libreria di governance riusabile** da cui parte ogni nuovo progetto. Ogni documento è privo di riferimenti a un dominio applicativo specifico e va istanziato compilando la propria **Sezione 0 — Contratto di Istanziazione**.

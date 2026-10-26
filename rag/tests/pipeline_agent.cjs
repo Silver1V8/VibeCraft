@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { t } = require('./i18n_stub.cjs');
 const html = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
 const errorHelper = shared.slice(shared.indexOf('function apiErrorMessage('), shared.indexOf('/* ──────────── THEME VAR'));
@@ -26,7 +27,7 @@ async function check(mode, unavailable = false, event = null, blockStatus = null
     reasons:[{code:'contract_changed',message:'Contratto cambiato',action:'user_action',next_step:'Rivalida',changed:['canvas','spec']},
       {code:'sources_unavailable',message:'Fonti indisponibili',action:'operator_action',next_step:'Ripristina indice',changed:['policy.md']}],
     warnings:[{code:'unreviewed_corpus_changes',message:'Pertinenza non rivalutata',changed:['other.md']}]};
-  const context = vm.createContext({sessionRevision: 0,
+  const context = vm.createContext({sessionRevision: 0, t,
     URLSearchParams, TextDecoder, featureName: 'feat', devType: 'frontend',
     window: { _finalPrompt: mode === 'agentic' ? '' : 'PROMPT ESTERNO', __VIBECRAFT_AGENT_API_KEY__: 'synthetic' },
     document: { getElementById: id => nodes[id],createElement:()=>({textContent:'',appendChild(){}}) },
@@ -85,7 +86,7 @@ async function checkSave(change) {
   const nodes = {'spec-md-editor': {value: 'spec iniziale'},
     'spec-open-points-status': {textContent: 'Modifiche non salvate'}};
   let release;
-  const context = vm.createContext({featureName: 'feature-iniziale', sessionLoading: false, pendingDraft: null,
+  const context = vm.createContext({featureName: 'feature-iniziale', sessionLoading: false, pendingDraft: null, t,
     document: {getElementById: id => nodes[id]}, refreshFilesControl: async () => {},
     toast: message => assert.fail(message), fetch: () => new Promise(resolve => {release = resolve;})});
   vm.runInContext(functions, context);

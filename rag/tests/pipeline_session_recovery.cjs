@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+const { t } = require('./i18n_stub.cjs');
 const source = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const settle = () => new Promise(resolve => setImmediate(resolve));
 function page(storage, project = 'alpha', server = {}) {
@@ -22,7 +23,8 @@ function page(storage, project = 'alpha', server = {}) {
     };
   }
   const node = id => nodes[id] ||= element();
-  const context = vm.createContext({URLSearchParams, URL, Date, console, setTimeout, clearTimeout, TextDecoder,
+  const context = vm.createContext({URLSearchParams, URL, Date, console, setTimeout, clearTimeout, TextDecoder, t,
+    currentLang: () => 'it',
     selectedProjectId: () => project, localStorage: storage,
     document: {getElementById: node, createElement: element, querySelectorAll: () => []},
     window: {addEventListener() {}, __VIBECRAFT_AGENT_API_KEY__: 'SECRET-NEVER-PERSIST'},

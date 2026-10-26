@@ -1,3 +1,5 @@
+Italiano | [English](README.en.md)
+
 # Template di Progetto
 
 Scheletri dei documenti **specifici di dominio** che ogni progetto deve produrre da sé, e che per loro natura non possono stare nella baseline di `docs/`.

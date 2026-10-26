@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { t } = require('./i18n_stub.cjs');
 
 const template = fs.readFileSync(path.join(__dirname, '../static/pages/dashboard.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
@@ -34,6 +35,7 @@ const resolve = (acc, obj) => (typeof acc === 'function' ? acc(obj) : obj[acc]);
 
 const els = {};
 const context = vm.createContext({
+  t,
   graph3d: null,
   ForceGraph3D: () => () => chain,
   themeVar: (_, fallback) => fallback || '#000',
@@ -74,7 +76,9 @@ console.log('Dashboard: relazioni degli archi, nodi e punteggi del corpus restan
 
 // Risposta dal grafo (status "graph_answer"): testo leggibile invece di "(nessuna risposta)".
 const graphAnswerText = vm.runInNewContext(
-  slice(template, '    function graphAnswerText(', '    function renderAskResult(') + '; graphAnswerText');
+  slice(template, '    function graphAnswerText(', '    function renderAskResult(') + '; graphAnswerText',
+  { t },
+);
 assert.equal(graphAnswerText({ intent: 'documenti', answer: ['a.md', 'b.md'], count: 2 }), '2 risultati (documenti)\n• a.md\n• b.md');
 assert.equal(graphAnswerText({ intent: 'relazioni', target: 'X', out: [{ relation: 'R', to: 'Y' }], in: [{ relation: 'S', from: 'Z' }], count: 2 }),
   '2 risultati (relazioni: X)\n→ R Y\n← S Z');

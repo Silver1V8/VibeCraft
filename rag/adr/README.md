@@ -1,3 +1,5 @@
+Italiano | [English](README.en.md)
+
 # ADR — Architecture Decision Records
 
 Decisioni architetturali significative del progetto, con contesto,

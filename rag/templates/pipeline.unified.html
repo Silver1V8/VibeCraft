@@ -12,7 +12,9 @@
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
   <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/i18n/messages.js"></script>
   <script src="/static/shared.js"></script>
+  <script src="/static/i18n.js"></script>
 
   <style>
     /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
@@ -218,14 +220,14 @@
 
   <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
        da tastiera attraversa 6 pill a ogni caricamento. -->
-  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+  <a href="#main-content" class="skip-link" data-i18n="pipeline.skip">Vai al contenuto</a>
 
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
        shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
-  <h1 class="sr-only">Pipeline VibeCraft</h1>
+  <h1 class="sr-only" data-i18n="pipeline.title.sr">Pipeline VibeCraft</h1>
 
   <!-- ═══════════════════ MAIN LAYOUT ═══════════════════ -->
   <main id="main-content" tabindex="-1" class="relative z-10 flex-1 flex overflow-hidden">
@@ -235,8 +237,8 @@
 
       <!-- Feature card -->
       <div class="rounded-xl glass-card p-4">
-        <label for="feature-name-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Nome feature</label>
-        <input id="feature-name-input" type="text" placeholder="Es. form eventi"
+        <label for="feature-name-input" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2" data-i18n="pipeline.feature.nameLabel">Nome feature</label>
+        <input id="feature-name-input" type="text" placeholder="Es. form eventi" data-i18n-placeholder="pipeline.feature.namePlaceholder"
                                                        class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
         <div class="flex items-center gap-2 mt-2">
           <button type="button" id="load-feature-btn" data-click="loadFeatureStatus"
@@ -244,34 +246,34 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            Carica / Riprendi
+            <span data-i18n="pipeline.feature.loadBtn">Carica / Riprendi</span>
           </button>
         </div>
         <p id="feature-folder-hint" class="text-xs text-slate-400 mt-2 font-mono"></p>
-        <p id="session-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-2">Bozze salvate solo in questo browser.</p>
-        <button type="button" id="session-restore-btn" hidden data-click="restorePipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Ripristina bozza locale</button>
-        <button type="button" id="session-discard-btn" hidden data-click="discardPipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100">Scarta bozza e usa file server</button>
+        <p id="session-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-2" data-i18n="pipeline.session.draftsLocalOnly">Bozze salvate solo in questo browser.</p>
+        <button type="button" id="session-restore-btn" hidden data-click="restorePipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100" data-i18n="pipeline.feature.restoreDraft">Ripristina bozza locale</button>
+        <button type="button" id="session-discard-btn" hidden data-click="discardPipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100" data-i18n="pipeline.feature.discardDraft">Scarta bozza e usa file server</button>
 
-        <label for="dev-type-select" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2">Tipo di sviluppo</label>
+        <label for="dev-type-select" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2" data-i18n="pipeline.feature.devTypeLabel">Tipo di sviluppo</label>
         <select id="dev-type-select" data-change="onDevTypeChange"
                                                      class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-          <option value="">Caricamento…</option>
+          <option value="" data-i18n="common.loading">Caricamento…</option>
         </select>
         <div class="flex items-center gap-2 mt-2">
-          <label for="dev-type-new-input" class="sr-only">Nuovo tipo di sviluppo</label>
-          <input id="dev-type-new-input" type="text" maxlength="64" placeholder="Nuovo tipo, es. backend"
+          <label for="dev-type-new-input" class="sr-only" data-i18n="pipeline.feature.newDevTypeSr">Nuovo tipo di sviluppo</label>
+          <input id="dev-type-new-input" type="text" maxlength="64" placeholder="Nuovo tipo, es. backend" data-i18n-placeholder="pipeline.feature.newDevTypePlaceholder"
                  class="min-w-0 flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" />
           <button type="button" id="dev-type-add-btn" data-click="addDevType"
-                  class="shrink-0 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Aggiungi</button>
+                  class="shrink-0 rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition" data-i18n="pipeline.feature.addBtn">Aggiungi</button>
         </div>
-        <p class="text-xs text-slate-400 mt-2">Determina in quale sottocartella di <code class="text-slate-400">code/</code> verranno scritti i file generati, a monte dell'intera pipeline.</p>
+        <p class="text-xs text-slate-400 mt-2" data-i18n-html="pipeline.feature.devTypeHint">Determina in quale sottocartella di <code class="text-slate-400">code/</code> verranno scritti i file generati, a monte dell'intera pipeline.</p>
       </div>
 
       <!-- Pannello di controllo file -->
       <div class="rounded-xl glass-card p-4">
-        <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Controllo file generati</div>
+        <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3" data-i18n="pipeline.files.title">Controllo file generati</div>
         <div id="files-control-list" class="flex flex-col gap-2 text-xs">
-          <p class="text-slate-400">Carica una feature per vedere lo stato dei file.</p>
+          <p class="text-slate-400" data-i18n="pipeline.files.empty">Carica una feature per vedere lo stato dei file.</p>
         </div>
       </div>
 
@@ -283,59 +285,59 @@
       <!-- Stepper: orizzontale sopra il contenuto. Prima era una colonna nell'aside,
            sotto la scheda feature: a 1024x768 se ne vedevano 2 fasi e mezza, e lo
            stato della feature restava sotto la piega. -->
-      <nav class="rounded-xl glass-card px-4 py-3 shrink-0 overflow-x-auto" aria-label="Fasi pipeline">
+      <nav class="rounded-xl glass-card px-4 py-3 shrink-0 overflow-x-auto" aria-label="Fasi pipeline" data-i18n-aria-label="pipeline.steps.navAria">
         <ol class="flex items-center gap-3">
           <li class="flex items-center gap-2 flex-1" id="step-row-1">
-            <button type="button" id="step-btn-1" data-click="goToStep" data-arg="1" class="flex items-center gap-2 text-left shrink-0 group" title="Intervista requisiti" aria-current="step">
+            <button type="button" id="step-btn-1" data-click="goToStep" data-arg="1" class="flex items-center gap-2 text-left shrink-0 group" title="Intervista requisiti" data-i18n-title="pipeline.steps.1.title" aria-current="step">
               <span id="step-dot-1" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-current shrink-0">1</span>
               <span>
-                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Explore</span>
-                <span class="hidden 2xl:block text-xs text-slate-400">Intervista requisiti</span>
-                <span id="step-badge-1" class="block text-xs font-mono step-badge-pending">non generato</span>
+                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.1.name">Explore</span>
+                <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.1.sub">Intervista requisiti</span>
+                <span id="step-badge-1" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.current">in corso</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-1" aria-hidden="true"></div>
           </li>
           <li class="flex items-center gap-2 flex-1" id="step-row-2">
-            <button type="button" id="step-btn-2" data-click="goToStep" data-arg="2" class="flex items-center gap-2 text-left shrink-0 group" title="REASONS Canvas">
+            <button type="button" id="step-btn-2" data-click="goToStep" data-arg="2" class="flex items-center gap-2 text-left shrink-0 group" title="REASONS Canvas" data-i18n-title="pipeline.steps.2.title">
               <span id="step-dot-2" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">2</span>
               <span>
-                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Canvas</span>
-                <span class="hidden 2xl:block text-xs text-slate-400">REASONS Canvas</span>
-                <span id="step-badge-2" class="block text-xs font-mono step-badge-pending">non generato</span>
+                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.2.name">Canvas</span>
+                <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.2.sub">REASONS Canvas</span>
+                <span id="step-badge-2" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-2" aria-hidden="true"></div>
           </li>
           <li class="flex items-center gap-2 flex-1" id="step-row-3">
-            <button type="button" id="step-btn-3" data-click="goToStep" data-arg="3" class="flex items-center gap-2 text-left shrink-0 group" title="Spec + Prompt finale">
+            <button type="button" id="step-btn-3" data-click="goToStep" data-arg="3" class="flex items-center gap-2 text-left shrink-0 group" title="Spec + Prompt finale" data-i18n-title="pipeline.steps.3.title">
               <span id="step-dot-3" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">3</span>
               <span>
-                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Propose</span>
-                <span class="hidden 2xl:block text-xs text-slate-400">Spec + Prompt finale</span>
-                <span id="step-badge-3" class="block text-xs font-mono step-badge-pending">non generato</span>
+                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.3.name">Propose</span>
+                <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.3.sub">Spec + Prompt finale</span>
+                <span id="step-badge-3" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-3" aria-hidden="true"></div>
           </li>
           <li class="flex items-center gap-2 flex-1" id="step-row-4">
-            <button type="button" id="step-btn-4" data-click="goToStep" data-arg="4" class="flex items-center gap-2 text-left shrink-0 group" title="Verifica disallineamento">
+            <button type="button" id="step-btn-4" data-click="goToStep" data-arg="4" class="flex items-center gap-2 text-left shrink-0 group" title="Verifica disallineamento" data-i18n-title="pipeline.steps.4.title">
               <span id="step-dot-4" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">4</span>
               <span>
-                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Drift</span>
-                <span class="hidden 2xl:block text-xs text-slate-400">Verifica disallineamento</span>
-                <span id="step-badge-4" class="block text-xs font-mono step-badge-pending">non eseguito</span>
+                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.4.name">Drift</span>
+                <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.4.sub">Verifica disallineamento</span>
+                <span id="step-badge-4" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-4" aria-hidden="true"></div>
           </li>
           <li class="flex items-center gap-2" id="step-row-5">
-            <button type="button" id="step-btn-5" data-click="goToStep" data-arg="5" class="flex items-center gap-2 text-left shrink-0 group" title="Archivio + Re-index">
+            <button type="button" id="step-btn-5" data-click="goToStep" data-arg="5" class="flex items-center gap-2 text-left shrink-0 group" title="Archivio + Re-index" data-i18n-title="pipeline.steps.5.title">
               <span id="step-dot-5" class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold step-dot-pending shrink-0">5</span>
               <span>
-                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition">Archivia</span>
-                <span class="hidden 2xl:block text-xs text-slate-400">Archivio + Re-index</span>
-                <span id="step-badge-5" class="block text-xs font-mono step-badge-pending">non eseguito</span>
+                <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.5.name">Archivia</span>
+                <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.5.sub">Archivio + Re-index</span>
+                <span id="step-badge-5" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
           </li>
@@ -346,7 +348,7 @@
       <div id="panel-step-1" class="flex-1 flex flex-col gap-3 min-h-0">
         <div class="rounded-xl glass-card flex-1 flex flex-col min-h-0">
           <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
-            <span class="text-sm font-semibold text-slate-200">🎙️ Intervista Explore</span>
+            <span class="text-sm font-semibold text-slate-200" data-i18n="pipeline.explore.header">🎙️ Intervista Explore</span>
             <span id="explore-status" class="text-xs text-slate-400"></span>
           </div>
           <!-- Guida al posto del riquadro vuoto: sparisce al primo messaggio
@@ -354,28 +356,28 @@
                solo i messaggi della conversazione. -->
           <div id="chat-guide" class="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center gap-5 min-h-0">
             <div class="text-center max-w-md">
-              <h2 class="text-base font-semibold text-slate-100">Inizia l'intervista Explore</h2>
-              <p class="text-sm text-slate-400 mt-1">Il Tech Lead IA ti fa domande sulla funzionalità da costruire. Dalle risposte nasce <code class="text-slate-300">explore.md</code>, la base del REASONS Canvas.</p>
+              <h2 class="text-base font-semibold text-slate-100" data-i18n="pipeline.explore.guideTitle">Inizia l'intervista Explore</h2>
+              <p class="text-sm text-slate-400 mt-1" data-i18n-html="pipeline.explore.guideBody">Il Tech Lead IA ti fa domande sulla funzionalità da costruire. Dalle risposte nasce <code class="text-slate-300">explore.md</code>, la base del REASONS Canvas.</p>
             </div>
-            <ol class="flex flex-col gap-2 w-full max-w-md" aria-label="Passi per iniziare">
+            <ol class="flex flex-col gap-2 w-full max-w-md" aria-label="Passi per iniziare" data-i18n-aria-label="pipeline.explore.guideAria">
               <li><button type="button" id="guide-step-feature" class="guide-step" data-click="focusGuideStep" data-arg="feature-name-input">
-                <span id="guide-step-feature-mark" class="guide-step-mark" aria-hidden="true">1</span><span>Dai un nome alla feature</span><span id="guide-step-feature-state" class="guide-step-state"></span></button></li>
+                <span id="guide-step-feature-mark" class="guide-step-mark" aria-hidden="true">1</span><span data-i18n="pipeline.explore.guideStep1">Dai un nome alla feature</span><span id="guide-step-feature-state" class="guide-step-state"></span></button></li>
               <li><button type="button" id="guide-step-type" class="guide-step" data-click="focusGuideStep" data-arg="dev-type-select">
-                <span id="guide-step-type-mark" class="guide-step-mark" aria-hidden="true">2</span><span>Scegli il tipo di sviluppo</span><span id="guide-step-type-state" class="guide-step-state"></span></button></li>
+                <span id="guide-step-type-mark" class="guide-step-mark" aria-hidden="true">2</span><span data-i18n="pipeline.explore.guideStep2">Scegli il tipo di sviluppo</span><span id="guide-step-type-state" class="guide-step-state"></span></button></li>
               <li><button type="button" id="guide-step-answer" class="guide-step" data-click="focusGuideStep" data-arg="chat-input">
-                <span id="guide-step-answer-mark" class="guide-step-mark" aria-hidden="true">3</span><span>Descrivi cosa vuoi costruire, qui sotto</span><span id="guide-step-answer-state" class="guide-step-state"></span></button></li>
+                <span id="guide-step-answer-mark" class="guide-step-mark" aria-hidden="true">3</span><span data-i18n="pipeline.explore.guideStep3">Descrivi cosa vuoi costruire, qui sotto</span><span id="guide-step-answer-state" class="guide-step-state"></span></button></li>
             </ol>
           </div>
           <div id="chat-log" class="chat-scroll hidden flex-1 overflow-y-auto p-4 flex-col gap-3 min-h-0"></div>
           <div class="p-3 border-t border-slate-800 flex items-end gap-2 shrink-0">
-            <label for="chat-input" class="sr-only">Risposta al Tech Lead IA</label><textarea id="chat-input" rows="4" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)"
+            <label for="chat-input" class="sr-only" data-i18n="pipeline.explore.chatLabel">Risposta al Tech Lead IA</label><textarea id="chat-input" rows="4" placeholder="Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)" data-i18n-placeholder="pipeline.explore.chatPlaceholder"
                                                       class="chat-compose flex-1 rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
             <button type="button" id="chat-send-btn" data-click="sendExploreTurn"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.explore.send">
               Invia
             </button>
             <button type="button" id="chat-finish-btn" data-click="finishExplore"
-              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.explore.finish">
               Termina e genera explore.md
             </button>
           </div>
@@ -384,13 +386,13 @@
         <!-- Review explore.md -->
         <div id="review-explore" class="hidden rounded-xl glass-card p-4 flex-col shrink-0" style="max-height:62vh;">
           <div class="flex items-center justify-between mb-2 shrink-0">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · explore.md</span>
-            <span class="text-xs text-amber-400 font-medium">Approva prima di continuare</span>
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="pipeline.review.explore">Revisione · explore.md</span>
+            <span class="text-xs text-amber-400 font-medium" data-i18n="pipeline.review.approveFirst">Approva prima di continuare</span>
           </div>
-          <label for="explore-md-editor" class="sr-only">Contenuto di explore.md</label><textarea id="explore-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="explore-md-editor" class="sr-only" data-i18n="pipeline.review.exploreContent">Contenuto di explore.md</label><textarea id="explore-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button type="button" data-click="saveMdFile" data-arg="explore.md" data-arg2="explore-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button type="button" data-click="approveAndGoToCanvas" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Canvas</button>
+            <button type="button" data-click="saveMdFile" data-arg="explore.md" data-arg2="explore-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition" data-i18n="pipeline.review.save">Salva modifiche</button>
+            <button type="button" data-click="approveAndGoToCanvas" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition" data-i18n="pipeline.review.approveCanvas">✅ Approva → vai a Canvas</button>
           </div>
         </div>
       </div>
@@ -400,16 +402,16 @@
         <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-sm font-semibold text-slate-200">🧠 REASONS Canvas</div>
-              <p class="text-xs text-slate-400 mt-0.5">Generato a partire da <code class="text-slate-400">explore.md</code>, con le 7 sezioni: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.</p>
+              <div class="text-sm font-semibold text-slate-200" data-i18n="pipeline.canvas.header">🧠 REASONS Canvas</div>
+              <p class="text-xs text-slate-400 mt-0.5" data-i18n-html="pipeline.canvas.desc">Generato a partire da <code class="text-slate-400">explore.md</code>, con le 7 sezioni: Requirements, Entities, Approach, Structure, Operations, Norms, Safeguards.</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <button type="button" id="canvas-dryrun-btn" data-click="runCanvasDryRun"
-                class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50">
+                class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50" data-i18n="pipeline.canvas.dryrun">
                 🔎 Dry-run
               </button>
               <button type="button" id="canvas-generate-btn" data-click="generateCanvas"
-                class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.canvas.generate">
                 Genera Canvas
               </button>
             </div>
@@ -417,7 +419,7 @@
         </div>
 
         <div id="dryrun-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
-          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">🔎 Dry-run — sorgenti che userebbe il Canvas (nessun token speso)</div>
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2" data-i18n="pipeline.canvas.dryrunTitle">🔎 Dry-run — sorgenti che userebbe il Canvas (nessun token speso)</div>
           <div id="dryrun-body" class="text-xs text-slate-300"></div>
         </div>
 
@@ -427,19 +429,19 @@
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
           </div>
-          <p class="text-xs text-slate-400">Generazione Canvas in corso tramite LLM locale…</p>
+          <p class="text-xs text-slate-400" data-i18n="pipeline.canvas.loading">Generazione Canvas in corso tramite LLM locale…</p>
         </div>
 
         <div id="review-canvas" class="hidden rounded-xl glass-card p-4 flex-1 min-h-0 flex-col">
           <div class="flex items-center justify-between mb-2 shrink-0">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · canvas.md</span>
-            <span class="text-xs text-amber-400 font-medium">Approva prima di continuare</span>
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="pipeline.review.canvas">Revisione · canvas.md</span>
+            <span class="text-xs text-amber-400 font-medium" data-i18n="pipeline.review.approveFirst">Approva prima di continuare</span>
           </div>
-          <label for="canvas-md-editor" class="sr-only">Contenuto di canvas.md</label><textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="canvas-md-editor" class="sr-only" data-i18n="pipeline.review.canvasContent">Contenuto di canvas.md</label><textarea id="canvas-md-editor" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button type="button" data-click="saveMdFile" data-arg="canvas.md" data-arg2="canvas-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button type="button" data-click="generateCanvas" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
-            <button type="button" data-click="approveAndGoToPropose" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva → vai a Propose</button>
+            <button type="button" data-click="saveMdFile" data-arg="canvas.md" data-arg2="canvas-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition" data-i18n="pipeline.review.save">Salva modifiche</button>
+            <button type="button" data-click="generateCanvas" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition" data-i18n="pipeline.review.regenerate">🔄 Rigenera</button>
+            <button type="button" data-click="approveAndGoToPropose" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition" data-i18n="pipeline.review.approvePropose">✅ Approva → vai a Propose</button>
           </div>
         </div>
       </div>
@@ -449,11 +451,11 @@
         <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between">
             <div>
-              <div class="text-sm font-semibold text-slate-200">⚙️ Propose · Specifiche BDD</div>
-              <p class="text-xs text-slate-400 mt-0.5">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
+              <div class="text-sm font-semibold text-slate-200" data-i18n="pipeline.propose.header">⚙️ Propose · Specifiche BDD</div>
+              <p class="text-xs text-slate-400 mt-0.5" data-i18n-html="pipeline.propose.desc">Genera <code class="text-slate-400">spec.md</code> (scenari GIVEN/WHEN/THEN) dal Canvas approvato e il prompt finale pronto per Claude Code.</p>
             </div>
             <button type="button" id="propose-generate-btn" data-click="generatePropose"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.propose.generate">
               Genera Spec
             </button>
           </div>
@@ -465,33 +467,33 @@
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
           </div>
-          <p class="text-xs text-slate-400">Generazione specifiche in corso tramite LLM locale…</p>
+          <p class="text-xs text-slate-400" data-i18n="pipeline.propose.loading">Generazione specifiche in corso tramite LLM locale…</p>
         </div>
 
         <div id="review-spec" class="hidden rounded-xl glass-card p-4 flex-col shrink-0" style="max-height:64vh;">
           <div class="flex items-center justify-between mb-2 shrink-0">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">Revisione · spec.md</span>
-            <span class="text-xs text-amber-400 font-medium">Approva per sbloccare il prompt finale</span>
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="pipeline.review.spec">Revisione · spec.md</span>
+            <span class="text-xs text-amber-400 font-medium" data-i18n="pipeline.review.approveUnlock">Approva per sbloccare il prompt finale</span>
           </div>
-          <label for="spec-md-editor" class="sr-only">Contenuto di spec.md</label><textarea id="spec-md-editor" data-input="specEdited" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+          <label for="spec-md-editor" class="sr-only" data-i18n="pipeline.review.specContent">Contenuto di spec.md</label><textarea id="spec-md-editor" data-input="specEdited" class="md-editor flex-1 w-full rounded-lg bg-slate-950 border border-slate-800 p-3 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
           <p id="spec-open-points-status" role="status" class="text-xs text-slate-300 whitespace-pre-wrap">⚠ Resoconto dei punti aperti non disponibile.</p>
           <div class="flex items-center gap-2 mt-3 shrink-0">
-            <button type="button" data-click="saveMdFile" data-arg="spec.md" data-arg2="spec-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">Salva modifiche</button>
-            <button type="button" data-click="generatePropose" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition">🔄 Rigenera</button>
-            <button type="button" data-click="approveSpec" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition">✅ Approva spec.md</button>
+            <button type="button" data-click="saveMdFile" data-arg="spec.md" data-arg2="spec-md-editor" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition" data-i18n="pipeline.review.save">Salva modifiche</button>
+            <button type="button" data-click="generatePropose" class="rounded-lg bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-3 py-2 transition" data-i18n="pipeline.review.regenerate">🔄 Rigenera</button>
+            <button type="button" data-click="approveSpec" class="ml-auto rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-4 py-2 transition" data-i18n="pipeline.review.approveSpec">✅ Approva spec.md</button>
           </div>
         </div>
 
         <div id="validate-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
-            <span class="text-xs font-semibold text-amber-400 uppercase tracking-widest">🛡️ Validazione governance (pre-apply)</span>
-            <button type="button" id="validate-btn" data-click="runValidate" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50">Valida canvas + spec</button>
+            <span class="text-xs font-semibold text-amber-400 uppercase tracking-widest" data-i18n="pipeline.validate.title">🛡️ Validazione governance (pre-apply)</span>
+            <button type="button" id="validate-btn" data-click="runValidate" class="text-xs font-semibold text-slate-200 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition disabled:opacity-50" data-i18n="pipeline.validate.btn">Valida canvas + spec</button>
           </div>
-          <p class="text-xs text-slate-400 mb-2">Verifica strutturale (7 sezioni del Canvas, scenari BDD) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude.</p>
-          <p class="text-xs text-amber-400 mb-2">Agentic richiede il via libera del server sul contratto corrente. Suggest-only e One-shot restano disponibili con avvisi.</p>
-          <button type="button" data-click="refreshGateReview" class="text-xs underline">Rivedi punti aperti e associazioni</button>
+          <p class="text-xs text-slate-400 mb-2" data-i18n="pipeline.validate.desc">Verifica strutturale (7 sezioni del Canvas, scenari BDD) e coerenza semantica contro i vincoli normativi del Graph RAG, prima di lanciare Claude.</p>
+          <p class="text-xs text-amber-400 mb-2" data-i18n="pipeline.validate.agenticNote">Agentic richiede il via libera del server sul contratto corrente. Suggest-only e One-shot restano disponibili con avvisi.</p>
+          <button type="button" data-click="refreshGateReview" class="text-xs underline" data-i18n="pipeline.validate.reviewPoints">Rivedi punti aperti e associazioni</button>
           <pre id="gate-status" class="text-xs whitespace-pre-wrap my-2"></pre>
-          <button type="button" data-click="compareValidatedVersion" class="text-xs underline">Confronta con la versione validata</button>
+          <button type="button" data-click="compareValidatedVersion" class="text-xs underline" data-i18n="pipeline.validate.compare">Confronta con la versione validata</button>
           <div id="gate-comparison" class="text-xs my-2"></div>
           <div id="gate-decisions" class="text-xs space-y-2"></div>
           <div id="validate-structural" class="flex flex-wrap gap-2 mb-2 text-xs font-mono"></div>
@@ -500,18 +502,18 @@
 
         <div id="final-prompt-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
-            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">🚀 Prompt finale per Claude Code / Cursor</span>
+            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest" data-i18n="pipeline.prompt.title">🚀 Prompt finale per Claude Code / Cursor</span>
             <div class="flex items-center gap-2 flex-wrap">
-              <button type="button" id="agent-context-btn" data-click="loadAgentContext" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">🧠 Agent Context</button>
-              <button type="button" data-click="exportBundle" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">⬇️ Export JSON</button>
-              <button type="button" data-click="goToStep" data-arg="4" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">➡️ Verifica Drift</button>
-              <button type="button" data-click="copyFinalPrompt" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition">Copia</button>
+              <button type="button" id="agent-context-btn" data-click="loadAgentContext" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition" data-i18n="pipeline.prompt.agentContext">🧠 Agent Context</button>
+              <button type="button" data-click="exportBundle" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition" data-i18n="pipeline.prompt.export">⬇️ Export JSON</button>
+              <button type="button" data-click="goToStep" data-arg="4" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition" data-i18n="pipeline.prompt.goDrift">➡️ Verifica Drift</button>
+              <button type="button" data-click="copyFinalPrompt" class="text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg px-3 py-1.5 transition" data-i18n="pipeline.prompt.copy">Copia</button>
             </div>
           </div>
           <pre id="final-prompt-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-64 overflow-y-auto"></pre>
           <div id="agent-context-wrap" class="hidden mt-3">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🧠 [AGENT CONTEXT] · confidence <span id="agent-confidence" class="text-blue-400"></span></span>
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest"><span data-i18n="pipeline.prompt.confidenceLabel">🧠 [AGENT CONTEXT] · confidence</span> <span id="agent-confidence" class="text-blue-400"></span></span>
             </div>
             <pre id="agent-context-box" class="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-72 overflow-y-auto"></pre>
           </div>
@@ -519,34 +521,34 @@
           <!-- ── Esecuzione diretta con Claude Agent SDK ── -->
           <div class="mt-4 pt-4 border-t border-slate-800">
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">🤖 Esegui con agente</span>
-              <label for="agent-runner-select" class="sr-only">Agente</label><select id="agent-runner-select" data-change="onRunnerChange"
+              <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="pipeline.agent.title">🤖 Esegui con agente</span>
+              <label for="agent-runner-select" class="sr-only" data-i18n="pipeline.agent.runnerLabel">Agente</label><select id="agent-runner-select" data-change="onRunnerChange"
                                                                class="ml-auto rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="claude">Claude Code</option>
               </select>
-              <label for="agent-model-select" class="sr-only">Modello</label><select id="agent-model-select"
+              <label for="agent-model-select" class="sr-only" data-i18n="pipeline.agent.modelLabel">Modello</label><select id="agent-model-select"
                                                               class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="sonnet">🧠 Sonnet</option>
                 <option value="opus">🚀 Opus</option>
                 <option value="haiku">⚡ Haiku</option>
               </select>
-              <label for="agent-mode-select" class="sr-only">Modalità di esecuzione</label><select id="agent-mode-select" data-change="syncAttemptsAvailability"
+              <label for="agent-mode-select" class="sr-only" data-i18n="pipeline.agent.modeLabel">Modalità di esecuzione</label><select id="agent-mode-select" data-change="syncAttemptsAvailability"
                                                              class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="suggest">🔍 Suggest-only (sola lettura)</option>
-                <option value="agentic">⚡ Agentic (scrive nel progetto)</option>
-                <option value="oneshot">💬 One-shot (nessun tool)</option>
+                <option value="suggest" data-i18n="pipeline.agent.modeSuggest">🔍 Suggest-only (sola lettura)</option>
+                <option value="agentic" data-i18n="pipeline.agent.modeAgentic">⚡ Agentic (scrive nel progetto)</option>
+                <option value="oneshot" data-i18n="pipeline.agent.modeOneshot">💬 One-shot (nessun tool)</option>
               </select>
               <!-- Tentativi: quante volte il server può rilanciare l'agente se la suite di
                    code/<dev_type> resta rossa. Vale solo in agentic (le altre modalità non
                    scrivono codice, quindi non c'è niente da verificare). Le opzioni le
                    popola loadRunners() dal tetto vero del server. -->
-              <label for="agent-attempts-select" class="text-xs text-slate-400">Tentativi</label>
-              <select id="agent-attempts-select" title="Rilanci automatici finché la suite dell'ambito non passa"
+              <label for="agent-attempts-select" class="text-xs text-slate-400" data-i18n="pipeline.agent.attemptsLabel">Tentativi</label>
+              <select id="agent-attempts-select" title="Rilanci automatici finché la suite dell'ambito non passa" data-i18n-title="pipeline.agent.attemptsTitle"
                       class="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
                 <option value="1">1 · nessun rilancio</option>
               </select>
               <button type="button" id="agent-run-btn" data-click="runWithAgent"
-                class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+                class="rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-xs font-semibold px-4 py-1.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.agent.run">
                 ▶ Esegui
               </button>
             </div>
@@ -561,11 +563,11 @@
         <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <div class="text-sm font-semibold text-slate-200">🔍 Verifica del Drift</div>
-              <p class="text-xs text-slate-400 mt-0.5">Confronta il contratto (<code class="text-slate-400">canvas.md</code> e <code class="text-slate-400">spec.md</code>, che prevale) con il codice effettivamente scritto: ogni rilievo cita il codice ed è verificato sui file reali prima di entrare nel verdetto. Equivale a <code class="text-slate-400">index.py --check-drift</code>, eseguito tramite LLM locale (Ollama).</p>
+              <div class="text-sm font-semibold text-slate-200" data-i18n="pipeline.drift.header">🔍 Verifica del Drift</div>
+              <p class="text-xs text-slate-400 mt-0.5" data-i18n-html="pipeline.drift.desc">Confronta il contratto (<code class="text-slate-400">canvas.md</code> e <code class="text-slate-400">spec.md</code>, che prevale) con il codice effettivamente scritto: ogni rilievo cita il codice ed è verificato sui file reali prima di entrare nel verdetto. Equivale a <code class="text-slate-400">index.py --check-drift</code>, eseguito tramite LLM locale (Ollama).</p>
             </div>
             <button type="button" id="drift-check-btn" data-click="runDriftCheck"
-              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+              class="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 btn-on-primary text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.drift.run">
               Esegui verifica
             </button>
           </div>
@@ -577,13 +579,13 @@
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-400"></div>
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-blue-300"></div>
           </div>
-          <p class="text-xs text-slate-400">Analisi del Drift in corso tramite LLM locale…</p>
+          <p class="text-xs text-slate-400" data-i18n="pipeline.drift.loading">Analisi del Drift in corso tramite LLM locale…</p>
         </div>
 
         <div id="drift-report-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2 gap-2 flex-wrap">
-            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest">📊 Report Drift · Ollama</span>
-            <button type="button" data-click="goToStep" data-arg="5" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition">➡️ Vai all'Archiviazione</button>
+            <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="pipeline.drift.reportTitle">📊 Report Drift · Ollama</span>
+            <button type="button" data-click="goToStep" data-arg="5" class="text-xs font-semibold text-emerald-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-emerald-800 rounded-lg px-3 py-1.5 transition" data-i18n="pipeline.drift.goArchive">➡️ Vai all'Archiviazione</button>
           </div>
           <pre id="drift-report-box" class="text-xs text-slate-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-96 overflow-y-auto"></pre>
         </div>
@@ -594,11 +596,11 @@
         <div class="rounded-xl glass-card p-4 shrink-0">
           <div class="flex items-center justify-between gap-3">
             <div>
-              <div class="text-sm font-semibold text-slate-200">📦 Archiviazione e Re-indicizzazione</div>
-              <p class="text-xs text-slate-400 mt-0.5">Sposta <code class="text-slate-400">changes/&lt;feature&gt;</code> in <code class="text-slate-400">changes/archive/</code> e ricostruisce il Graph RAG locale (grafo + Qdrant + ColBERT). Equivale a <code class="text-slate-400">index.py --archive</code>. Operazione conclusiva e non reversibile dall'interfaccia.</p>
+              <div class="text-sm font-semibold text-slate-200" data-i18n="pipeline.archive.header">📦 Archiviazione e Re-indicizzazione</div>
+              <p class="text-xs text-slate-400 mt-0.5" data-i18n-html="pipeline.archive.desc">Sposta <code class="text-slate-400">changes/&lt;feature&gt;</code> in <code class="text-slate-400">changes/archive/</code> e ricostruisce il Graph RAG locale (grafo + Qdrant + ColBERT). Equivale a <code class="text-slate-400">index.py --archive</code>. Operazione conclusiva e non reversibile dall'interfaccia.</p>
             </div>
             <button type="button" id="archive-btn" data-click="runArchive"
-              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn">
+              class="shrink-0 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 transition disabled:opacity-50 disabled:cursor-not-allowed neon-btn" data-i18n="pipeline.archive.run">
               Archivia e re-indicizza
             </button>
           </div>
@@ -610,12 +612,12 @@
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
             <div class="loader-dot w-2.5 h-2.5 rounded-full bg-emerald-300"></div>
           </div>
-          <p class="text-xs text-slate-400">Archiviazione e re-indicizzazione del Graph RAG in corso… può richiedere qualche minuto.</p>
+          <p class="text-xs text-slate-400" data-i18n="pipeline.archive.loading">Archiviazione e re-indicizzazione del Graph RAG in corso… può richiedere qualche minuto.</p>
         </div>
 
         <div id="archive-report-card" class="hidden rounded-xl glass-card p-4 shrink-0 fade-in">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">✅ Esito archiviazione</span>
+            <span class="text-xs font-semibold text-emerald-400 uppercase tracking-widest" data-i18n="pipeline.archive.resultTitle">✅ Esito archiviazione</span>
           </div>
           <pre id="archive-report-box" class="text-xs text-emerald-200 whitespace-pre-wrap leading-relaxed bg-slate-950 border border-slate-800 rounded-lg p-3 max-h-96 overflow-y-auto"></pre>
         </div>

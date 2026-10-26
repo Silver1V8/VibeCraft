@@ -6,7 +6,9 @@
   <title>VibeCraft · Progetti</title>
   <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
   <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/i18n/messages.js"></script>
   <script src="/static/shared.js"></script>
+  <script src="/static/i18n.js"></script>
   <script src="/static/pages/workspace.js" defer></script>
 </head>
 <body class="workspace-shell">
@@ -18,78 +20,78 @@
     <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
     <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
   </svg>
-  <header id="project-bar" class="project-bar" aria-label="Progetti">
-    <button class="workspace-brand" type="button" data-click="showProjects" aria-label="VibeCraft, schermata progetti">
+  <header id="project-bar" class="project-bar" data-i18n-aria-label="workspace.barAria" aria-label="Progetti">
+    <button class="workspace-brand" type="button" data-click="showProjects" data-i18n-aria-label="workspace.brandAria" aria-label="VibeCraft, schermata progetti">
       <span class="workspace-mark" aria-hidden="true">V</span><span>VibeCraft</span>
     </button>
     <div id="project-context" class="project-context" hidden>
       <div class="project-switcher">
         <svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg>
-        <label class="workspace-sr-only" for="project-select">Progetto attivo</label>
-        <select id="project-select" data-change="selectProject" disabled><option value="">Caricamento…</option></select>
+        <label class="workspace-sr-only" for="project-select" data-i18n="workspace.activeProject">Progetto attivo</label>
+        <select id="project-select" data-change="selectProject" disabled><option value="" data-i18n="workspace.loadingShort">Caricamento…</option></select>
         <svg class="workspace-icon project-select-chevron" aria-hidden="true"><use href="#icon-chevron"/></svg>
       </div>
       <span id="project-index-status" class="project-index-status" role="status" aria-live="polite"></span>
-      <button id="project-index-update" type="button" class="btn btn-secondary" data-click="updateProjectIndex" hidden>Aggiorna indice</button>
+      <button id="project-index-update" type="button" class="btn btn-secondary" data-click="updateProjectIndex" data-i18n="workspace.updateIndex" hidden>Aggiorna indice</button>
     </div>
     <!-- Unica nav delle sezioni: prima era copiata in ognuna delle 6 pagine, con
          posizione diversa (a sinistra solo in Infografica). La pagina corrente è
          marcata da markWorkspaceNav() in workspace.js, anche con aria-current. -->
-    <nav id="workspace-nav" class="app-nav workspace-nav" aria-label="Sezioni" hidden>
-      <a href="/">Console</a>
-      <a href="/intake">Intake</a>
-      <a href="/pipeline">Pipeline</a>
-      <a href="/analysis">Analisi</a>
-      <a href="/eval">Eval</a>
+    <nav id="workspace-nav" class="app-nav workspace-nav" data-i18n-aria-label="workspace.navAria" aria-label="Sezioni" hidden>
+      <a href="/" data-i18n="workspace.navConsole">Console</a>
+      <a href="/intake" data-i18n="workspace.navIntake">Intake</a>
+      <a href="/pipeline" data-i18n="workspace.navPipeline">Pipeline</a>
+      <a href="/analysis" data-i18n="workspace.navAnalysis">Analisi</a>
+      <a href="/eval" data-i18n="workspace.navEval">Eval</a>
       <!-- Servizi spenti (/api/health/deps): compare solo se qualcosa non risponde. Sta
            nella riga della nav perché in riga 1 a 1440 px non c'è posto. -->
       <span id="service-status" class="project-index-status" data-state="error" role="status" aria-live="polite" hidden></span>
       <!-- L'infografica è documentazione dell'architettura, non una sezione di lavoro:
            sta a destra, separata. Lo stato del progetto che conteneva è in Console. -->
-      <a href="/infografica" class="workspace-guide">Guida</a>
+      <a href="/infografica" class="workspace-guide" data-i18n="workspace.navGuide">Guida</a>
     </nav>
     <div id="project-toolbar" class="project-toolbar" hidden>
-      <button id="project-home" type="button" class="btn btn-secondary" data-click="showProjects"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg>Progetti</button>
-      <button id="project-new" type="button" class="btn btn-secondary btn-icon" data-click="newProject" aria-label="Nuovo progetto" title="Nuovo progetto" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-plus"/></svg></button>
-      <button id="project-open" type="button" class="btn btn-secondary btn-icon" data-click="openProject" aria-label="Apri progetto esistente" title="Apri progetto esistente" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-open"/></svg></button>
+      <button id="project-home" type="button" class="btn btn-secondary" data-click="showProjects"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg><span data-i18n="workspace.projectsBtn">Progetti</span></button>
+      <button id="project-new" type="button" class="btn btn-secondary btn-icon" data-click="newProject" data-i18n-aria-label="workspace.newProjectAria" data-i18n-title="workspace.newProjectAria" aria-label="Nuovo progetto" title="Nuovo progetto" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-plus"/></svg></button>
+      <button id="project-open" type="button" class="btn btn-secondary btn-icon" data-click="openProject" data-i18n-aria-label="workspace.openProjectAria" data-i18n-title="workspace.openProjectAria" aria-label="Apri progetto esistente" title="Apri progetto esistente" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-open"/></svg></button>
     </div>
     <div id="workspace-theme" class="workspace-theme">
-      <label class="workspace-sr-only" for="theme-switcher">Tema</label>
-      <select id="theme-switcher" data-change="setUiTheme"><option value="classic">Classico</option><option value="matrix">Matrix</option></select>
+      <label class="workspace-sr-only" for="theme-switcher" data-i18n="shell.theme">Tema</label>
+      <select id="theme-switcher" data-change="setUiTheme"><option value="classic" data-i18n="shell.themeClassic">Classico</option><option value="matrix" data-i18n="shell.themeMatrix">Matrix</option></select>
     </div>
   </header>
   <main id="project-welcome" class="project-welcome" aria-labelledby="welcome-title" tabindex="-1">
     <div class="welcome-content">
       <div class="welcome-heading">
         <span class="workspace-mark welcome-mark" aria-hidden="true">V</span>
-        <div><h1 id="welcome-title">Benvenuto in VibeCraft.</h1><p>Scegli il progetto su cui lavorare.</p></div>
+        <div><h1 id="welcome-title" data-i18n="workspace.welcomeTitle">Benvenuto in VibeCraft.</h1><p data-i18n="workspace.welcomeLead">Scegli il progetto su cui lavorare.</p></div>
       </div>
       <div class="welcome-layout">
         <section class="welcome-projects" aria-labelledby="recent-title">
-          <div class="welcome-section-heading"><h2 id="recent-title">Progetti recenti</h2><span id="project-count"></span></div>
+          <div class="welcome-section-heading"><h2 id="recent-title" data-i18n="workspace.recentTitle">Progetti recenti</h2><span id="project-count"></span></div>
           <div class="project-search">
             <svg class="workspace-icon" aria-hidden="true"><use href="#icon-search"/></svg>
-            <label class="workspace-sr-only" for="project-search">Cerca un progetto</label>
-            <input id="project-search" type="search" placeholder="Cerca un progetto…" data-input="filterProjects" autocomplete="off" />
+            <label class="workspace-sr-only" for="project-search" data-i18n="workspace.searchLabel">Cerca un progetto</label>
+            <input id="project-search" type="search" placeholder="Cerca un progetto…" data-i18n-placeholder="workspace.searchPlaceholder" data-input="filterProjects" autocomplete="off" />
           </div>
           <div id="project-list" class="project-list"></div>
-          <p id="project-list-empty" class="project-list-empty" role="status">Caricamento progetti…</p>
+          <p id="project-list-empty" class="project-list-empty" role="status" data-i18n="workspace.loadingProjects">Caricamento progetti…</p>
         </section>
         <aside class="welcome-actions" aria-labelledby="start-title">
-          <h2 id="start-title">Inizia a lavorare</h2>
+          <h2 id="start-title" data-i18n="workspace.startTitle">Inizia a lavorare</h2>
           <button id="welcome-new" class="welcome-action welcome-action-primary" type="button" data-click="newProject" disabled>
             <span class="welcome-action-icon"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-plus"/></svg></span>
-            <span><strong>Nuovo progetto</strong><small>Crea una nuova area di lavoro.</small></span>
+            <span><strong data-i18n="workspace.newProject">Nuovo progetto</strong><small data-i18n="workspace.newProjectHint">Crea una nuova area di lavoro.</small></span>
             <svg class="workspace-icon welcome-action-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
           </button>
           <button id="welcome-open" class="welcome-action" type="button" data-click="openProject" disabled>
             <span class="welcome-action-icon"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-open"/></svg></span>
-            <span><strong>Apri progetto</strong><small>Collega una cartella VibeCraft esistente.</small></span>
+            <span><strong data-i18n="workspace.openProject">Apri progetto</strong><small data-i18n="workspace.openProjectHint">Collega una cartella VibeCraft esistente.</small></span>
             <svg class="workspace-icon welcome-action-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
           </button>
-          <p class="welcome-note">Codice, documenti e indice restano separati per ogni progetto.</p>
-          <p class="welcome-note"><a href="/static/manuale/percorso-guidato.html">Percorso guidato</a> — un caso reale, dall'inizio alla fine. <a href="/static/manuale/manuale-utente.html">Manuale utente</a> — i controlli, capitolo per capitolo.</p>
-          <p id="project-read-only" class="welcome-note" hidden>Modalità sola lettura: puoi aprire i progetti già registrati.</p>
+          <p class="welcome-note" data-i18n="workspace.welcomeNote">Codice, documenti e indice restano separati per ogni progetto.</p>
+          <p class="welcome-note" data-i18n-html="workspace.welcomeManuals"><a href="/static/manuale/percorso-guidato.html">Percorso guidato</a> — un caso reale, dall'inizio alla fine. <a href="/static/manuale/manuale-utente.html">Manuale utente</a> — i controlli, capitolo per capitolo.</p>
+          <p id="project-read-only" class="welcome-note" data-i18n="workspace.readOnly" hidden>Modalità sola lettura: puoi aprire i progetti già registrati.</p>
         </aside>
       </div>
     </div>
@@ -108,23 +110,23 @@
       <label id="project-input-label" for="project-input"></label>
       <input id="project-input" required autocomplete="off" />
       <p id="project-help" class="confirm-message"></p>
-      <button id="project-browse" type="button" class="btn btn-secondary" data-click="browseExistingProject" hidden>Sfoglia cartella</button>
+      <button id="project-browse" type="button" class="btn btn-secondary" data-click="browseExistingProject" data-i18n="workspace.browseFolder" hidden>Sfoglia cartella</button>
       <p id="project-error" role="alert"></p>
       <div class="confirm-actions">
-        <button type="button" class="btn btn-secondary" data-click="cancelProject">Annulla</button>
-        <button id="project-submit" type="submit" class="btn btn-primary">Crea</button>
+        <button type="button" class="btn btn-secondary" data-click="cancelProject" data-i18n="workspace.cancel">Annulla</button>
+        <button id="project-submit" type="submit" class="btn btn-primary" data-i18n="workspace.create">Crea</button>
       </div>
     </form>
   </dialog>
-  <div id="workspace-status" role="status" hidden><span id="workspace-message">Caricamento…</span>
-    <button type="button" id="workspace-retry" class="btn btn-secondary" data-click="retryNavigation" hidden>Riprova</button>
+  <div id="workspace-status" role="status" hidden><span id="workspace-message" data-i18n="workspace.loadingShort">Caricamento…</span>
+    <button type="button" id="workspace-retry" class="btn btn-secondary" data-click="retryNavigation" data-i18n="common.retry" hidden>Riprova</button>
   </div>
-  <div id="workspace-skeleton" role="status" aria-label="Caricamento della pagina" hidden>
+  <div id="workspace-skeleton" role="status" data-i18n-aria-label="workspace.skeletonAria" aria-label="Caricamento della pagina" hidden>
     <div class="skeleton-body" aria-hidden="true">
       <div class="skeleton-column"><span class="skeleton-block skeleton-card"></span><span class="skeleton-block skeleton-card is-tall"></span></div>
       <span class="skeleton-block skeleton-main"></span>
     </div>
   </div>
-  <main id="workspace-pages" aria-label="Area di lavoro VibeCraft" hidden></main>
+  <main id="workspace-pages" data-i18n-aria-label="workspace.pagesAria" aria-label="Area di lavoro VibeCraft" hidden></main>
 </body>
 </html>

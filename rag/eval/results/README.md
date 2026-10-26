@@ -1,3 +1,5 @@
+Italiano | [English](README.en.md)
+
 # Evidenze delle valutazioni
 
 ## Scalabilità sidecar — 21 settembre 2026

@@ -4,6 +4,10 @@
       /* themeVar / startMatrixRain / stopMatrixRain: vedi /static/shared.js.
          Al cambio tema shared.js invoca window.onThemeChange -> ridisegna Mermaid. */
       window.onThemeChange = function () { renderMermaidDiagram(); };
+      window.onLangChange = function () {
+        document.title = t('infografica.docTitle');
+        renderMermaidDiagram();
+      };
 
       /* ──────────── MERMAID: diagramma ricostruito a runtime dai colori del tema ──────────── */
       let mermaidRenderSeq = 0;
@@ -26,38 +30,38 @@ graph TD
     classDef networkx fill:${nxFill},stroke:${nxStroke},stroke-width:2px,color:${nxText};
     classDef ollama fill:${olFill},stroke:${olStroke},stroke-width:2px,color:${olText};
 
-    U["Utente / App"]:::user
-    S("FastAPI: api/routes_retrieval.py<br>Rotta POST /ask (X-API-Key)"):::fastapi
-    RT{"core/router.py (M2)<br>domanda strutturale?"}:::fastapi
-    GA[("NetworkX: graph_ops.graph_query<br>risposta diretta nodi/archi<br>status: graph_answer · no LLM")]:::networkx
-    K{"Cache /ask (LRU in-process)<br>progetto + versione + domanda"}:::fastapi
-    V{"Embedding bge-m3 su CPU<br>dense + sparse + ColBERT"}:::fastapi
-    Q[("Qdrant server (Docker)<br>Ricerca ibrida Top-K<br>fusione per rank")]:::qdrant
-    NPY[("Sidecar ColBERT NPY<br>su disco, per documento")]:::fastapi
-    CB{"Rerank ColBERT locale<br>+ peso autorità<br>+ precedenza fra fonti"}:::fastapi
-    CS[("Ricerca nel codice<br>vettori dei simboli (code.npz)<br>in memoria")]:::fastapi
-    G[("NetworkX (graph.json)<br>Espansione BFS + fiducia sul cammino<br>seed = doc dei chunk")]:::networkx
-    C["Contesto chunk-aware:<br>testo delle SEZIONI recuperate<br>+ codice pertinente + struttura del grafo"]:::fastapi
-    O{"core/llm.py · purpose ask<br>provider da config<br>(Ollama / Claude)"}:::ollama
-    R["JSON: answer + graph_context<br>+ breakdown ranking + latency"]:::user
+    U["${t('infografica.mm.U')}"]:::user
+    S("${t('infografica.mm.S')}"):::fastapi
+    RT{"${t('infografica.mm.RT')}"}:::fastapi
+    GA[("${t('infografica.mm.GA')}")]:::networkx
+    K{"${t('infografica.mm.K')}"}:::fastapi
+    V{"${t('infografica.mm.V')}"}:::fastapi
+    Q[("${t('infografica.mm.Q')}")]:::qdrant
+    NPY[("${t('infografica.mm.NPY')}")]:::fastapi
+    CB{"${t('infografica.mm.CB')}"}:::fastapi
+    CS[("${t('infografica.mm.CS')}")]:::fastapi
+    G[("${t('infografica.mm.G')}")]:::networkx
+    C["${t('infografica.mm.C')}"]:::fastapi
+    O{"${t('infografica.mm.O')}"}:::ollama
+    R["${t('infografica.mm.R')}"]:::user
 
-    U -->|"Domanda JSON"| S
-    S -->|"0. Router deterministico"| RT
-    RT -->|"strutturale → graph"| GA
-    GA -->|"graph_result"| R
-    RT -->|"altrimenti → hybrid"| K
-    K -->|"già chiesta: risposta servita"| R
-    K -->|"nuova domanda"| V
-    V -->|"1. Vettori Domanda"| Q
-    Q -->|"2. Candidati Top-K"| CB
-    NPY -->|"Chunk richiesti"| CB
-    V -->|"2b. Vettore denso"| CS
-    CS -->|"Simboli pertinenti"| C
-    CB -->|"3. Chunk ri-ordinati"| G
-    G -->|"4. Nodi Estesi"| C
-    C -->|"5. Prompt Rigido + Fascicolo"| O
-    O -->|"6. Testo Sintetizzato"| S
-    S -->|"7. Ritorno payload"| R`;
+    U -->|"${t('infografica.mm.eUS')}"| S
+    S -->|"${t('infografica.mm.eSRT')}"| RT
+    RT -->|"${t('infografica.mm.eRTGA')}"| GA
+    GA -->|"${t('infografica.mm.eGAR')}"| R
+    RT -->|"${t('infografica.mm.eRTK')}"| K
+    K -->|"${t('infografica.mm.eKR')}"| R
+    K -->|"${t('infografica.mm.eKV')}"| V
+    V -->|"${t('infografica.mm.eVQ')}"| Q
+    Q -->|"${t('infografica.mm.eQCB')}"| CB
+    NPY -->|"${t('infografica.mm.eNPYCB')}"| CB
+    V -->|"${t('infografica.mm.eVCS')}"| CS
+    CS -->|"${t('infografica.mm.eCSC')}"| C
+    CB -->|"${t('infografica.mm.eCBG')}"| G
+    G -->|"${t('infografica.mm.eGC')}"| C
+    C -->|"${t('infografica.mm.eCO')}"| O
+    O -->|"${t('infografica.mm.eOS')}"| S
+    S -->|"${t('infografica.mm.eSR')}"| R`;
       }
 
       async function renderMermaidDiagram() {
@@ -95,7 +99,7 @@ graph TD
           if (!mermaidRenderPending) container.innerHTML = svg;
         } catch (e) {
           if (!container.getBoundingClientRect().width) mermaidRenderPending = true;
-          if (!mermaidRenderPending) container.innerHTML = `<p style="color:#f87171">Errore nel rendering del diagramma: ${escapeHtml(e.message)}</p>`;
+          if (!mermaidRenderPending) container.innerHTML = `<p style="color:#f87171">${escapeHtml(t('infografica.mermaid.error', { msg: e.message }))}</p>`;
         } finally {
           // Mermaid lascia il proprio wrapper nel body quando il layout fallisce.
           document.getElementById('d' + renderId)?.remove();

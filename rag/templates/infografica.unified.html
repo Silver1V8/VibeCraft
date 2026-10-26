@@ -10,7 +10,9 @@
 
     <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
     <link rel="stylesheet" href="/static/shared.css" />
+    <script src="/static/i18n/messages.js"></script>
     <script src="/static/shared.js"></script>
+    <script src="/static/i18n.js"></script>
 
     <style>
       /* ═══════════ PALETTE (Punto 5 contratto: CSS vars per tema) ═══════════ */
@@ -145,38 +147,38 @@
 
     <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
        da tastiera attraversa 6 pill a ogni caricamento. -->
-    <a href="#main-content" class="skip-link">Vai al contenuto</a>
+    <a href="#main-content" class="skip-link" data-i18n="infografica.skip">Vai al contenuto</a>
 
     <canvas id="matrix-rain" aria-hidden="true"></canvas>
     <div class="scanlines"></div>
 
     <main id="main-content" tabindex="-1" class="prose-text relative z-10 max-w-6xl mx-auto">
         <header class="text-center mb-12">
-            <h1 class="glow-text text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4">
+            <h1 class="glow-text text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500 mb-4" data-i18n="infografica.hero.h1">
                 Architettura Graph RAG multi-progetto
             </h1>
-            <p class="text-lg text-slate-600">Una console, progetti separati: codice, documenti, indice e pipeline dedicati; modelli e istanza Qdrant condivisi.</p>
-            <p class="text-sm text-slate-500 mt-2">Documentazione aggiornata al 14 ottobre 2026 · delta copy-on-write, embedding del reindex su GPU in un processo separato, ID progetto leggibili.</p>
+            <p class="text-lg text-slate-600" data-i18n="infografica.hero.lead">Una console, progetti separati: codice, documenti, indice e pipeline dedicati; modelli e istanza Qdrant condivisi.</p>
+            <p class="text-sm text-slate-500 mt-2" data-i18n="infografica.hero.meta">Documentazione aggiornata al 14 ottobre 2026 · delta copy-on-write, embedding del reindex su GPU in un processo separato, ID progetto leggibili.</p>
         </header>
 
         <section id="project-architecture" class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="projects-title">
-            <h2 id="projects-title" class="text-2xl font-bold mb-4">Una console, più progetti</h2>
-            <p class="text-sm text-slate-600 mb-4"><strong>Nuovo progetto</strong> crea le cartelle; <strong>Apri progetto esistente</strong> registra una root con <code class="font-mono">project.yaml</code>. Selezione per scheda e nessuna indicizzazione automatica di una cartella vuota. L'ID (e la cartella) nasce dal nome: «SGD_FE» diventa <code class="font-mono">SGD-FE</code>, gli omonimi prendono <code class="font-mono">-2</code>, <code class="font-mono">-3</code>; niente <code class="font-mono">_</code>, che renderebbe ambigui i nomi delle collection. Gli ID esadecimali dei progetti creati prima restano validi.</p>
+            <h2 id="projects-title" class="text-2xl font-bold mb-4" data-i18n="infografica.projects.h2">Una console, più progetti</h2>
+            <p class="text-sm text-slate-600 mb-4" data-i18n-html="infografica.projects.intro"><strong>Nuovo progetto</strong> crea le cartelle; <strong>Apri progetto esistente</strong> registra una root con <code class="font-mono">project.yaml</code>. Selezione per scheda e nessuna indicizzazione automatica di una cartella vuota. L'ID (e la cartella) nasce dal nome: «SGD_FE» diventa <code class="font-mono">SGD-FE</code>, gli omonimi prendono <code class="font-mono">-2</code>, <code class="font-mono">-3</code>; niente <code class="font-mono">_</code>, che renderebbe ambigui i nomi delle collection. Gli ID esadecimali dei progetti creati prima restano validi.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div class="rounded-lg border border-slate-200 p-4">
-                    <h3 class="font-semibold mb-2">Progetto A</h3>
-                    <p class="text-sm font-mono">code/ · docs/ · changes/ · database/</p>
-                    <p class="text-sm text-slate-600 mt-2">Snapshot, staging, validazioni, job e storico A. Alias Qdrant <code class="font-mono">vibecraft_&lt;id-A&gt;</code>.</p>
+                    <h3 class="font-semibold mb-2" data-i18n="infografica.projects.aTitle">Progetto A</h3>
+                    <p class="text-sm font-mono" data-i18n="infografica.projects.paths">code/ · docs/ · changes/ · database/</p>
+                    <p class="text-sm text-slate-600 mt-2" data-i18n-html="infografica.projects.aBody">Snapshot, staging, validazioni, job e storico A. Alias Qdrant <code class="font-mono">vibecraft_&lt;id-A&gt;</code>.</p>
                 </div>
                 <div class="rounded-lg border border-slate-200 p-4">
-                    <h3 class="font-semibold mb-2">Progetto B</h3>
-                    <p class="text-sm font-mono">code/ · docs/ · changes/ · database/</p>
-                    <p class="text-sm text-slate-600 mt-2">Snapshot, staging, validazioni, job e storico B. Alias Qdrant <code class="font-mono">vibecraft_&lt;id-B&gt;</code>.</p>
+                    <h3 class="font-semibold mb-2" data-i18n="infografica.projects.bTitle">Progetto B</h3>
+                    <p class="text-sm font-mono" data-i18n="infografica.projects.paths">code/ · docs/ · changes/ · database/</p>
+                    <p class="text-sm text-slate-600 mt-2" data-i18n-html="infografica.projects.bBody">Snapshot, staging, validazioni, job e storico B. Alias Qdrant <code class="font-mono">vibecraft_&lt;id-B&gt;</code>.</p>
                 </div>
             </div>
-            <p class="text-sm text-slate-600 mb-2"><strong>Condivisi:</strong> FastAPI, client Qdrant e pesi dei modelli. Risorse caricate a richiesta, massimo due snapshot residenti; indicizzazioni HTTP serializzate nel processo e writer lock per progetto.</p>
-            <p class="text-sm text-slate-600 mb-2"><strong>Identità:</strong> <code class="font-mono">X-VibeCraft-Project</code> nelle API, <code class="font-mono">index.py --project &lt;id&gt;</code> nella CLI, <code class="font-mono">VIBECRAFT_PROJECT_ID</code> nel MCP. Richieste e job conservano il progetto originario durante un cambio di selezione.</p>
-            <p class="text-sm text-slate-600"><strong>Compatibilità:</strong> il progetto iniziale <code class="font-mono">legacy</code> ha una root dedicata in <code class="font-mono">projects/legacy/</code>, popolata una volta dalla baseline (<code class="font-mono">templates/</code> nell'immagine Docker). La console parte anche senza indice; retrieval indisponibile dichiarato. In Docker le root apribili sono sotto <code class="font-mono">/app/projects</code>; browse nativo soltanto con bind locale.</p>
+            <p class="text-sm text-slate-600 mb-2" data-i18n-html="infografica.projects.shared"><strong>Condivisi:</strong> FastAPI, client Qdrant e pesi dei modelli. Risorse caricate a richiesta, massimo due snapshot residenti; indicizzazioni HTTP serializzate nel processo e writer lock per progetto.</p>
+            <p class="text-sm text-slate-600 mb-2" data-i18n-html="infografica.projects.identity"><strong>Identità:</strong> <code class="font-mono">X-VibeCraft-Project</code> nelle API, <code class="font-mono">index.py --project &lt;id&gt;</code> nella CLI, <code class="font-mono">VIBECRAFT_PROJECT_ID</code> nel MCP. Richieste e job conservano il progetto originario durante un cambio di selezione.</p>
+            <p class="text-sm text-slate-600" data-i18n-html="infografica.projects.compat"><strong>Compatibilità:</strong> il progetto iniziale <code class="font-mono">legacy</code> ha una root dedicata in <code class="font-mono">projects/legacy/</code>, popolata una volta dalla baseline (<code class="font-mono">templates/</code> nell'immagine Docker). La console parte anche senza indice; retrieval indisponibile dichiarato. In Docker le root apribili sono sotto <code class="font-mono">/app/projects</code>; browse nativo soltanto con bind locale.</p>
         </section>
 
         <!-- Lo stato del progetto (ex fascia KPI da /api/health) è nella Console: questa
@@ -188,7 +190,7 @@
              dall'altra. Il box del diagramma non l'aveva, quindi restava
              attaccato alla prima riga di card sotto di lui. -->
         <div class="bg-white glass-card rounded-xl shadow-xl p-8 border border-slate-200 mb-12">
-            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2">Flusso del progetto selezionato (POST /ask)</h2>
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 border-b border-slate-200 pb-2" data-i18n="infografica.flow.h2">Flusso del progetto selezionato (POST /ask)</h2>
             <!-- id="mermaid-wrap": distanzia il diagramma dai bordi della card
                  (era attaccato) e da' allo svg un contenitore su cui basare la
                  scala, visto che mermaid lo renderizza alla sua dimensione
@@ -202,45 +204,45 @@
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-slate-700 p-6">
                 <div class="text-3xl mb-3">🛠️</div>
-                <h2 class="text-xl font-bold mb-2">1. L'Indicizzatore</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card1.title">1. L'Indicizzatore</h2>
                 <p class="text-sm font-mono bg-slate-100 p-1 rounded text-pink-600 mb-2">core/indexing.py + core/chunking.py</p>
-                <p class="text-sm text-slate-600 mb-2">Legge documenti e codice, li spezza per sezione, estrae le entità. Full rebuild o delta copy-on-write: si ri-calcolano solo i file cambiati.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card1.short">Legge documenti e codice, li spezza per sezione, estrae le entità. Full rebuild o delta copy-on-write: si ri-calcolano solo i file cambiati.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##; le sezioni oltre 2500 caratteri diventano più parti <code class="bg-gray-200 px-1 rounded font-mono">-p02</code>…) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Ogni progetto usa i propri sorgenti e artefatti. Un delta non vuoto è <strong>copy-on-write</strong>: la nuova versione copia dal padre i punti Qdrant invariati e ri-calcola gli embedding solo dei sorgenti cambiati; se il padre non è riusabile ripiega sul full rebuild (<code class="bg-gray-200 px-1 rounded font-mono">fallback_reason</code>, <code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_DELTA_MODE</code>). Un no-op non riscrive dati. Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card1.detail"><p class="mt-2">Legge docs multi-formato (md/txt/docx/xlsx/pdf), li spezza in <strong>chunk per sezione</strong> (heading ##; le sezioni oltre 2500 caratteri diventano più parti <code class="bg-gray-200 px-1 rounded font-mono">-p02</code>…) ed estrae le entità <code class="bg-gray-200 px-1 rounded font-mono">[UTENTE]</code>. Ogni progetto usa i propri sorgenti e artefatti. Un delta non vuoto è <strong>copy-on-write</strong>: la nuova versione copia dal padre i punti Qdrant invariati e ri-calcola gli embedding solo dei sorgenti cambiati; se il padre non è riusabile ripiega sul full rebuild (<code class="bg-gray-200 px-1 rounded font-mono">fallback_reason</code>, <code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_DELTA_MODE</code>). Un no-op non riscrive dati. Indicizza anche il codice via AST, con parser per linguaggio nel sottopacchetto <code class="bg-gray-200 px-1 rounded font-mono">code_index/</code> (ts, java, c#, sql, shell, razor, ci, docker…), escludendo sempre dipendenze/build (<code class="bg-gray-200 px-1 rounded font-mono">node_modules</code>, <code class="bg-gray-200 px-1 rounded font-mono">bin</code>/<code class="bg-gray-200 px-1 rounded font-mono">obj</code>…). CLI: <code class="bg-gray-200 px-1 rounded font-mono">index.py</code>.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">🗄️</div>
-                <h2 class="text-xl font-bold mb-2">2. Il Cervello Semantico</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card2.title">2. Il Cervello Semantico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">Qdrant server (Docker) + bge-m3</p>
-                <p class="text-sm text-slate-600 mb-2">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, autorità dichiarata e precedenza fra fonti.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card2.short">Ricerca ibrida dense + sparse su Qdrant, rerank ColBERT, autorità dichiarata e precedenza fra fonti.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT locale</strong> con lettura a richiesta dei chunk dai sidecar NPY su disco, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong>; i job di reindex usano la <strong>GPU in un processo separato</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core.gpu_worker</code>) che a fine job libera tutta la VRAM, condivisa con Ollama, con ripiego sulla CPU se la memoria non basta (<code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_REINDEX_DEVICE</code>).</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card2.detail"><p class="mt-2">Database vettoriale in <strong>server mode</strong> (via <code class="bg-gray-200 px-1 rounded font-mono">QDRANT_URL</code>, niente lock locale). Ricerca <strong>ibrida dense + sparse</strong> con fusione per rank, poi <strong>rerank ColBERT locale</strong> con lettura a richiesta dei chunk dai sidecar NPY su disco, ri-ponderazione per <strong>autorità</strong> e infine la <strong>precedenza dichiarata</strong> fra fonti (se un autore scrive <code class="bg-gray-200 px-1 rounded font-mono">SUPERA_IN_PRIORITÀ</code> verso un altro documento, nessun chunk del subordinato precede il prevalente: la decisione umana viene per ultima e vince). L'autorità è quella <strong>dichiarata nel frontmatter</strong> del documento, con il peso di classe come ripiego e un peso più basso e distinto per le fonti <strong>senza classificazione</strong>. La forma è <strong>attenuata</strong> — <code class="bg-gray-200 px-1 rounded font-mono">score × ((1−α) + α·authority)</code>, non la moltiplicazione piena: misurato, α=1 costa 15 punti di recall@5. I pesi vivono in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> e si ricalibrano sul golden set con <code class="bg-gray-200 px-1 rounded font-mono">eval/calibrate_authority.py</code> — sempre con split di validazione e a un <em>k</em> dove la recall non sia satura. <code class="bg-gray-200 px-1 rounded font-mono">bge-m3</code> gira su <strong>CPU per le query</strong>; i job di reindex usano la <strong>GPU in un processo separato</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core.gpu_worker</code>) che a fine job libera tutta la VRAM, condivisa con Ollama, con ripiego sulla CPU se la memoria non basta (<code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_REINDEX_DEVICE</code>).</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">🕸️</div>
-                <h2 class="text-xl font-bold mb-2">3. Il Grafo delle Relazioni</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card3.title">3. Il Grafo delle Relazioni</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">NetworkX (graph.json)</p>
-                <p class="text-sm text-slate-600 mb-2">Nodi a livello di sezione e archi tipizzati con natura e affidabilità: alimenta BFS e la pagina Analisi (mappa semantica e propagazione dell'impatto).</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card3.short">Nodi a livello di sezione e archi tipizzati con natura e affidabilità: alimenta BFS e la pagina Analisi (mappa semantica e propagazione dell'impatto).</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + NPY/NPZ, senza pickle). Alimenta BFS e la pagina <strong>Analisi</strong>: la <strong>mappa semantica</strong> delle sezioni, con gruppi di documenti nominati dalla cartella prevalente e coppie di sezioni molto simili (escluse le canvas review, simili per costruzione), affiancata al dettaglio del nodo scelto, cioè relazioni e <strong>propagazione dell'impatto</strong>.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card3.detail"><p class="mt-2">Nodi a <strong>livello di sezione</strong> (non solo doc): i chunk diventano nodi e il <strong>code-link è per sezione</strong>. Archi tipizzati dal frontmatter più <strong>alias di autorità risolti in archi doc→doc</strong> che connettono il KG. Ogni arco porta una <strong>natura</strong> — <em>strutturale</em> (dedotta dal filesystem o da un parser: se è sbagliata è un bug), <em>curata</em> (dichiarata da un umano nel frontmatter), <em>inferita</em> (congettura di un algoritmo, penalizzata per costruzione) — e la relativa <strong>affidabilità</strong>. Da lì la <strong>fiducia sul cammino</strong> (<code class="bg-gray-200 px-1 rounded font-mono">trust_paths</code>): un nodo raggiunto via grafo vale <code class="bg-gray-200 px-1 rounded font-mono">1/lunghezza × Π(affidabilità)</code> sul cammino più breve — non PageRank, perché serve un punteggio relativo alla domanda, non una centralità globale. I nodi <code class="bg-gray-200 px-1 rounded font-mono">entity</code>/<code class="bg-gray-200 px-1 rounded font-mono">MENTIONS</code> passano da un <strong>vaglio di forma</strong> (<code class="bg-gray-200 px-1 rounded font-mono">extract_entities</code>) che scarta checkbox, link e segnaposto dei template — solo riferimenti veri, niente rumore. Artefatti <strong>sicuri e ispezionabili</strong> (JSON + NPY/NPZ, senza pickle). Alimenta BFS e la pagina <strong>Analisi</strong>: la <strong>mappa semantica</strong> delle sezioni, con gruppi di documenti nominati dalla cartella prevalente e coppie di sezioni molto simili (escluse le canvas review, simili per costruzione), affiancata al dettaglio del nodo scelto, cioè relazioni e <strong>propagazione dell'impatto</strong>.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">🧠</div>
-                <h2 class="text-xl font-bold mb-2">4. Il Layer LLM</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card4.title">4. Il Layer LLM</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/llm.py (multi-provider)</p>
-                <p class="text-sm text-slate-600 mb-2">Un solo client per tutte le chiamate generative: provider e modello si scelgono per scopo.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card4.short">Un solo client per tutte le chiamate generative: provider e modello si scelgono per scopo.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail. Un <strong>budget guard giornaliero</strong> sulla spesa Claude è pronto in <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code>, ma <strong>spento di default</strong>: il blocco <code class="bg-gray-200 px-1 rounded font-mono">llm_settings.budget</code> è commentato in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code>, perché con <code class="bg-gray-200 px-1 rounded font-mono">active_provider: ollama</code> nessun purpose chiama Claude oggi — non c'è spesa da proteggere. Va scommentato quando un purpose passa su <code class="bg-gray-200 px-1 rounded font-mono">anthropic</code>: da quel momento, superata la soglia (<code class="bg-gray-200 px-1 rounded font-mono">daily_usd</code>), i purpose su Claude deviano automaticamente su Ollama, senza mai far fallire una generazione. Fanno eccezione i run dell'agente Claude (<code class="bg-gray-200 px-1 rounded font-mono">POST /api/pipeline/agent/run</code>, runner <code class="bg-gray-200 px-1 rounded font-mono">claude</code>): il loro costo entra nello stesso contatore e, non avendo un fallback, oltre soglia vengono <strong>rifiutati con 429</strong> (soglia morbida: i run già in corso possono superarla).</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card4.detail"><p class="mt-2">Le chiamate generative della pipeline (drift, canvas, propose, validate, explore, review) passano da un layer unico: provider e modello si scelgono <strong>per scopo</strong> in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code> (es. Ollama per il drift, Claude per il canvas). Riceve solo il fascicolo scremato dai motori deterministici. <strong>Anche <code class="bg-gray-200 px-1 rounded font-mono">POST /ask</code></strong> passa da qui (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>): un solo client, stessi guardrail. Un <strong>budget guard giornaliero</strong> sulla spesa Claude è pronto in <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code>, ma <strong>spento di default</strong>: il blocco <code class="bg-gray-200 px-1 rounded font-mono">llm_settings.budget</code> è commentato in <code class="bg-gray-200 px-1 rounded font-mono">rag_config.yaml</code>, perché con <code class="bg-gray-200 px-1 rounded font-mono">active_provider: ollama</code> nessun purpose chiama Claude oggi — non c'è spesa da proteggere. Va scommentato quando un purpose passa su <code class="bg-gray-200 px-1 rounded font-mono">anthropic</code>: da quel momento, superata la soglia (<code class="bg-gray-200 px-1 rounded font-mono">daily_usd</code>), i purpose su Claude deviano automaticamente su Ollama, senza mai far fallire una generazione. Fanno eccezione i run dell'agente Claude (<code class="bg-gray-200 px-1 rounded font-mono">POST /api/pipeline/agent/run</code>, runner <code class="bg-gray-200 px-1 rounded font-mono">claude</code>): il loro costo entra nello stesso contatore e, non avendo un fallback, oltre soglia vengono <strong>rifiutati con 429</strong> (soglia morbida: i run già in corso possono superarla).</p></div>
                 </details>
             </div>
 
@@ -250,46 +252,46 @@
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-blue-500 p-6">
                 <div class="text-3xl mb-3">🌐</div>
-                <h2 class="text-xl font-bold mb-2">5. Lo Strato HTTP</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card5.title">5. Lo Strato HTTP</h2>
                 <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">api/ + server.py (FastAPI)</p>
-                <p class="text-sm text-slate-600 mb-2">Route sottili sopra le funzioni pure di core/. Bind locale, X-API-Key, snapshot immutabile.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card5.short">Route sottili sopra le funzioni pure di core/. Bind locale, X-API-Key, snapshot immutabile.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload. Le domande ripetute su <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> sono servite da una <strong>cache LRU in-process</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/ask_cache.py</code>), chiave = progetto + versione + parametri + domanda + fingerprint delle impostazioni: dopo un reindex o un rollback le voci vecchie semplicemente smettono di essere consultate.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card5.detail"><p class="mt-2">Route handler sottili che iniettano le risorse nelle funzioni pure di <code class="bg-gray-200 px-1 rounded font-mono">core/</code>. Bind di default su 127.0.0.1; <code class="bg-gray-200 px-1 rounded font-mono">/api/*</code> e <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> protetti da <strong>X-API-Key</strong>. L'indice vive in uno <strong>snapshot immutabile</strong>: mai versioni miste durante il reload. Le domande ripetute su <code class="bg-gray-200 px-1 rounded font-mono">/ask</code> sono servite da una <strong>cache LRU in-process</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/ask_cache.py</code>), chiave = progetto + versione + parametri + domanda + fingerprint delle impostazioni: dopo un reindex o un rollback le voci vecchie semplicemente smettono di essere consultate.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">🔀</div>
-                <h2 class="text-xl font-bold mb-2">6. La Pipeline VibeCraft</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card6.title">6. La Pipeline VibeCraft</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/pipeline.py</p>
-                <p class="text-sm text-slate-600 mb-2">Explore, Canvas, Propose, Validate, poi l'agente — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card6.short">Explore, Canvas, Propose, Validate, poi l'agente — con Drift e Archive a chiudere il ciclo, grounded sul grafo.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Il <strong>tipo di sviluppo</strong> è una sottocartella reale di <code class="bg-gray-200 px-1 rounded font-mono">code/</code>, creabile dalla pagina; il <strong>dry-run</strong> mostra le sorgenti del Canvas senza chiamare il modello. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'avvio in-app è disponibile con Claude SDK e Ollama locale (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card6.detail"><p class="mt-2">Explore → Canvas → Propose → Validate → esecuzione dell'agente, con <strong>Drift check</strong> e <strong>Archive</strong> a chiudere il ciclo. Il <strong>tipo di sviluppo</strong> è una sottocartella reale di <code class="bg-gray-200 px-1 rounded font-mono">code/</code>, creabile dalla pagina; il <strong>dry-run</strong> mostra le sorgenti del Canvas senza chiamare il modello. Canvas e Propose sono <strong>grounded nel Graph RAG</strong>; Propose chiude con i <strong>punti aperti</strong> in JSON (<code class="bg-gray-200 px-1 rounded font-mono">core/open_points.py</code>, perimetro advisory). L'avvio agentic passa dal <strong>gate del contratto</strong> (card 15) e l'avvio in-app è disponibile con Claude SDK e Ollama locale (card 16). All'archive la <strong>canvas review</strong> confronta il Canvas col diff reale e le lezioni rientrano nei prompt futuri.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">♻️</div>
-                <h2 class="text-xl font-bold mb-2">7. Il Reindex Automatico</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card7.title">7. Il Reindex Automatico</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">api/reindex.py</p>
-                <p class="text-sm text-slate-600 mb-2">Coda e journal per progetto, writer lock cross-processo e un solo slot HTTP di indicizzazione nel processo.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card7.short">Coda e journal per progetto, writer lock cross-processo e un solo slot HTTP di indicizzazione nel processo.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><strong>Manager, coda e journal separati per progetto</strong>: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Il journal distingue fine build e snapshot pronto; dopo un crash un reload pendente è marcato interrotto, conservando l’esito della build. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card7.detail"><p class="mt-2"><strong>Manager, coda e journal separati per progetto</strong>: reindex incrementale e archive passano dalla stessa <strong>coda a coalescing</strong> del ReindexManager (webhook ravvicinati fusi, mai persi), con job-id interrogabili e <strong>journal JSONL</strong> persistente. La mutua esclusione vale anche <strong>cross-processo</strong>: CLI e server si escludono con un <strong>writer lock</strong> OS (<code class="bg-gray-200 px-1 rounded font-mono">database/.writer.lock</code>), niente artefatti misti. Il journal distingue fine build e snapshot pronto; dopo un crash un reload pendente è marcato interrotto, conservando l’esito della build. Trigger via <strong>webhook GitLab</strong> con secret token o manuale dalla console.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">📦</div>
-                <h2 class="text-xl font-bold mb-2">8. Gli Artefatti (blue/green)</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card8.title">8. Gli Artefatti (blue/green)</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/artifacts.py</p>
-                <p class="text-sm text-slate-600 mb-2">ColBERT su disco, letto quando serve. Versioni immutabili e riuso dei documenti invariati.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card8.short">ColBERT su disco, letto quando serve. Versioni immutabili e riuso dei documenti invariati.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Grafo e metadati in JSON; ColBERT in <strong>NPY fp16 per documento</strong>, con indice JSON degli offset; dense e codice restano NPZ. Il reader mappa il file, copia il solo chunk richiesto e chiude la mappa. I delta riusano i file immutati tramite hard link, con copia come fallback. La retention conserva le versioni ancora usate dai lettori.</p>
-                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. Ogni versione ha una collection propria, anche quella di un delta copy-on-write; rollback, retention e GC restano nel namespace del progetto. Solo nel percorso legacy (<code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_INDEX_MODE=legacy</code>) i delta mutano una collection condivisa e il rollback <strong>non riavvolge quei punti</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card8.detail"><p class="mt-2">Grafo e metadati in JSON; ColBERT in <strong>NPY fp16 per documento</strong>, con indice JSON degli offset; dense e codice restano NPZ. Il reader mappa il file, copia il solo chunk richiesto e chiude la mappa. I delta riusano i file immutati tramite hard link, con copia come fallback. La retention conserva le versioni ancora usate dai lettori.</p>
+                  <p class="mt-2">Ogni build scrive una nuova versione: lo swap del puntatore <code class="bg-gray-200 px-1 rounded font-mono">CURRENT</code> è atomico. Ogni versione ha una collection propria, anche quella di un delta copy-on-write; rollback, retention e GC restano nel namespace del progetto. Solo nel percorso legacy (<code class="bg-gray-200 px-1 rounded font-mono">VIBECRAFT_INDEX_MODE=legacy</code>) i delta mutano una collection condivisa e il rollback <strong>non riavvolge quei punti</strong>. Gli indici NPZ restano leggibili, ma richiedono <code class="bg-gray-200 px-1 rounded font-mono">index.py --migrate-colbert-npy</code> prima di un delta non vuoto. Eseguire <code class="bg-gray-200 px-1 rounded font-mono">index.py --check-integrity</code> prima e dopo: la migrazione non ripara Qdrant.</p></div>
                 </details>
             </div>
 
@@ -299,45 +301,45 @@
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-blue-500 p-6">
                 <div class="text-3xl mb-3">🩺</div>
-                <h2 class="text-xl font-bold mb-2">9. L'Osservabilità</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card9.title">9. L'Osservabilità</h2>
                 <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">GET /api/health + logging</p>
-                <p class="text-sm text-slate-600 mb-2">Stato dell'indice, freschezza del manifest, ultimo job e raggiungibilità delle dipendenze.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card9.short">Stato dell'indice, freschezza del manifest, ultimo job e raggiungibilità delle dipendenze.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><code class="font-mono">/api/health/live</code> verifica il processo anche senza indice; <code class="font-mono">/api/health</code> descrive il progetto selezionato: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama; <code class="font-mono">/api/health/deps</code> controlla solo Qdrant e Ollama e alimenta ogni 30 s l'avviso nella barra della console, mentre lo stato del progetto è nel pannello della Console. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card9.detail"><p class="mt-2"><code class="font-mono">/api/health/live</code> verifica il processo anche senza indice; <code class="font-mono">/api/health</code> descrive il progetto selezionato: stato snapshot in memoria, freschezza del manifest, ultimo job di reindex e pending, raggiungibilità di Qdrant/Ollama; <code class="font-mono">/api/health/deps</code> controlla solo Qdrant e Ollama e alimenta ogni 30 s l'avviso nella barra della console, mentre lo stato del progetto è nel pannello della Console. <strong>Logging strutturato</strong> e ultimo alert dei batch notturni da <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> (webhook).</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">✅</div>
-                <h2 class="text-xl font-bold mb-2">10. L'Eval-Gate Continuo</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card10.title">10. L'Eval-Gate Continuo</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">core/eval_gate.py + golden set</p>
-                <p class="text-sm text-slate-600 mb-2">Ogni nuova versione, full o delta, è valutata; una metrica sotto soglia blocca se il gate è configurato come bloccante.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card10.short">Ogni nuova versione, full o delta, è valutata; una metrica sotto soglia blocca se il gate è configurato come bloccante.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Ogni <strong>nuova versione</strong> è valutata sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. Anche il delta copy-on-write passa dal gate (bocciato: <code class="bg-gray-200 px-1 rounded font-mono">completed_not_promoted</code>); solo i delta del percorso legacy promuovono direttamente. Il golden set è <code class="font-mono">&lt;root-progetto&gt;/eval/golden.yaml</code>, storico e alert sono nel database del progetto. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card10.detail"><p class="mt-2">Ogni <strong>nuova versione</strong> è valutata sul golden set prima della promozione: se recall@k scende sotto soglia e il gate è bloccante, la promozione viene fermata. Anche il delta copy-on-write passa dal gate (bocciato: <code class="bg-gray-200 px-1 rounded font-mono">completed_not_promoted</code>); solo i delta del percorso legacy promuovono direttamente. Il golden set è <code class="font-mono">&lt;root-progetto&gt;/eval/golden.yaml</code>, storico e alert sono nel database del progetto. Un candidato illeggibile blocca il gate API; errori della valutazione o golden set assente possono invece lasciare passare la promozione. Il gate misura anche la <strong>saturazione</strong> della propria metrica: se recall@k vale 1.000 su <em>tutti</em> i casi non è severo, è cieco — lo supera qualunque candidata, anche peggiorata — e lo dichiara con un alert. Il golden set contiene per questo casi <strong>avversariali</strong>, in cui una fonte a bassa autorità matcha lessicalmente meglio della normativa che risponde: sono l'unico posto dove il boost di autorità può essere falsificato.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">🌙</div>
-                <h2 class="text-xl font-bold mb-2">11. I Check Notturni</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card11.title">11. I Check Notturni</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">scripts/nightly_consistency</p>
-                <p class="text-sm text-slate-600 mb-2">Check notturno economico sulla coerenza del grafo, più un check profondo settimanale.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card11.short">Check notturno economico sulla coerenza del grafo, più un check profondo settimanale.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Check notturno <strong>economico</strong> (coerenza grafo, zero embedding) che segnala il drift, più un <strong>check profondo settimanale</strong> con re-embedding. Le anomalie diventano alert su <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> e webhook.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card11.detail"><p class="mt-2">Check notturno <strong>economico</strong> (coerenza grafo, zero embedding) che segnala il drift, più un <strong>check profondo settimanale</strong> con re-embedding. Le anomalie diventano alert su <code class="bg-gray-200 px-1 rounded font-mono">alerts.jsonl</code> e webhook.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">📈</div>
-                <h2 class="text-xl font-bold mb-2">12. Il Trend di Qualità</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card12.title">12. Il Trend di Qualità</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">core/eval_history.py + /eval</p>
-                <p class="text-sm text-slate-600 mb-2">La recall non è solo misurata ma storicizzata: /eval la grafica nel tempo accanto alla qualità dei canvas, e le regressioni diventano alert.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card12.short">La recall non è solo misurata ma storicizzata: /eval la grafica nel tempo accanto alla qualità dei canvas, e le regressioni diventano alert.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica nel tempo la recall del gate (oggi <code class="bg-gray-200 px-1 rounded font-mono">recall@2</code>, soglia 0.75 da <code class="bg-gray-200 px-1 rounded font-mono">eval_gate</code>) (marcatori gate vs eval manuale) insieme alla <strong>qualità dei canvas</strong> (fedeltà e divergenze delle review), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card12.detail"><p class="mt-2">La recall non è più solo misurata a ogni promozione ma <strong>storicizzata</strong> (<code class="bg-gray-200 px-1 rounded font-mono">history.jsonl</code> append-only) e resa un trend: la pagina <strong>/eval</strong> grafica nel tempo la recall del gate (oggi <code class="bg-gray-200 px-1 rounded font-mono">recall@2</code>, soglia 0.75 da <code class="bg-gray-200 px-1 rounded font-mono">eval_gate</code>) (marcatori gate vs eval manuale) insieme alla <strong>qualità dei canvas</strong> (fedeltà e divergenze delle review), <code class="bg-gray-200 px-1 rounded font-mono">/api/health</code> espone il trend up/flat/down e le <strong>regressioni lente</strong> diventano alert.</p></div>
                 </details>
             </div>
 
@@ -347,77 +349,77 @@
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-blue-500 p-6">
                 <div class="text-3xl mb-3">📥</div>
-                <h2 class="text-xl font-bold mb-2">13. L'Intake con Review</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card13.title">13. L'Intake con Review</h2>
                 <p class="text-sm font-mono bg-blue-50 p-1 rounded text-blue-700 mb-2">core/intake.py + /intake</p>
-                <p class="text-sm text-slate-600 mb-2">Unico ingresso di documenti e progetti: tutto passa da uno staging e da un'approvazione esplicita.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card13.short">Unico ingresso di documenti e progetti: tutto passa da uno staging e da un'approvazione esplicita.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Cinque flussi, un solo staging: genera con Ollama, importa documenti, raffina con LLM (opt-in, a finestre, con forbice di lunghezza), review, import di progetti in <code class="bg-gray-200 px-1 rounded font-mono">code/</code> con <strong>plan/apply additivo</strong> (mai sovrascritture). Conversione <strong>in locale</strong> con una matrice misurata: <strong>Docling</strong> per i PDF (OCR solo sulle scansioni), <strong>lettura diretta</strong> di XLSX/XLS (openpyxl, xlrd), <strong>LibreOffice</strong> headless per DOC/PPT, MarkItDown per il resto. <code class="bg-gray-200 px-1 rounded font-mono">approve</code> non sovrascrive mai un file in <code class="bg-gray-200 px-1 rounded font-mono">docs/</code> e scrive sotto writer lock, senza indicizzare: approvati i file, <strong>Aggiorna indice</strong> li indicizza tutti insieme. Gli ambiti di <code class="bg-gray-200 px-1 rounded font-mono">code/</code> sono le sottocartelle reali, condivise con la Pipeline e creabili dalla pagina.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card13.detail"><p class="mt-2">Cinque flussi, un solo staging: genera con Ollama, importa documenti, raffina con LLM (opt-in, a finestre, con forbice di lunghezza), review, import di progetti in <code class="bg-gray-200 px-1 rounded font-mono">code/</code> con <strong>plan/apply additivo</strong> (mai sovrascritture). Conversione <strong>in locale</strong> con una matrice misurata: <strong>Docling</strong> per i PDF (OCR solo sulle scansioni), <strong>lettura diretta</strong> di XLSX/XLS (openpyxl, xlrd), <strong>LibreOffice</strong> headless per DOC/PPT, MarkItDown per il resto. <code class="bg-gray-200 px-1 rounded font-mono">approve</code> non sovrascrive mai un file in <code class="bg-gray-200 px-1 rounded font-mono">docs/</code> e scrive sotto writer lock, senza indicizzare: approvati i file, <strong>Aggiorna indice</strong> li indicizza tutti insieme. Gli ambiti di <code class="bg-gray-200 px-1 rounded font-mono">code/</code> sono le sottocartelle reali, condivise con la Pipeline e creabili dalla pagina.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-emerald-500 p-6">
                 <div class="text-3xl mb-3">🔌</div>
-                <h2 class="text-xl font-bold mb-2">14. L'MCP di Sola Lettura</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card14.title">14. L'MCP di Sola Lettura</h2>
                 <p class="text-sm font-mono bg-emerald-50 p-1 rounded text-emerald-700 mb-2">mcp_server.py (stdio)</p>
-                <p class="text-sm text-slate-600 mb-2">Tre tool locali per gli agenti: retrieval, ricerca nel codice, query sul grafo. Nessuna scrittura.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card14.short">Tre tool locali per gli agenti: retrieval, ricerca nel codice, query sul grafo. Nessuna scrittura.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><code class="bg-gray-200 px-1 rounded font-mono">vibecraft_retrieve</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_code_search</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_graph_query</code>: un adattatore stdio sopra il backend HTTP, raggiungibile <strong>solo su loopback</strong> (niente redirect, proxy o credenziali nell'URL). Limiti espliciti su k, testo e dimensione (oltre 2 MiB la risposta è rifiutata), troncamenti dichiarati. Non espone <code class="bg-gray-200 px-1 rounded font-mono">/ask</code>, intake, reindex, shell né l'avvio dell'agente. È il contesto su richiesta del runner Claude in-app e dei client esterni. <code class="font-mono">VIBECRAFT_PROJECT_ID</code> fissa il target per sessione e genera l'header progetto; senza ID si usa esclusivamente legacy.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card14.detail"><p class="mt-2"><code class="bg-gray-200 px-1 rounded font-mono">vibecraft_retrieve</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_code_search</code>, <code class="bg-gray-200 px-1 rounded font-mono">vibecraft_graph_query</code>: un adattatore stdio sopra il backend HTTP, raggiungibile <strong>solo su loopback</strong> (niente redirect, proxy o credenziali nell'URL). Limiti espliciti su k, testo e dimensione (oltre 2 MiB la risposta è rifiutata), troncamenti dichiarati. Non espone <code class="bg-gray-200 px-1 rounded font-mono">/ask</code>, intake, reindex, shell né l'avvio dell'agente. È il contesto su richiesta del runner Claude in-app e dei client esterni. <code class="font-mono">VIBECRAFT_PROJECT_ID</code> fissa il target per sessione e genera l'header progetto; senza ID si usa esclusivamente legacy.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-purple-500 p-6">
                 <div class="text-3xl mb-3">🚦</div>
-                <h2 class="text-xl font-bold mb-2">15. Il Gate del Contratto</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card15.title">15. Il Gate del Contratto</h2>
                 <p class="text-sm font-mono bg-purple-50 p-1 rounded text-purple-700 mb-2">core/pipeline_gate.py + pipeline_store.py</p>
-                <p class="text-sm text-slate-600 mb-2">In agentic parte solo un contratto validato e congelato: il server ricalcola l'ammissione, il client non può forzarla.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card15.short">In agentic parte solo un contratto validato e congelato: il server ricalcola l'ammissione, il client non può forzarla.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2">Validate congela Canvas, Spec, decisioni e fonti in un record con hash SHA-256; <code class="bg-gray-200 px-1 rounded font-mono">evaluate_gate</code> distingue missing/invalid, mismatch, stale e unavailable (<strong>409</strong> se il contratto è cambiato, <strong>503</strong> se l'infrastruttura manca). I rilievi bloccanti sono separati dai <strong>suggerimenti</strong>, che non toccano il gate. Le decisioni dell'operatore (accepted/resolved) hanno <code class="bg-gray-200 px-1 rounded font-mono">origin_verified: false</code> imposto dal server. Validazioni, decisioni, lock ed eventi in <code class="font-mono">database/pipeline/events.jsonl</code> appartengono al progetto: una validazione di A non autorizza una feature omonima di B. Le prove multi-progetto verificano questo isolamento; il contenuto dichiarato dall'agente resta da valutare nel merito.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card15.detail"><p class="mt-2">Validate congela Canvas, Spec, decisioni e fonti in un record con hash SHA-256; <code class="bg-gray-200 px-1 rounded font-mono">evaluate_gate</code> distingue missing/invalid, mismatch, stale e unavailable (<strong>409</strong> se il contratto è cambiato, <strong>503</strong> se l'infrastruttura manca). I rilievi bloccanti sono separati dai <strong>suggerimenti</strong>, che non toccano il gate. Le decisioni dell'operatore (accepted/resolved) hanno <code class="bg-gray-200 px-1 rounded font-mono">origin_verified: false</code> imposto dal server. Validazioni, decisioni, lock ed eventi in <code class="font-mono">database/pipeline/events.jsonl</code> appartengono al progetto: una validazione di A non autorizza una feature omonima di B. Le prove multi-progetto verificano questo isolamento; il contenuto dichiarato dall'agente resta da valutare nel merito.</p></div>
                 </details>
             </div>
 
             <div class="bg-white glass-card rounded-xl shadow-lg border-t-4 border-orange-500 p-6">
                 <div class="text-3xl mb-3">🤖</div>
-                <h2 class="text-xl font-bold mb-2">16. I Runner dell'Agente</h2>
+                <h2 class="text-xl font-bold mb-2" data-i18n="infografica.card16.title">16. I Runner dell'Agente</h2>
                 <p class="text-sm font-mono bg-orange-50 p-1 rounded text-orange-700 mb-2">agent_bridge.py + agent_runners.py</p>
-                <p class="text-sm text-slate-600 mb-2">Claude SDK e Ollama locale per il lancio in-app. Codex/Cursor: export prompt e MCP esterno; avvio integrato disabilitato.</p>
+                <p class="text-sm text-slate-600 mb-2" data-i18n="infografica.card16.short">Claude SDK e Ollama locale per il lancio in-app. Codex/Cursor: export prompt e MCP esterno; avvio integrato disabilitato.</p>
                 <details class="text-sm text-slate-600">
-                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800">Dettaglio tecnico</summary>
-                  <p class="mt-2"><strong>Claude SDK</strong> e <strong>Ollama locale</strong> ricevono il contesto catturato del progetto; letture sicure e scritture solo in <code class="font-mono">code/</code>, senza shell per i tool in-app. Link, segreti, <code class="font-mono">.git</code> e altre root sono esclusi. <strong>Codex/Cursor integrati sono disabilitati</strong> con <code class="font-mono">native_read_isolation_unverified</code>: cwd e sola lettura non verificano isolamento delle letture. Export prompt e MCP esterno restano disponibili. <code class="font-mono">GET /api/pipeline/agent/runners</code> distingue installazione, lancio disponibile, export e motivo del blocco.</p>
+                  <summary class="cursor-pointer text-slate-500 hover:text-slate-800" data-i18n="infografica.detailSummary">Dettaglio tecnico</summary>
+                  <div data-i18n-html="infografica.card16.detail"><p class="mt-2"><strong>Claude SDK</strong> e <strong>Ollama locale</strong> ricevono il contesto catturato del progetto; letture sicure e scritture solo in <code class="font-mono">code/</code>, senza shell per i tool in-app. Link, segreti, <code class="font-mono">.git</code> e altre root sono esclusi. <strong>Codex/Cursor integrati sono disabilitati</strong> con <code class="font-mono">native_read_isolation_unverified</code>: cwd e sola lettura non verificano isolamento delle letture. Export prompt e MCP esterno restano disponibili. <code class="font-mono">GET /api/pipeline/agent/runners</code> distingue installazione, lancio disponibile, export e motivo del blocco.</p></div>
                 </details>
             </div>
 
         </div>
 
         <section class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="sidecar-title">
-            <h2 id="sidecar-title" class="text-xl font-bold mb-3">Scalabilità misurata: meno RAM, delta non sempre più veloci</h2>
-            <p class="text-sm text-slate-600 mb-4">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati sul percorso legacy, non indicatori in tempo reale. Il delta copy-on-write dei progetti ordinari (12 ottobre) è successivo: queste curve non ne misurano il costo.</p>
+            <h2 id="sidecar-title" class="text-xl font-bold mb-3" data-i18n="infografica.scale.h2">Scalabilità misurata: meno RAM, delta non sempre più veloci</h2>
+            <p class="text-sm text-slate-600 mb-4" data-i18n="infografica.scale.intro">Misure del 21 settembre 2026 su Windows e CPU a quattro thread. Sono esperimenti separati sul percorso legacy, non indicatori in tempo reale. Il delta copy-on-write dei progetti ordinari (12 ottobre) è successivo: queste curve non ne misurano il costo.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <h3 class="font-semibold mb-2">Memoria durante la build</h3>
-                    <p class="text-2xl font-bold mb-2">6,436 → 3,152 GiB</p>
-                    <p class="text-sm text-slate-600">Picco RSS campionato su 32 documenti / 64 chunk: una prova per variante. Formato e raggruppamento dell’encoding cambiano insieme; il risultato non vale automaticamente per ogni corpus.</p>
+                    <h3 class="font-semibold mb-2" data-i18n="infografica.scale.memTitle">Memoria durante la build</h3>
+                    <p class="text-2xl font-bold mb-2" data-i18n="infografica.scale.memValue">6,436 → 3,152 GiB</p>
+                    <p class="text-sm text-slate-600" data-i18n="infografica.scale.memBody">Picco RSS campionato su 32 documenti / 64 chunk: una prova per variante. Formato e raggruppamento dell’encoding cambiano insieme; il risultato non vale automaticamente per ogni corpus.</p>
                 </div>
                 <div>
-                    <h3 class="font-semibold mb-2">Delta di 100 piccoli documenti</h3>
-                    <p class="text-2xl font-bold mb-2">15,934 → 58,099 s</p>
-                    <p class="text-sm text-slate-600">Mediana di cinque prove, da NPZ a NPY, fino allo snapshot pronto. L’encoding per documento rallenta questo caso. Le curve complete coprono 150 prove per versione su documenti, codice e misto.</p>
+                    <h3 class="font-semibold mb-2" data-i18n="infografica.scale.deltaTitle">Delta di 100 piccoli documenti</h3>
+                    <p class="text-2xl font-bold mb-2" data-i18n="infografica.scale.deltaValue">15,934 → 58,099 s</p>
+                    <p class="text-sm text-slate-600" data-i18n="infografica.scale.deltaBody">Mediana di cinque prove, da NPZ a NPY, fino allo snapshot pronto. L’encoding per documento rallenta questo caso. Le curve complete coprono 150 prove per versione su documenti, codice e misto.</p>
                 </div>
             </div>
-            <p class="text-sm text-slate-600 mt-4">Con un documento modificato su 100, il writer scrive 51.328 byte NPY e riusa 99 file. Grafo, metadati e vettori dense/code mantengono costi globali. Batching limitato studiato ma non implementato; nessuna soglia universale di volume o sharding dimostrata.</p>
-            <p class="text-sm mt-3"><a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md">Metodo della prova full</a> · <a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md">Curve, compromessi e limiti</a></p>
+            <p class="text-sm text-slate-600 mt-4" data-i18n="infografica.scale.reuse">Con un documento modificato su 100, il writer scrive 51.328 byte NPY e riusa 99 file. Grafo, metadati e vettori dense/code mantengono costi globali. Batching limitato studiato ma non implementato; nessuna soglia universale di volume o sharding dimostrata.</p>
+            <p class="text-sm mt-3"><a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE5.md"><span data-i18n="infografica.scale.linkMethod">Metodo della prova full</span></a> · <a class="underline" href="https://github.com/Silver1V8/VibeCraft/blob/main/archive/eval-results/sidecar_npy_20260921/evidence/PHASE6.md"><span data-i18n="infografica.scale.linkCurves">Curve, compromessi e limiti</span></a></p>
         </section>
 
         <section class="bg-white glass-card rounded-xl shadow-lg p-6 mb-12" aria-labelledby="verification-title">
-            <h2 id="verification-title" class="text-xl font-bold mb-3">Verifica multi-progetto · 5 ottobre 2026</h2>
-            <p class="text-sm text-slate-600 mb-2">Gate finale: <strong>2.348 test superati</strong>, 20 skip per privilegi file-symlink Windows coperti da prove Linux complementari. Review indipendente, lint, check Node, integrazione HTTP/Qdrant/browser e persistenza Docker verificati su fixture isolate.</p>
-            <p class="text-sm text-slate-600">Provider simulati ai confini; Docker provato con sorgente corrente montato in runtime CPU esistente. Build Docker da zero e GitHub Actions non eseguiti. La prima versione non include eliminazione/spostamento/rinomina, ricerca fra progetti, ACL per progetto o embedding differenti.</p>
+            <h2 id="verification-title" class="text-xl font-bold mb-3" data-i18n="infografica.verify.h2">Verifica multi-progetto · 5 ottobre 2026</h2>
+            <p class="text-sm text-slate-600 mb-2" data-i18n-html="infografica.verify.p1">Gate finale: <strong>2.348 test superati</strong>, 20 skip per privilegi file-symlink Windows coperti da prove Linux complementari. Review indipendente, lint, check Node, integrazione HTTP/Qdrant/browser e persistenza Docker verificati su fixture isolate.</p>
+            <p class="text-sm text-slate-600" data-i18n="infografica.verify.p2">Provider simulati ai confini; Docker provato con sorgente corrente montato in runtime CPU esistente. Build Docker da zero e GitHub Actions non eseguiti. La prima versione non include eliminazione/spostamento/rinomina, ricerca fra progetti, ACL per progetto o embedding differenti.</p>
         </section>
 
         <div class="mt-8 bg-blue-50 text-blue-800 p-4 rounded-lg border border-blue-200">
-            <p><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Una domanda già fatta sulla stessa versione dell'indice esce dalla <strong>cache</strong>, senza embedding né LLM. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è calcolato da Qdrant e NetworkX sul progetto selezionato; ranking, code-link e recupero possono essere parziali, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
+            <p data-i18n-html="infografica.magic.html"><strong>💡 La Magia del Determinismo:</strong> allo Step 0 un <strong>router deterministico</strong> (<code class="bg-gray-200 px-1 rounded font-mono">core/router.py</code>, sole regole lessicali) intercetta le domande <strong>strutturali</strong> — enumerazioni, relazioni, impatto, adiacenza — e le risponde direttamente dal grafo (<code class="bg-gray-200 px-1 rounded font-mono">graph_answer</code>) <strong>senza LLM</strong>. Una domanda già fatta sulla stessa versione dell'indice esce dalla <strong>cache</strong>, senza embedding né LLM. Per tutte le altre l'LLM interviene solo allo Step 6: tutto il "pescaggio" del contesto (Step 1-5: ricerca ibrida, rerank ColBERT, autorità dichiarata, precedenza fra fonti, espansione BFS pesata dalla fiducia sul cammino) è calcolato da Qdrant e NetworkX sul progetto selezionato; ranking, code-link e recupero possono essere parziali, e la sintesi finale passa dal layer unico <code class="bg-gray-200 px-1 rounded font-mono">core/llm.py</code> (purpose <code class="bg-gray-200 px-1 rounded font-mono">ask</code>), lo stesso usato dal resto della pipeline.</p>
         </div>
 
     </main>
