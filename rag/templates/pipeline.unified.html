@@ -250,14 +250,14 @@
           </button>
         </div>
         <p id="feature-folder-hint" class="text-xs text-slate-400 mt-2 font-mono"></p>
-        <p id="session-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-2">Bozze salvate solo in questo browser.</p>
+        <p id="session-status" role="status" aria-live="polite" class="text-xs text-slate-300 mt-2" data-i18n="pipeline.session.draftsLocalOnly">Bozze salvate solo in questo browser.</p>
         <button type="button" id="session-restore-btn" hidden data-click="restorePipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100" data-i18n="pipeline.feature.restoreDraft">Ripristina bozza locale</button>
         <button type="button" id="session-discard-btn" hidden data-click="discardPipelineDraft" class="mt-2 rounded-lg border border-slate-600 px-3 py-2 text-xs text-slate-100" data-i18n="pipeline.feature.discardDraft">Scarta bozza e usa file server</button>
 
         <label for="dev-type-select" class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-2" data-i18n="pipeline.feature.devTypeLabel">Tipo di sviluppo</label>
         <select id="dev-type-select" data-change="onDevTypeChange"
                                                      class="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
-          <option value="">Caricamento…</option>
+          <option value="" data-i18n="common.loading">Caricamento…</option>
         </select>
         <div class="flex items-center gap-2 mt-2">
           <label for="dev-type-new-input" class="sr-only" data-i18n="pipeline.feature.newDevTypeSr">Nuovo tipo di sviluppo</label>
@@ -293,7 +293,7 @@
               <span>
                 <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.1.name">Explore</span>
                 <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.1.sub">Intervista requisiti</span>
-                <span id="step-badge-1" class="block text-xs font-mono step-badge-pending">non generato</span>
+                <span id="step-badge-1" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.current">in corso</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-1" aria-hidden="true"></div>
@@ -304,7 +304,7 @@
               <span>
                 <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.2.name">Canvas</span>
                 <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.2.sub">REASONS Canvas</span>
-                <span id="step-badge-2" class="block text-xs font-mono step-badge-pending">non generato</span>
+                <span id="step-badge-2" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-2" aria-hidden="true"></div>
@@ -315,7 +315,7 @@
               <span>
                 <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.3.name">Propose</span>
                 <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.3.sub">Spec + Prompt finale</span>
-                <span id="step-badge-3" class="block text-xs font-mono step-badge-pending">non generato</span>
+                <span id="step-badge-3" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-3" aria-hidden="true"></div>
@@ -326,7 +326,7 @@
               <span>
                 <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.4.name">Drift</span>
                 <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.4.sub">Verifica disallineamento</span>
-                <span id="step-badge-4" class="block text-xs font-mono step-badge-pending">non eseguito</span>
+                <span id="step-badge-4" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
             <div class="step-line h-0.5 flex-1 min-w-6" id="step-line-4" aria-hidden="true"></div>
@@ -337,7 +337,7 @@
               <span>
                 <span class="block text-sm font-semibold text-slate-100 group-hover:text-blue-400 transition" data-i18n="pipeline.steps.5.name">Archivia</span>
                 <span class="hidden 2xl:block text-xs text-slate-400" data-i18n="pipeline.steps.5.sub">Archivio + Re-index</span>
-                <span id="step-badge-5" class="block text-xs font-mono step-badge-pending">non eseguito</span>
+                <span id="step-badge-5" class="block text-xs font-mono step-badge-pending" data-i18n="pipeline.step.pending">in attesa</span>
               </span>
             </button>
           </li>
