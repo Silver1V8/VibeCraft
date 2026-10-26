@@ -96,7 +96,7 @@
       norms:        { label: 'Norms',        code: 'NRM' },
       safeguards:   { label: 'Safeguards',   code: 'SAF' },
     };
-    const REASONS_DEFAULT = { label: 'Non classificato', code: '—' };
+    const REASONS_DEFAULT = { labelKey: 'dashboard.pillarUnclassified', code: '—' };
 
     /* Costruisce l'oggetto colore vis.js del pilastro leggendo i token del tema.
        themeVar() è in cache e si azzera al cambio tema, quindi qui non c'è il
@@ -151,18 +151,29 @@
     }
 
     /* ──────────── UTILITIES ──────────── */
+    let lastStatusState = 'idle';
+    let lastGraphMode = 'contextual';
+    let lastExpandAllCount = 0;
+    let lastNodeDetailsId = null;
+    let lastContextText = null;  // null = mai interrogato; '' = interrogato senza contesto
+
+    function uiLocale() {
+      return (typeof currentLang === 'function' && currentLang() === 'en') ? 'en-US' : 'it-IT';
+    }
+
     function setStatus(state) {
       const dot  = document.getElementById('status-dot');
       const text = document.getElementById('status-text');
+      lastStatusState = state;
       const map = {
-        idle:    { color:'bg-slate-500',  label:'In attesa' },
-        loading: { color:'bg-amber-400',  label:'Elaborazione…' },
-        success: { color:'bg-emerald-400',label:'Risposta ricevuta' },
-        error:   { color:'bg-red-400',    label:'Errore' },
+        idle:    { color:'bg-slate-500',  labelKey:'dashboard.statusIdle' },
+        loading: { color:'bg-amber-400',  labelKey:'dashboard.statusLoading' },
+        success: { color:'bg-emerald-400',labelKey:'dashboard.statusSuccess' },
+        error:   { color:'bg-red-400',    labelKey:'dashboard.statusError' },
       };
       const s = map[state] || map.idle;
       dot.className  = `w-2 h-2 rounded-full ${s.color}`;
-      text.textContent = s.label;
+      text.textContent = t(s.labelKey);
     }
 
     /* Il contatore parte e si ferma con il loader — sempre azzerato all'avvio, sempre
@@ -191,7 +202,7 @@
     function showGraphError(message, onRetry) {
       const box = document.getElementById('graph-error');
       document.getElementById('graph-empty').style.display = 'none';
-      document.getElementById('graph-error-detail').textContent = message || 'Errore sconosciuto.';
+      document.getElementById('graph-error-detail').textContent = message || t('common.unknownError');
       const retry = document.getElementById('graph-error-retry');
       retry.onclick = () => { hideGraphError(); if (typeof onRetry === 'function') onRetry(); };
       box.style.display = '';
@@ -224,7 +235,7 @@
       }
 
       document.getElementById('graph-counter').textContent =
-        `${nodes.length} nodi · ${edges.length} archi`;
+        t('dashboard.graphCounter', { nodes: nodes.length, edges: edges.length });
       updateGraphHint();
     }
 
@@ -312,12 +323,9 @@
       clearTimeout(fitTimer);
       fitTimer = setTimeout(() => fitGraph(), 1500);
     }
-    const GRAPH_HINT = {
-      '3d': 'Trascina per ruotare · rotellina per lo zoom · tasto destro per spostare · clic su un nodo per i dettagli',
-      '2d': 'Trascina per spostare · rotellina per lo zoom · clic su un nodo per i dettagli',
-    };
     function updateGraphHint() {
-      document.getElementById('graph-hint').textContent = lastGraphNodes.length ? GRAPH_HINT[graphViewMode] : '';
+      const key = graphViewMode === '3d' ? 'dashboard.hint3d' : 'dashboard.hint2d';
+      document.getElementById('graph-hint').textContent = lastGraphNodes.length ? t(key) : '';
     }
 
     /* `rerender: false` serve a chi sta per disegnare comunque un grafo nuovo
@@ -397,20 +405,37 @@
       const title      = document.getElementById('graph-title');
       const badge      = document.getElementById('graph-mode-badge');
       const restoreBtn = document.getElementById('restore-graph-btn');
+      lastGraphMode = mode;
 
       if (mode === 'full') {
-        title.textContent = 'Grafo completo';
+        title.textContent = t('dashboard.graphFull');
         document.getElementById('graph-expand-btn').style.display = 'none';
         badge.classList.remove('hidden');
         badge.classList.add('flex');
         // Mostra "Ripristina" solo se esiste un grafo contestuale salvato
         restoreBtn.style.display = lastQueryGraphData ? '' : 'none';
       } else {
-        title.textContent = 'Grafo contestuale';
+        title.textContent = t('dashboard.graphContextual');
         badge.classList.add('hidden');
         badge.classList.remove('flex');
         restoreBtn.style.display = 'none';
       }
+    }
+
+    function fullGraphBtnLabelHtml(loading) {
+      if (loading) {
+        return `
+        <svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+        </svg>
+        <span>${t('common.loading')}</span>`;
+      }
+      return `
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+          </svg>
+          <span data-i18n="dashboard.showFullGraph">${t('dashboard.showFullGraph')}</span>`;
     }
 
     let contextExpanded = false;
@@ -431,12 +456,7 @@
     async function showFullGraph() {
       const btn = document.getElementById('full-graph-btn');
       btn.disabled = true;
-      btn.innerHTML = `
-        <svg class="w-3.5 h-3.5 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-        </svg>
-        Caricamento…`;
+      btn.innerHTML = fullGraphBtnLabelHtml(true);
       setStatus('loading');
 
       try {
@@ -524,11 +544,7 @@
         showGraphError(e.message, showFullGraph);
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
-          </svg>
-          Visualizza grafo completo`;
+        btn.innerHTML = fullGraphBtnLabelHtml(false);
       }
     }
 
@@ -549,7 +565,7 @@
       // Regole → viola  |  Termini di glossario → ciano smeraldo
       const accent    = isRule ? themeVar('--tooltip-rule-accent', '#5eeed4') : themeVar('--tooltip-term-accent', '#34d399');
       const divider   = isRule ? themeVar('--tooltip-rule-divider', '#0a4a3d') : themeVar('--tooltip-term-divider', '#1a3d32');
-      const label     = isRule ? 'Regola normativa' : 'Termine di glossario';
+      const label     = isRule ? t('dashboard.tooltipRule') : t('dashboard.tooltipTerm');
       const descColor = themeVar('--tooltip-desc', '#c8f5d4');
 
       return `
@@ -590,19 +606,21 @@
     function closeNodeDetails() {
       const panel = document.getElementById('node-details');
       if (panel) panel.style.display = 'none';
+      lastNodeDetailsId = null;
       if (network) network.unselectAll();
     }
 
     function renderNodeDetails(nodeId) {
       const node = currentNodes.get(nodeId);
       if (!node) return;
+      lastNodeDetailsId = nodeId;
 
       const isDoc = node.nodeType === 'document' || node.shape === 'box';
       document.getElementById('nd-title').textContent = node.nodeId || nodeId;
 
       // Badge: tipo + pilastro REASONS
       const badges = [
-        `<span class="px-2 py-0.5 rounded-full border border-slate-600 text-slate-300">${isDoc ? '▢ Documento' : '◯ Entità'}</span>`,
+        `<span class="px-2 py-0.5 rounded-full border border-slate-600 text-slate-300">${isDoc ? t('dashboard.badgeDocument') : t('dashboard.badgeEntity')}</span>`,
       ];
       const p = node.pillar && REASONS_PILLARS[node.pillar];
       if (p) {
@@ -623,7 +641,7 @@
       const desc = node.description || '';
       document.getElementById('nd-desc').innerHTML = desc
         ? escapeHtml(desc)
-        : '<span class="text-slate-400 italic">Nessuna descrizione disponibile.</span>';
+        : `<span class="text-slate-400 italic">${escapeHtml(t('dashboard.noDescription'))}</span>`;
 
       // Connessioni (archi entranti/uscenti nel grafo corrente)
       const conns = [];
@@ -669,8 +687,11 @@
         graphEdges = (graphEdges || []).filter(e => keep.has(e.from) && keep.has(e.to));
       }
       const expandBtn = document.getElementById('graph-expand-btn');
+      lastExpandAllCount = allCount;
       expandBtn.style.display = (contextExpanded || expandedNodes.length < allCount) ? '' : 'none';
-      expandBtn.textContent = contextExpanded ? 'Solo i vicini diretti' : `Mostra tutti i ${allCount} nodi`;
+      expandBtn.textContent = contextExpanded
+        ? t('dashboard.expandDirectOnly')
+        : t('dashboard.expandShowAll', { count: allCount });
       const nodeFont  = themeVar('--node-font', '#eafff0');
       const edgeColor = themeVar('--edge-ctx', '#1f7a3d');
       const edgeHi    = themeVar('--edge-ctx-hi', '#4dbf6e');
@@ -762,10 +783,10 @@
               <div class="score-bar h-full rounded-full" style="width:${pct}%;background:linear-gradient(90deg,var(--score-grad-start),var(--score-grad-end))"></div>
             </div>
             <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-400">
-              <span title="Dense (semantica)">D ${fmt(s.dense_score)}</span>
-              <span title="Sparse (lessicale)">S ${fmt(s.sparse_score)}</span>
-              <span title="ColBERT (token-per-token)">CB ${fmt(s.colbert_score)}</span>
-              <span title="Autorità della sorgente" class="text-blue-400">A ${fmt(s.authority)}</span>
+              <span title="${escapeHtml(t('dashboard.scoreDense'))}">D ${fmt(s.dense_score)}</span>
+              <span title="${escapeHtml(t('dashboard.scoreSparse'))}">S ${fmt(s.sparse_score)}</span>
+              <span title="${escapeHtml(t('dashboard.scoreColbert'))}">CB ${fmt(s.colbert_score)}</span>
+              <span title="${escapeHtml(t('dashboard.scoreAuthority'))}" class="text-blue-400">A ${fmt(s.authority)}</span>
             </div>
           </div>
         `);
@@ -817,15 +838,16 @@
          themeVar(): una CSS variable si risolve a ogni ridisegno, quindi il badge segue
          il flip di tema senza che nulla lo ri-renderizzi. */
       const STATUS_STYLE = {
-        success:        { tone:'ok',      label:'success — risposta generata' },
-        graph_answer:   { tone:'ok',      label:'graph_answer — risposta dal grafo' },
-        abstained:      { tone:'warn',    label:'abstained — non ha risposto, ed e’ corretto' },
-        no_results:     { tone:'neutral', label:'no_results — nulla di pertinente in indice' },
-        no_graph_nodes: { tone:'neutral', label:'no_graph_nodes — trovato in Qdrant, assente nel grafo' },
+        success:        { tone:'ok',      labelKey:'dashboard.statusOkSuccess' },
+        graph_answer:   { tone:'ok',      labelKey:'dashboard.statusOkGraph' },
+        abstained:      { tone:'warn',    labelKey:'dashboard.statusWarnAbstained' },
+        no_results:     { tone:'neutral', labelKey:'dashboard.statusNeutralNoResults' },
+        no_graph_nodes: { tone:'neutral', labelKey:'dashboard.statusNeutralNoGraph' },
       };
-      const st = STATUS_STYLE[status] || { tone:'err', label:status };
+      const st = STATUS_STYLE[status] || { tone:'err', labelKey:null };
+      const stLabel = st.labelKey ? t(st.labelKey) : status;
       document.getElementById('json-status-badge').innerHTML =
-        `<span style="padding:2px 9px;border-radius:20px;background:var(--status-${st.tone}-bg);color:var(--status-${st.tone}-fg);font-weight:700">${escapeHtml(st.label)}</span>` +
+        `<span style="padding:2px 9px;border-radius:20px;background:var(--status-${st.tone}-bg);color:var(--status-${st.tone}-fg);font-weight:700">${escapeHtml(stLabel)}</span>` +
         (elapsed != null ? `&nbsp;<span style="color:${accent}">${elapsed}s</span>` : '');
 
       /* ── LEFT: Qdrant scores ── */
@@ -845,7 +867,7 @@
               </div>
             </div>`;
           }).join('')
-        : `<span style="color:${muted};font-size:var(--text-xs)">Nessun risultato</span>`;
+        : `<span style="color:${muted};font-size:var(--text-xs)">${escapeHtml(t('dashboard.noResults'))}</span>`;
 
       /* ── LEFT: seed nodes chips ── */
       const seedHtml = seedNodes.map(n =>
@@ -873,34 +895,34 @@
         <div style="margin-bottom:18px">
           <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                       color:${muted};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${divider}">
-            Retrieval Semantico &middot; Qdrant
+            ${escapeHtml(t('dashboard.retrievalSemantic')).replace(' · ', ' &middot; ')}
           </div>
           ${scoresHtml}
         </div>
         <div style="margin-bottom:18px">
           <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                       color:${muted};margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid ${divider}">
-            Espansione Grafo &middot; NetworkX
+            ${escapeHtml(t('dashboard.graphExpansion')).replace(' · ', ' &middot; ')}
           </div>
           <div style="margin-bottom:10px">
-            <div style="font-size:var(--text-xs);color:${accent};margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">Nodi seed</div>
+            <div style="font-size:var(--text-xs);color:${accent};margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em">${escapeHtml(t('dashboard.seedNodes'))}</div>
             <div>${seedHtml}</div>
           </div>
           <div style="display:flex;gap:10px;margin-top:12px">
             <div style="flex:1;text-align:center;padding:8px 4px;background:${statBg};border-radius:8px;border:1px solid ${divider}">
               <div style="font-size:20px;font-weight:700;color:${statNumber};font-family:ui-monospace,monospace;line-height:1">${expNodes.length}</div>
-              <div style="font-size:var(--text-xs);color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">espansi</div>
+              <div style="font-size:var(--text-xs);color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">${escapeHtml(t('dashboard.expanded'))}</div>
             </div>
             <div style="flex:1;text-align:center;padding:8px 4px;background:${statBg};border-radius:8px;border:1px solid ${divider}">
               <div style="font-size:20px;font-weight:700;color:${statNumber};font-family:ui-monospace,monospace;line-height:1">${graphEdges.length}</div>
-              <div style="font-size:var(--text-xs);color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">archi</div>
+              <div style="font-size:var(--text-xs);color:${muted};text-transform:uppercase;letter-spacing:.06em;margin-top:3px">${escapeHtml(t('common.edges'))}</div>
             </div>
           </div>
         </div>
         <div>
           <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                       color:${muted};margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid ${divider}">
-            Dati JSON Grezzi &middot; RAG
+            ${escapeHtml(t('dashboard.rawRagJson')).replace(' · ', ' &middot; ')}
           </div>
           <pre id="rag-json-box" style="margin:0;padding:10px 12px;border-radius:8px;
                background:${ragJsonBg};border:1px solid ${divider};
@@ -913,7 +935,7 @@
       document.getElementById('json-llm-col').innerHTML = `
         <div style="font-size:var(--text-xs);font-weight:700;letter-spacing:.09em;text-transform:uppercase;
                     color:${muted};margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid ${divider}">
-          Risposta generata
+          ${escapeHtml(t('dashboard.generatedAnswer'))}
         </div>
         <div style="font-size:12.5px;line-height:1.75;color:${descColor};white-space:pre-wrap;
                     word-break:break-word;font-family:Inter,ui-sans-serif,sans-serif">
@@ -929,10 +951,10 @@
 
       function parseLine(line) {
         if (!line.trim()) return;
-        if (terminal) throw new Error('Dati ricevuti dopo l’evento terminale.');
+        if (terminal) throw new Error(t('dashboard.streamAfterTerminal'));
         const event = JSON.parse(line);
         if (!event || !['meta', 'delta', 'result', 'error'].includes(event.type)) {
-          throw new Error('Evento streaming /ask non valido.');
+          throw new Error(t('dashboard.streamInvalidEvent'));
         }
         onEvent(event);
         if (event.type === 'result' || event.type === 'error') terminal = true;
@@ -949,7 +971,7 @@
           if (done) {
             parseLine(buffer);
             buffer = '';
-            if (!terminal) throw new Error('Stream /ask terminato senza evento terminale.');
+            if (!terminal) throw new Error(t('dashboard.streamNoTerminal'));
           }
           return terminal;
         },
@@ -962,11 +984,16 @@
     function graphAnswerText(g) {
       if (!g) return '';
       const lines = g.intent === 'impatto'
-        ? (g.rings || []).map((ring, i) => `${i ? 'Distanza ' + i : 'Nodo'}: ${ring.join(', ')}`)
+        ? (g.rings || []).map((ring, i) => `${i ? t('dashboard.graphAnswerDistance', { n: i }) : t('dashboard.graphAnswerNode')}: ${ring.join(', ')}`)
         : g.intent === 'relazioni'
           ? [...(g.out || []).map(e => `→ ${e.relation} ${e.to}`), ...(g.in || []).map(e => `← ${e.relation} ${e.from}`)]
           : (g.answer || []).map(item => `• ${item}`);
-      return `${g.count ?? lines.length} risultati (${g.intent}${g.target ? ': ' + g.target : ''})\n${lines.join('\n')}`;
+      return t('dashboard.graphAnswerResults', {
+        count: g.count ?? lines.length,
+        intent: g.intent || '',
+        target: g.target ? ': ' + g.target : '',
+        lines: lines.join('\n'),
+      });
     }
 
     /* La risposta sta nella scheda "Risposta" dell'area grande: la si mostra (e ci si
@@ -1000,7 +1027,7 @@
       } else {
         // Risposta dal grafo o vuota: testo semplice, a righe.
         answerText.className = ANSWER_CLASS + ' answer-appear whitespace-pre-wrap';
-        answerText.textContent = graphAnswerText(data.graph_result) || '(nessuna risposta)';
+        answerText.textContent = graphAnswerText(data.graph_result) || t('dashboard.noAnswer');
       }
       void answerText.offsetWidth; // reflow per restart animation
 
@@ -1024,10 +1051,11 @@
 
       /* ── PROMPT CONTEXT ── */
       const contextText = gc.context_text || '';
+      lastContextText = contextText;
       document.getElementById('raw-context-box').textContent =
-        contextText || 'Nessun testo di contesto disponibile.';
+        contextText || t('dashboard.noContextText');
       document.getElementById('context-chars').textContent =
-        contextText ? `${contextText.length.toLocaleString('it-IT')} caratteri` : '';
+        contextText ? t('dashboard.charsCount', { count: contextText.length.toLocaleString(uiLocale()) }) : '';
 
       /* ── JSON RESPONSE ── */
       lastJsonPanelData = data;   // per il ridisegno al cambio di tema (onThemeChange)
@@ -1068,7 +1096,7 @@
           throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
         }
 
-        if (!res.body) throw new Error('Il browser non supporta lo streaming della risposta.');
+        if (!res.body) throw new Error(t('dashboard.streamUnsupported'));
         const reader = res.body.getReader();
         let readerFinished = false;
         let finalData = null;
@@ -1081,7 +1109,7 @@
           } else if (event.type === 'result') {
             finalData = event.value;
           } else if (event.type === 'error') {
-            throw new Error(apiErrorMessage(event.detail, 'Errore durante lo streaming /ask.'));
+            throw new Error(apiErrorMessage(event.detail, t('dashboard.streamError')));
           }
         });
 
@@ -1100,7 +1128,7 @@
         renderAskResult(finalData);
       } catch (e) {
         const answerText = document.getElementById('answer-text');
-        answerText.textContent = `❌ Errore: ${e.message}`;
+        answerText.textContent = t('dashboard.errorPrefix', { message: e.message });
         answerText.classList.add('text-red-400');
         showAnswerPanel();
         setStatus('error');
@@ -1139,6 +1167,48 @@
       }
     };
 
+    /* Rinfresca le stringhe dinamiche dopo un cambio lingua (applyI18n → onLangChange). */
+    window.onLangChange = function () {
+      setStatus(lastStatusState);
+      setGraphMode(lastGraphMode);
+      updateGraphHint();
+      if (lastGraphNodes.length) {
+        document.getElementById('graph-counter').textContent =
+          t('dashboard.graphCounter', { nodes: lastGraphNodes.length, edges: lastGraphEdges.length });
+      }
+      const expandBtn = document.getElementById('graph-expand-btn');
+      if (expandBtn && expandBtn.style.display !== 'none' && lastExpandAllCount) {
+        expandBtn.textContent = contextExpanded
+          ? t('dashboard.expandDirectOnly')
+          : t('dashboard.expandShowAll', { count: lastExpandAllCount });
+      }
+      const fullBtn = document.getElementById('full-graph-btn');
+      if (fullBtn && !fullBtn.disabled) fullBtn.innerHTML = fullGraphBtnLabelHtml(false);
+      if (lastNodeDetailsId != null) renderNodeDetails(lastNodeDetailsId);
+      if (lastJsonPanelData) {
+        renderJsonPanel(lastJsonPanelData);
+        renderScores(lastJsonPanelData.qdrant_scores);
+        const answerText = document.getElementById('answer-text');
+        if (answerText && !lastJsonPanelData.answer && document.getElementById('answer-card')
+            && !document.getElementById('answer-card').classList.contains('hidden')) {
+          const graphTxt = graphAnswerText(lastJsonPanelData.graph_result);
+          if (!answerText.classList.contains('answer-md') || answerText.classList.contains('whitespace-pre-wrap')) {
+            answerText.textContent = graphTxt || t('dashboard.noAnswer');
+          }
+        }
+      }
+      if (lastContextText === null) {
+        document.getElementById('raw-context-box').textContent = t('dashboard.noQueryYet');
+        document.getElementById('context-chars').textContent = '';
+      } else {
+        document.getElementById('raw-context-box').textContent =
+          lastContextText || t('dashboard.noContextText');
+        document.getElementById('context-chars').textContent =
+          lastContextText ? t('dashboard.charsCount', { count: lastContextText.length.toLocaleString(uiLocale()) }) : '';
+      }
+      loadProjectStatus();
+    };
+
     /* Popola la legenda dei pilastri REASONS al caricamento */
     renderReasonsLegend();
 
@@ -1171,24 +1241,28 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const h = await res.json();
         const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
-        const nf = n => (typeof n === 'number' ? n.toLocaleString('it-IT') : '—');
-        const trend = { up: '↑ in salita', down: '↓ in discesa', flat: '→ stabile' }[ev.trend] || '';
+        const nf = n => (typeof n === 'number' ? n.toLocaleString(uiLocale()) : '—');
+        const trend = {
+          up: t('dashboard.trendUp'),
+          down: t('dashboard.trendDown'),
+          flat: t('dashboard.trendFlat'),
+        }[ev.trend] || '';
         // Soglia dell'eval-gate dal payload, non scritta a mano.
         const soglia = typeof ev.min_recall === 'number' ? ev.min_recall : 0.9;
         const stale = h.manifest && h.manifest.stale;
         list.replaceChildren(
           row(ev.key || 'recall', typeof ev.last_recall === 'number' ? (ev.last_recall * 100).toFixed(1) + '%' : '—',
               trend, typeof ev.last_recall !== 'number' ? null : ev.last_recall >= soglia ? 'success' : 'danger', '/eval'),
-          row('Grafo', nf(snap.graph_nodes) + ' nodi', nf(snap.graph_edges) + ' archi', null, '/analysis'),
-          row('Sezioni indicizzate', nf(snap.chunks), null, null),
-          row('Versione indice', snap.version || '—', stale ? 'da aggiornare' : 'allineata', stale ? 'warning' : null),
-          row('Qdrant', dep.qdrant ? 'raggiungibile' : 'non raggiungibile', null, dep.qdrant ? 'success' : 'danger'),
-          row('Ollama', dep.ollama ? 'raggiungibile' : 'non raggiungibile', null, dep.ollama ? 'success' : 'danger'),
+          row(t('dashboard.statusGraph'), t('dashboard.nodesNote', { count: nf(snap.graph_nodes) }), t('dashboard.edgesNote', { count: nf(snap.graph_edges) }), null, '/analysis'),
+          row(t('dashboard.statusIndexedSections'), nf(snap.chunks), null, null),
+          row(t('dashboard.statusIndexVersion'), snap.version || '—', stale ? t('dashboard.statusNeedsUpdate') : t('dashboard.statusAligned'), stale ? 'warning' : null),
+          row('Qdrant', dep.qdrant ? t('common.reachable') : t('common.unreachable'), null, dep.qdrant ? 'success' : 'danger'),
+          row('Ollama', dep.ollama ? t('common.reachable') : t('common.unreachable'), null, dep.ollama ? 'success' : 'danger'),
         );
       } catch (e) {
         const item = document.createElement('div');
         item.className = 'col-span-2 text-slate-400';
-        item.textContent = `Stato non disponibile (${e.message}).`;
+        item.textContent = t('dashboard.statusUnavailable', { message: e.message });
         list.replaceChildren(item);
       }
     }
