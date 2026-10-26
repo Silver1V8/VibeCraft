@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const http = require('node:http');
+const { t } = require('./i18n_stub.cjs');
 
 async function intakeApprovalChecks() {
   const source = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
@@ -15,6 +16,7 @@ async function intakeApprovalChecks() {
   const calls = [], refreshed = [], timers = [];
   let ok = true;
   const context = vm.createContext({
+    t,
     document: { getElementById: id => nodes[id], querySelectorAll: () => [] },
     window: { parent: { refreshIndexStatus: id => refreshed.push(id) } },
     selectedProjectId: () => 'project-A', refreshStaging() {}, closePreview() {},
@@ -47,7 +49,7 @@ async function fetchChecks() {
   let retry = false, promptProject, promptHeaders, promptUrl;
   const location = { href: 'http://localhost/?project=legacy', origin: 'http://localhost' };
   const storage = new Map();
-  const context = vm.createContext({ URL, Request, Headers, AbortController, Promise, location,
+  const context = vm.createContext({ URL, Request, Headers, AbortController, Promise, location, t,
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     sessionStorage: { getItem: () => 'legacy' },
     document: { baseURI: location.href, querySelector: () => null },
@@ -130,7 +132,7 @@ async function queryErrorChecks() {
     const node = id => nodes[id] ||= { value: id === 'question-input' ? 'Question' : '5', textContent: '',
       classList: { add() {}, remove() {} } };
     let loading;
-    const context = vm.createContext({ document: { getElementById: node }, console,
+    const context = vm.createContext({ document: { getElementById: node }, console, t,
       showLoader: value => { loading = value; }, setStatus() {}, showAnswerPanel() {},
       fetch: async () => ({ ok: false, status, json: async () => ({ detail }) }),
     });
@@ -557,17 +559,25 @@ async function browserChecks() {
 
 async function reindexChecks() {
   const pipeline = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
-  const code = pipeline.slice(pipeline.indexOf('    function pollReindexJob('), pipeline.indexOf('    async function copyFinalPrompt('));
+  // Stati + etichette i18n, poi solo pollReindexJob (notifyReindexDone resta stub nel context).
+  const labels = pipeline.slice(
+    pipeline.indexOf('    const _TERMINAL_REINDEX_STATES'),
+    pipeline.indexOf('    async function notifyReindexDone('),
+  );
+  const poll = pipeline.slice(
+    pipeline.indexOf('    function pollReindexJob('),
+    pipeline.indexOf('    async function copyFinalPrompt('),
+  );
   const timers = [], replies = [];
   let active = 0;
   const context = vm.createContext({
+    t,
     setTimeout: callback => timers.push(callback),
     sessionRevision: 0,
     retainWorkspaceTask: promise => { active++; promise.finally(() => active--); },
     fetch: async () => replies.shift(), notifyReindexDone() {},
-    _TERMINAL_REINDEX_STATES: ['completed'], _REINDEX_STATUS_LABELS: { completed: 'completata' },
   });
-  vm.runInContext(code, context);
+  vm.runInContext(labels + poll, context);
   const box = { textContent: '', scrollHeight: 0 };
   context.pollReindexJob('test-job', box);
   assert.equal(active, 1);

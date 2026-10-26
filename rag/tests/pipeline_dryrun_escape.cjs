@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { t } = require('./i18n_stub.cjs');
 
 const template = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
@@ -27,6 +28,7 @@ function makeContext(response) {
   const el = id => (els[id] ||= { id, innerHTML: '', value: '', disabled: false, focus() {},
     classList: { add() {}, remove() {} } });
   const context = vm.createContext({
+    t,
     featureName: '', devType: 'backend', sessionRevision: 0,
     ensurePipelineFeature: async () => true,
     getFeatureName: () => 'feature-x',
