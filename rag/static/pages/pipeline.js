@@ -44,20 +44,20 @@
       const named = !!getFeatureName();
       const typed = !!devType;
       const blocked = sessionLoading || !!pendingDraft;
-      const reason = !named ? 'Dai prima un nome alla feature.'
-        : !typed ? 'Scegli prima il tipo di sviluppo.'
-        : blocked ? 'Attendi il caricamento o scegli cosa fare della bozza locale.' : '';
+      const reason = !named ? t('pipeline.chat.needName')
+        : !typed ? t('pipeline.chat.needType')
+        : blocked ? t('pipeline.chat.needDraftChoice') : '';
       const send = document.getElementById('chat-send-btn');
       const finish = document.getElementById('chat-finish-btn');
       send.disabled = sendBusy || !!reason;
       send.title = reason;
       finish.disabled = finishBusy || sendBusy || !!reason || !interviewLog;
-      finish.title = reason || (interviewLog ? '' : 'Rispondi almeno una volta al Tech Lead IA.');
+      finish.title = reason || (interviewLog ? '' : t('pipeline.chat.needAnswer'));
       /* Con una bozza in attesa il campo è in sola lettura: lo si dice lì, altrimenti
          sembra un campo rotto. */
       document.getElementById('chat-input').placeholder = pendingDraft
-        ? 'Bozza locale in attesa: usa "Ripristina bozza locale" o "Scarta bozza e usa file server" a sinistra per scrivere.'
-        : 'Rispondi al Tech Lead IA… (Ctrl+Invio per inviare)';
+        ? t('pipeline.chat.placeholderDraft')
+        : t('pipeline.explore.chatPlaceholder');
       const started = chatMessages.length > 0;
       setPanelVisible('chat-guide', !started);
       setPanelVisible('chat-log', started);
@@ -68,9 +68,9 @@
         step.classList.toggle('is-done', done);
         step.classList.toggle('is-next', id === next);
         document.getElementById(`${id}-mark`).textContent = done ? '✓' : String(index + 1);
-        document.getElementById(`${id}-state`).textContent = done ? 'fatto'
-          : id === next && id === 'guide-step-answer' && pendingDraft ? 'scegli la bozza'
-          : id === next ? 'da fare' : '';
+        document.getElementById(`${id}-state`).textContent = done ? t('pipeline.guide.done')
+          : id === next && id === 'guide-step-answer' && pendingDraft ? t('pipeline.guide.chooseDraft')
+          : id === next ? t('pipeline.guide.todo') : '';
       });
     }
 
@@ -95,16 +95,16 @@
       try {
         localStorage.setItem(draftKey(featureName), JSON.stringify(draft));
         localStorage.setItem(lastFeatureKey, featureName);
-        sessionStatus(`Ultimo salvataggio locale: ${new Date(draft.savedAt).toLocaleString()}. Solo in questo browser.`);
+        sessionStatus(t('pipeline.session.lastSave', { when: new Date(draft.savedAt).toLocaleString() }));
       } catch (_) {
-        sessionStatus('Bozza non salvata: memoria del browser non disponibile o piena. Salva i documenti sul server.');
+        sessionStatus(t('pipeline.session.saveFailed'));
       }
     }
 
     function offerPipelineDraft() {
       try {
         const raw = localStorage.getItem(draftKey(featureName));
-        if (!raw) { sessionStatus('Le modifiche saranno salvate localmente in questo browser.'); return; }
+        if (!raw) { sessionStatus(t('pipeline.session.willSaveLocal')); return; }
         const draft = JSON.parse(raw);
         if (draft?.version !== 1 || draft.feature !== featureName || !Number.isFinite(Date.parse(draft.savedAt))
           || !Number.isInteger(draft.step) || draft.step < 1 || draft.step > 5
@@ -114,9 +114,9 @@
           throw new Error('invalid draft');
         }
         choosePipelineDraft(draft);
-        sessionStatus(`Bozza locale del ${new Date(draft.savedAt).toLocaleString()}. Ora sono visibili i file server: ripristina la bozza negli editor oppure scartala per continuare. Operazioni interrotte non vengono riavviate.`);
+        sessionStatus(t('pipeline.session.draftOffer', { when: new Date(draft.savedAt).toLocaleString() }));
       } catch (_) {
-        sessionStatus('Bozza locale non valida o memoria del browser non disponibile. I file server restano utilizzabili.');
+        sessionStatus(t('pipeline.session.draftInvalid'));
       }
     }
 
@@ -136,19 +136,19 @@
       draftEditors.forEach((id, i) => {
         document.getElementById(id).value = draft.editors[i];
         setPanelVisible(['review-explore', 'review-canvas', 'review-spec'][i], !!draft.editors[i]);
-        setStepState(i + 1, draft.editors[i] ? 'warning' : 'pending', draft.editors[i] ? 'bozza locale' : undefined);
+        setStepState(i + 1, draft.editors[i] ? 'warning' : 'pending', draft.editors[i] ? t('pipeline.step.localDraft') : undefined);
       });
-      document.getElementById('spec-open-points-status').textContent = 'Bozza locale: salva e verifica prima di procedere.';
+      document.getElementById('spec-open-points-status').textContent = t('pipeline.session.draftSpecHint');
       goToStep(draft.step);
       sessionLoading = false;
       updateChatControls();
-      sessionStatus(`Bozza locale ripristinata, salvata il ${new Date(draft.savedAt).toLocaleString()}. I file server non sono stati modificati.`);
+      sessionStatus(t('pipeline.session.draftRestored', { when: new Date(draft.savedAt).toLocaleString() }));
     }
 
     function discardPipelineDraft() {
       if (!pendingDraft || sessionLoading) return;
       try { localStorage.removeItem(draftKey(featureName)); }
-      catch (_) { sessionStatus('Impossibile scartare la bozza: memoria del browser non disponibile.'); return; }
+      catch (_) { sessionStatus(t('pipeline.session.discardFailed')); return; }
       choosePipelineDraft(null);
       savePipelineDraft();
     }
@@ -157,7 +157,7 @@
       if (!getFeatureName()) { document.getElementById('feature-name-input').focus(); return false; }
       if (getFeatureName() !== featureName) await loadFeatureStatus();
       if (sessionLoading || pendingDraft) {
-        toast('Attendi il caricamento e scegli se ripristinare o scartare la bozza locale.', 'error');
+        toast(t('pipeline.session.waitDraft'), 'error');
         return false;
       }
       return true;
@@ -166,7 +166,7 @@
     async function resumePipelineSession() {
       let last;
       try { last = localStorage.getItem(lastFeatureKey); }
-      catch (_) { sessionStatus('Recupero locale non disponibile: memoria del browser non accessibile.'); }
+      catch (_) { sessionStatus(t('pipeline.session.localUnavailable')); }
       if (last && !getFeatureName()) {
         document.getElementById('feature-name-input').value = last;
         await loadFeatureStatus();
@@ -207,12 +207,12 @@
         const res = await fetch('/api/pipeline/dev-types');
         const data = await res.json();
         if (revision !== sessionRevision) return;
-        const options = ['<option value="">— seleziona —</option>']
+        const options = [`<option value="">${t('pipeline.feature.selectPlaceholder')}</option>`]
           .concat(data.dev_types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`));
         select.innerHTML = options.join('');
       } catch (e) {
         if (revision !== sessionRevision) return;
-        select.innerHTML = '<option value="">— errore caricamento —</option>';
+        select.innerHTML = `<option value="">${t('pipeline.feature.loadError')}</option>`;
       }
       if (selected) select.value = selected;
       devType = select.value;
@@ -238,9 +238,9 @@
         const select = document.getElementById('dev-type-select');
         await loadDevTypes(select.disabled ? devType : data.dev_type);
         if (!select.disabled) onDevTypeChange();
-        toast(`Tipo di sviluppo "${data.dev_type}" disponibile in code/.`, 'success');
+        toast(t('pipeline.feature.devTypeAdded', { name: data.dev_type }), 'success');
       } catch (e) {
-        toast(`Errore nella creazione del tipo di sviluppo: ${e.message}`, 'error');
+        toast(t('pipeline.feature.devTypeAddError', { msg: e.message }), 'error');
       } finally {
         btn.disabled = false;
       }
@@ -258,7 +258,7 @@
     /* ──────────── STEPPER NAVIGATION ──────────── */
     function goToStep(step) {
       if (!featureName && step !== 1) {
-        toast('Inserisci prima il nome della feature.', 'error');
+        toast(t('pipeline.feature.needName'), 'error');
         return;
       }
       currentStep = step;
@@ -291,12 +291,12 @@
        (.step-dot-* / .step-badge-*), non utility Tailwind: vedi il commento
        accanto alle regole per il motivo. */
     const STEP_STATES = {
-      pending: { glifo: n => String(n), stato: 'pending', label: 'in attesa' },
-      current: { glifo: n => String(n), stato: 'current', label: 'in corso' },
-      running: { glifo: () => '⋯',      stato: 'running', label: 'in esecuzione…' },
-      done:    { glifo: () => '✓',      stato: 'done',    label: 'completato' },
-      warning: { glifo: () => '⚠',      stato: 'warning', label: 'con avvisi' },
-      failed:  { glifo: () => '✕',      stato: 'failed',  label: 'fallito' },
+      pending: { glifo: n => String(n), stato: 'pending', labelKey: 'pipeline.step.pending' },
+      current: { glifo: n => String(n), stato: 'current', labelKey: 'pipeline.step.current' },
+      running: { glifo: () => '⋯',      stato: 'running', labelKey: 'pipeline.step.running' },
+      done:    { glifo: () => '✓',      stato: 'done',    labelKey: 'pipeline.step.done' },
+      warning: { glifo: () => '⚠',      stato: 'warning', labelKey: 'pipeline.step.warning' },
+      failed:  { glifo: () => '✕',      stato: 'failed',  labelKey: 'pipeline.step.failed' },
     };
 
     /* Stato corrente di ogni passo: serve a goToStep per non calpestare gli
@@ -310,7 +310,7 @@
       dot.className = `w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 step-dot-${s.stato}`;
       dot.textContent = s.glifo(step);
       const badge = document.getElementById(`step-badge-${step}`);
-      badge.textContent = label || s.label;
+      badge.textContent = label || t(s.labelKey);
       badge.className = `block text-xs font-mono step-badge-${s.stato}`;
       const line = document.getElementById(`step-line-${step}`);
       if (line) line.classList.toggle('done', state === 'done');
@@ -318,7 +318,7 @@
 
     /* Manteniamo markStepDone come alias: è chiamato da parecchi punti e questo
        evita un refactor a tappeto per un rename. */
-    function markStepDone(step, label) { setStepState(step, 'done', label || 'generato'); }
+    function markStepDone(step, label) { setStepState(step, 'done', label || t('pipeline.step.generated')); }
 
     /* ──────────── FILE CONTROL PANEL ──────────── */
     async function refreshFilesControl() {
@@ -339,13 +339,13 @@
           const ok = data.files[key];
           return `<div class="flex items-center justify-between rounded-lg border ${ok ? 'border-emerald-900 bg-emerald-950/40' : 'border-slate-800 bg-slate-950'} px-3 py-2">
             <span class="font-mono text-slate-300">${fname}</span>
-            <span class="${ok ? 'text-emerald-300' : 'text-slate-400'} font-semibold">${ok ? '✅ pronto' : '— assente'}</span>
+            <span class="${ok ? 'text-emerald-300' : 'text-slate-400'} font-semibold">${ok ? t('pipeline.files.ready') : t('pipeline.files.missing')}</span>
           </div>`;
         }).join('');
 
-        if (data.files.explore) markStepDone(1, 'generato');
-        if (data.files.canvas) markStepDone(2, 'generato');
-        if (data.files.spec) markStepDone(3, 'generato');
+        if (data.files.explore) markStepDone(1);
+        if (data.files.canvas) markStepDone(2);
+        if (data.files.spec) markStepDone(3);
 
         document.getElementById('feature-folder-hint').textContent = `changes/${data.feature_folder}/`;
         await refreshGateReview();
@@ -435,7 +435,7 @@
       choosePipelineDraft(null);
       offerPipelineDraft();
       try { localStorage.setItem(lastFeatureKey, name); }
-      catch (_) { sessionStatus('Recupero locale non disponibile: memoria del browser non accessibile.'); }
+      catch (_) { sessionStatus(t('pipeline.session.localUnavailable')); }
     }
 
     /* ──────────── STEP 1: EXPLORE ──────────── */
@@ -456,7 +456,7 @@
     async function sendExploreTurn() {
       if (!await ensurePipelineFeature()) return;
       const revision = sessionRevision;
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
+      if (!devType) { toast(t('pipeline.feature.needDevType'), 'error'); return; }
 
       const input = document.getElementById('chat-input');
       const userInput = input.value.trim();
@@ -469,7 +469,7 @@
 
       sendBusy = true;
       updateChatControls();
-      document.getElementById('explore-status').textContent = 'IA sta rispondendo…';
+      document.getElementById('explore-status').textContent = t('pipeline.explore.aiThinking');
 
       try {
         const res = await fetch('/api/pipeline/explore/turn', {
@@ -487,8 +487,8 @@
         document.getElementById('explore-status').textContent = '';
       } catch (e) {
         if (revision !== sessionRevision) return;
-        appendChatBubble('ai', `❌ Errore: ${e.message}`);
-        document.getElementById('explore-status').textContent = 'Errore di connessione';
+        appendChatBubble('ai', t('pipeline.err.prefix', { msg: e.message }));
+        document.getElementById('explore-status').textContent = t('pipeline.explore.connError');
       } finally {
         if (revision === sessionRevision) { sendBusy = false; updateChatControls(); input.focus(); }
       }
@@ -497,10 +497,10 @@
     async function finishExplore() {
       if (!await ensurePipelineFeature()) return;
       const revision = sessionRevision;
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
+      if (!devType) { toast(t('pipeline.feature.needDevType'), 'error'); return; }
 
       if (!interviewLog) {
-        toast("Nessuna risposta registrata nell'intervista: scrivi almeno un turno prima di terminare.", 'error');
+        toast(t('pipeline.explore.needTurn'), 'error');
         return;
       }
 
@@ -518,11 +518,11 @@
         document.getElementById('explore-md-editor').value = data.content;
         savePipelineDraft();
         setPanelVisible('review-explore', true);
-        markStepDone(1, 'generato');
+        markStepDone(1);
         await refreshFilesControl();
       } catch (e) {
         if (revision !== sessionRevision) return;
-        toast(`Errore nel salvataggio di explore.md: ${e.message}`, 'error');
+        toast(t('pipeline.explore.saveError', { msg: e.message }), 'error');
       } finally {
         if (revision === sessionRevision) { finishBusy = false; updateChatControls(); }
       }
@@ -536,8 +536,8 @@
     async function generateCanvas() {
       if (!await ensurePipelineFeature()) return;
       const revision = sessionRevision;
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
+      if (!devType) { toast(t('pipeline.feature.needDevType'), 'error'); return; }
       const btn = document.getElementById('canvas-generate-btn');
       btn.disabled = true;
       setPanelVisible('canvas-loader', true);
@@ -558,11 +558,11 @@
         document.getElementById('canvas-md-editor').value = data.content;
         savePipelineDraft();
         setPanelVisible('review-canvas', true);
-        markStepDone(2, 'generato');
+        markStepDone(2);
         await refreshFilesControl();
       } catch (e) {
         if (revision !== sessionRevision) return;
-        toast(`Errore nella generazione del Canvas: ${e.message}`, 'error');
+        toast(t('pipeline.canvas.genError', { msg: e.message }), 'error');
       } finally {
         if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('canvas-loader', false); }
       }
@@ -576,8 +576,8 @@
     async function generatePropose() {
       if (!await ensurePipelineFeature()) return;
       const revision = sessionRevision;
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
-      if (!devType) { toast('Seleziona prima il tipo di sviluppo.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
+      if (!devType) { toast(t('pipeline.feature.needDevType'), 'error'); return; }
       const btn = document.getElementById('propose-generate-btn');
       btn.disabled = true;
       setPanelVisible('propose-loader', true);
@@ -602,11 +602,11 @@
         setPanelVisible('review-spec', true);
         document.getElementById('final-prompt-box').textContent = data.final_prompt;
         window._finalPrompt = data.final_prompt;
-        markStepDone(3, 'generato');
+        markStepDone(3);
         await refreshFilesControl();
       } catch (e) {
         if (revision !== sessionRevision) return;
-        toast(`Errore nella generazione delle specifiche: ${e.message}`, 'error');
+        toast(t('pipeline.propose.genError', { msg: e.message }), 'error');
       } finally {
         if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('propose-loader', false); }
       }
@@ -623,7 +623,7 @@
     function gateApiError(data) {
       const detail = data.detail || data.gate || data;
       if (typeof detail === 'string') return detail;
-      return gateMessages(detail).join('\n') || 'Richiesta non riuscita';
+      return gateMessages(detail).join('\n') || t('pipeline.gate.requestFailed');
     }
 
     const validationRefs = new Map();
@@ -631,48 +631,48 @@
     function gateMessages(gate) {
       return [...(gate.reasons || []), ...(gate.warnings || [])].map(item =>
         [item.code, item.action, item.message, item.next_step,
-          item.changed?.length ? `Elementi cambiati: ${item.changed.join(', ')}` : ''].filter(Boolean).join(' · '));
+          item.changed?.length ? t('pipeline.gate.changed', { items: item.changed.join(', ') }) : ''].filter(Boolean).join(' · '));
     }
 
     function describeFinding(f) {
       const who = f.covered_by;
-      const coverage = who ? `coperto da ${who.decision_id} · nome dichiarato: ${who.declared_by} · ${who.recorded_at} · origin_verified: false`
-        : 'non esaminato / non coperto';
+      const coverage = who ? t('pipeline.gate.coveredBy', { id: who.decision_id, by: who.declared_by, at: who.recorded_at })
+        : t('pipeline.gate.uncovered');
       return `${f.rule || f.kind} · ${f.message}\n${coverage}`;
     }
 
     function admissionSummary(gate) {
-      if (gate?.allowed === true) return 'Avvio agentic: consentito';
+      if (gate?.allowed === true) return t('pipeline.gate.agenticAllowed');
       const reason = gate?.allowed === false
-        ? (gate.reasons || []).map(item => item.message).filter(Boolean).join('; ') || 'motivo non disponibile'
-        : 'stato del gate non disponibile';
-      return `Avvio agentic: bloccato — ${reason}`;
+        ? (gate.reasons || []).map(item => item.message).filter(Boolean).join('; ') || t('pipeline.gate.reasonMissing')
+        : t('pipeline.gate.statusMissing');
+      return t('pipeline.gate.agenticBlocked', { reason });
     }
 
     function validationSummary(data) {
       const statuses = [data.checks?.structural?.status, data.checks?.semantic?.status];
-      const checks = statuses.some(status => !['pass', 'fail'].includes(status)) ? 'non disponibili'
-        : statuses.includes('fail') ? 'falliti' : 'superati';
-      const lines = [`Controlli di validazione: ${checks}`, admissionSummary(data.gate),
-        `Validazione ${data.validation_id}: ${data.status}`, data.validation_error || data.report || ''];
+      const checks = statuses.some(status => !['pass', 'fail'].includes(status)) ? t('pipeline.validate.checksUnavailable')
+        : statuses.includes('fail') ? t('pipeline.validate.checksFailed') : t('pipeline.validate.checksPassed');
+      const lines = [t('pipeline.validate.checksLine', { checks }), admissionSummary(data.gate),
+        t('pipeline.validate.validationLine', { id: data.validation_id, status: data.status }), data.validation_error || data.report || ''];
       lines.push(...(data.structural_findings || []).map(describeFinding));
       lines.push(...(data.semantic_findings || []).map(describeFinding));
-      if (data.suggestions?.length) lines.push('Suggerimenti facoltativi — nessun effetto sul gate:\n'
+      if (data.suggestions?.length) lines.push(t('pipeline.validate.suggestionsHeader') + '\n'
         + data.suggestions.map(text => `• ${text}`).join('\n'));
-      lines.push('Le lacune coperte da decisione non sono scenari soddisfatti.');
-      if (data.scenario_scope?.off_scope?.length) lines.push('Rilievi euristici di pertinenza (advisory): ' + JSON.stringify(data.scenario_scope.off_scope));
+      lines.push(t('pipeline.validate.gapsNote'));
+      if (data.scenario_scope?.off_scope?.length) lines.push(t('pipeline.validate.offScope') + ' ' + JSON.stringify(data.scenario_scope.off_scope));
       lines.push(...gateMessages(data.gate || {}));
       return lines.filter(Boolean).join('\n\n');
     }
 
     async function runValidate() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
       const validatingFeature = featureName;
       const btn = document.getElementById('validate-btn');
       const box = document.getElementById('validate-report-box');
       btn.disabled = true;
       box.classList.remove('hidden');
-      box.textContent = 'Validazione in corso…';
+      box.textContent = t('pipeline.validate.running');
       try {
         const res = await fetch('/api/pipeline/validate', {method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({feature: validatingFeature})});
@@ -681,10 +681,10 @@
         if (!res.ok && data.status !== 'unavailable') throw new Error(gateApiError(data));
         validationRefs.set(validatingFeature, data.validation_id || null);
         box.textContent = validationSummary(data);
-        document.getElementById('validate-structural').textContent = `Controlli: ${data.checks?.structural?.status || 'unavailable'} / ${data.checks?.semantic?.status || 'unavailable'}`;
+        document.getElementById('validate-structural').textContent = t('pipeline.validate.checksStatus', { structural: data.checks?.structural?.status || 'unavailable', semantic: data.checks?.semantic?.status || 'unavailable' });
         await refreshGateReview();
       } catch (e) {
-        if (featureName === validatingFeature) box.textContent = `Validazione non disponibile: ${e.message}`;
+        if (featureName === validatingFeature) box.textContent = t('pipeline.validate.unavailable', { msg: e.message });
       } finally { btn.disabled = false; }
     }
 
@@ -707,8 +707,8 @@
         gateReview = {data, feature: reviewingFeature};
         document.getElementById('gate-status').textContent = [
           admissionSummary(data.gate),
-          data.validation_id ? `Validazione: ${data.validation_id}` : 'Validazione assente.',
-          `Stato resoconto: ${data.gate.open_points_status ?? 'non leggibile'}`,
+          data.validation_id ? t('pipeline.gate.validationId', { id: data.validation_id }) : t('pipeline.gate.validationAbsent'),
+          t('pipeline.gate.openPointsStatus', { status: data.gate.open_points_status ?? t('pipeline.gate.unreadable') }),
           ...gateMessages(data.gate),
           ...(data.structural_findings || []).map(describeFinding),
         ].join('\n');
@@ -722,13 +722,13 @@
       await refreshGateReview();
       const host = document.getElementById('gate-comparison');
       const comparison = gateReview?.feature === featureName ? gateReview.data.comparison : null;
-      host.textContent = comparison ? `Confronto con la validazione ${comparison.validation_id}`
-        : 'Confronto non disponibile: versione validata assente o non leggibile.';
+      host.textContent = comparison ? t('pipeline.gate.comparisonWith', { id: comparison.validation_id })
+        : t('pipeline.gate.comparisonMissing');
       if (!comparison) return;
       for (const name of ['canvas', 'spec']) {
         const row = document.createElement('div');
         row.className = 'grid grid-cols-1 md:grid-cols-2 gap-2 my-2';
-        for (const [key, label] of [['current', 'corrente salvato'], ['validated', 'validato']]) {
+        for (const [key, label] of [['current', t('pipeline.gate.currentSaved')], ['validated', t('pipeline.gate.validated')]]) {
           const column = document.createElement('div');
           const title = document.createElement('p'); title.textContent = `${name}.md · ${label}`;
           const text = document.createElement('pre'); text.textContent = comparison[name][key];
@@ -749,32 +749,32 @@
         host.appendChild(node);
         return node;
       }
-      element('p', "L'accettazione non è esposta agli strumenti dell'agente; non è certificata come decisione umana dalla credenziale condivisa.");
-      if (!Array.isArray(data.point_decisions)) { element('p', 'Resoconto assente o invalido: correggilo prima di decidere.'); return; }
-      if (!data.point_decisions.length) { element('p', 'Nessun punto aperto dichiarato.'); return; }
+      element('p', t('pipeline.decision.disclaimer'));
+      if (!Array.isArray(data.point_decisions)) { element('p', t('pipeline.decision.reportInvalid')); return; }
+      if (!data.point_decisions.length) { element('p', t('pipeline.decision.noOpenPoints')); return; }
       for (const p of data.point_decisions) element('pre', `${p.point.id} · ${p.status}\n${JSON.stringify(p.point, null, 2)}` +
-        (p.decision ? `\nDecisione ${p.decision.decision_id} · nome dichiarato ${p.decision.declared_by} · ${p.decision.recorded_at} · origin_verified: false\n${p.decision.motivation}` : ''));
-      element('label', 'Punto esaminato').htmlFor = 'decision-point';
+        (p.decision ? `\n${t('pipeline.decision.recorded', { id: p.decision.decision_id, by: p.decision.declared_by, at: p.decision.recorded_at })}\n${p.decision.motivation}` : ''));
+      element('label', t('pipeline.decision.pointLabel')).htmlFor = 'decision-point';
       const points = element('select', '', 'decision-point');
-      points.add(new Option('Seleziona il punto esaminato', ''));
+      points.add(new Option(t('pipeline.decision.selectPoint'), ''));
       for (const p of data.point_decisions) points.add(new Option(`${p.point.id}: ${p.point.question}`, p.point_hash));
-      element('label', 'Decisione esplicita').htmlFor = 'decision-status';
+      element('label', t('pipeline.decision.statusLabel')).htmlFor = 'decision-status';
       const status = element('select', '', 'decision-status');
-      status.add(new Option('Seleziona la decisione', ''));
-      status.add(new Option('Accetto la lacuna e procedo', 'accepted'));
-      status.add(new Option('Registro la risoluzione', 'resolved'));
-      element('label', 'Nome dichiarato (non identità verificata)', 'decision-by-label').htmlFor = 'decision-by';
+      status.add(new Option(t('pipeline.decision.selectStatus'), ''));
+      status.add(new Option(t('pipeline.decision.accept'), 'accepted'));
+      status.add(new Option(t('pipeline.decision.resolve'), 'resolved'));
+      element('label', t('pipeline.decision.byLabel'), 'decision-by-label').htmlFor = 'decision-by';
       element('input', '', 'decision-by');
-      element('label', 'Motivazione / risoluzione', 'decision-reason-label').htmlFor = 'decision-reason';
+      element('label', t('pipeline.decision.reasonLabel'), 'decision-reason-label').htmlFor = 'decision-reason';
       element('textarea', '', 'decision-reason');
-      element('p', 'Associazioni esplicite: seleziona solo i rilievi di copertura esaminati per questo punto. Nessuna selezione automatica.');
+      element('p', t('pipeline.decision.assocNote'));
       for (const f of data.structural_findings.filter(f => f.associable)) {
         const label = element('label', '');
         const check = document.createElement('input'); check.type = 'checkbox'; check.value = f.finding_hash;
         check.className = 'coverage-association'; label.appendChild(check);
         label.appendChild(document.createTextNode(describeFinding(f)));
       }
-      const submit = element('button', 'Registra decisione', 'decision-submit');
+      const submit = element('button', t('pipeline.decision.submit'), 'decision-submit');
       submit.onclick = recordPointDecision;
     }
 
@@ -785,8 +785,8 @@
       const status = value('decision-status'), point = value('decision-point');
       const motivation = value('decision-reason'), declaredBy = value('decision-by');
       const hashes = [...document.querySelectorAll('#gate-decisions .coverage-association:checked')].map(n => n.value);
-      if (!point || !status || !motivation || !declaredBy) { toast('Seleziona punto e decisione, indica nome dichiarato e motivazione.', 'error'); return; }
-      if (hashes.length && status !== 'accepted') { toast('Solo accepted può coprire un rilievo.', 'error'); return; }
+      if (!point || !status || !motivation || !declaredBy) { toast(t('pipeline.decision.needFields'), 'error'); return; }
+      if (hashes.length && status !== 'accepted') { toast(t('pipeline.decision.onlyAccepted'), 'error'); return; }
       const btn = document.getElementById('decision-submit'); btn.disabled = true;
       const headers = {'Content-Type': 'application/json'};
       try {
@@ -797,22 +797,22 @@
             status, motivation, declared_by: declaredBy, declared_origin: 'ui', coverage_finding_hashes: hashes})});
         const data = await res.json();
         if (!res.ok) throw new Error(gateApiError(data));
-        if (featureName === review.feature) { await refreshGateReview(); toast('Decisione registrata. Rivalida il contratto.'); }
+        if (featureName === review.feature) { await refreshGateReview(); toast(t('pipeline.decision.saved')); }
       } catch (e) { toast(e.message, 'error'); }
       finally { btn.disabled = false; }
     }
 
     /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK ──────────── */
     function openPointsSummary(data) {
-      const limits = '\nRicerca advisory: novità delle evidenze e riuso degli ID non verificati; validità solo strutturale.';
+      const limits = '\n' + t('pipeline.openPoints.limits');
       if (data.open_points_status === 'invalid') {
-        return '❌ Resoconto malformato: ' + (data.open_points_error || 'schema non valido') + limits;
+        return '❌ ' + t('pipeline.openPoints.malformed', { err: data.open_points_error || t('pipeline.openPoints.schemaInvalid') }) + limits;
       }
-      if (data.open_points_status !== 'valid') return '⚠ Resoconto assente: punti aperti non determinabili.' + limits;
-      if (!Array.isArray(data.open_points)) return '❌ Resoconto malformato: open_points non è una lista.' + limits;
-      if (!data.open_points.length) return 'Terminato senza punti aperti (dichiarazione dell’agente).' + limits;
-      return `⚠ ${data.open_points.length} punti aperti dichiarati:\n` + data.open_points.map(p =>
-        `${p.id} · ${p.reason} · ${p.original_question}\nDomanda attuale: ${p.question}`
+      if (data.open_points_status !== 'valid') return '⚠ ' + t('pipeline.openPoints.absent') + limits;
+      if (!Array.isArray(data.open_points)) return '❌ ' + t('pipeline.openPoints.notList') + limits;
+      if (!data.open_points.length) return t('pipeline.openPoints.none') + limits;
+      return '⚠ ' + t('pipeline.openPoints.count', { n: data.open_points.length }) + ':\n' + data.open_points.map(p =>
+        `${p.id} · ${p.reason} · ${p.original_question}\n${t('pipeline.openPoints.currentQ')}: ${p.question}`
       ).join('\n') + limits;
     }
 
@@ -831,7 +831,7 @@
       const select = document.getElementById('agent-runner-select');
       select.textContent = '';
       for (const r of agentRunners) {
-        const option = new Option(r.available ? r.label : `${r.label} (${r.unavailable_reason || 'non installato'})`, r.id);
+        const option = new Option(r.available ? r.label : `${r.label} (${r.unavailable_reason || t('pipeline.agent.notInstalled')})`, r.id);
         option.disabled = !(r.export_available ?? r.available);
         select.add(option);
       }
@@ -841,13 +841,15 @@
 
     /* Opzioni della tendina "Tentativi", dal tetto dichiarato dal server: offrirne di più
        significherebbe far scegliere un numero che il server poi taglia in silenzio. */
+    let _attemptsCeiling = 1;
     function fillAttempts(ceiling) {
       const select = document.getElementById('agent-attempts-select');
       const previous = select.value;
-      const max = Math.max(1, Math.min(Number(ceiling) || 1, 10));
+      if (ceiling != null) _attemptsCeiling = ceiling;
+      const max = Math.max(1, Math.min(Number(_attemptsCeiling) || 1, 10));
       select.textContent = '';
       for (let n = 1; n <= max; n++) {
-        select.add(new Option(n === 1 ? '1 · nessun rilancio' : `${n} · rilancia se la suite è rossa`, String(n)));
+        select.add(new Option(n === 1 ? t('pipeline.agent.attemptOne') : t('pipeline.agent.attemptN', { n }), String(n)));
       }
       select.value = (Number(previous) >= 1 && Number(previous) <= max) ? previous : '1';
     }
@@ -860,8 +862,8 @@
       const select = document.getElementById('agent-attempts-select');
       select.disabled = !agentic;
       select.title = agentic
-        ? 'Rilanci automatici finché la suite dell\'ambito non passa'
-        : 'Solo in modalità Agentic: le altre non scrivono codice da verificare';
+        ? t('pipeline.agent.attemptsTitle')
+        : t('pipeline.agent.attemptsDisabled');
     }
 
     function onRunnerChange() {
@@ -869,7 +871,7 @@
       if (!runner) return;
       const models = document.getElementById('agent-model-select');
       models.textContent = '';
-      if (!runner.models.length) models.add(new Option('Modello predefinito', ''));
+      if (!runner.models.length) models.add(new Option(t('pipeline.agent.defaultModel'), ''));
       for (const m of runner.models) models.add(new Option(m, m));
       const modes = document.getElementById('agent-mode-select');
       for (const o of modes.options) o.disabled = !runner.modes.includes(o.value);
@@ -882,7 +884,7 @@
       const runner = agentRunners.find(r => r.id === document.getElementById('agent-runner-select').value);
       const btn = document.getElementById('agent-run-btn');
       btn.disabled = agentRunning || runner?.available === false;
-      btn.title = runner?.available === false ? runner.unavailable_reason || 'Runner non disponibile.' : '';
+      btn.title = runner?.available === false ? runner.unavailable_reason || t('pipeline.agent.runnerUnavailable') : '';
     }
 
     async function runWithAgent() {
@@ -893,14 +895,14 @@
       const runner = document.getElementById('agent-runner-select').value;
       const capability = agentRunners.find(r => r.id === runner);
       if (capability?.available === false) {
-        toast(capability.unavailable_reason || 'Runner non disponibile.', 'error');
+        toast(capability.unavailable_reason || t('pipeline.agent.runnerUnavailable'), 'error');
         return;
       }
       // Fuori da agentic la tendina è spenta e il server non verifica: chiedere rilanci
       // sarebbe una richiesta senza effetto.
       const attempts = mode === 'agentic' ? Number(document.getElementById('agent-attempts-select').value) || 1 : 1;
       // La modalità determina tool e contesto: niente fallback sul prompt HTTP esterno.
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
       const runningFeature = featureName;
       await refreshGateReview();
       if (revision !== sessionRevision || featureName !== runningFeature) return;
@@ -909,8 +911,8 @@
         if (mode !== 'agentic') prompt = await fetchFinalPrompt(runningFeature, devType, 'agent', mode, runner);
       } catch (err) { toast(err.message, 'error'); return; }
       if (mode === 'agentic' && !await confirmDialog(
-        'La modalità Agentic scrive file nel progetto. Continuare?',
-        { title: 'Modalità Agentic', confirmText: 'Continua', danger: true }
+        t('pipeline.agent.confirmBody'),
+        { title: t('pipeline.agent.confirmTitle'), confirmText: t('pipeline.agent.confirmOk'), danger: true }
       )) return;
       if (revision !== sessionRevision || featureName !== runningFeature) return;
 
@@ -920,7 +922,7 @@
       const out = document.getElementById('agent-output');
       btn.disabled = true;
       out.style.display = '';
-      out.textContent = `⏳ Avvio ${runner} (${model || 'modello predefinito'}) in modalità "${mode}"…\n\n`;
+      out.textContent = t('pipeline.agent.starting', { runner, model: model || t('pipeline.agent.defaultModel'), mode }) + '\n\n';
 
       // X-API-Key richiesta sempre (anche da localhost) per questo endpoint — vedi
       // api/deps.py::require_api_key_strict. Il server la inietta da solo a ogni
@@ -947,8 +949,8 @@
           const gate = err.detail;
           if ([409, 503].includes(res.status) && gate?.allowed === false) {
             if (gate.attempt_id) blockedAttempts.set(runningFeature, gate.attempt_id);
-            out.textContent += `Avvio bloccato dal server · validazione: ${gate.validation_id || 'assente'} · tentativo: ${gate.attempt_id || 'non registrato'}\n`;
-            if (gate.retry_of_attempt_id) out.textContent += `Ripresa del tentativo: ${gate.retry_of_attempt_id}\n`;
+            out.textContent += t('pipeline.agent.blocked', { validation: gate.validation_id || t('pipeline.gate.absent'), attempt: gate.attempt_id || t('pipeline.agent.attemptUnrecorded') }) + '\n';
+            if (gate.retry_of_attempt_id) out.textContent += t('pipeline.agent.retryOf', { id: gate.retry_of_attempt_id }) + '\n';
             out.textContent += gateMessages(gate).join('\n') + '\n';
             return;
           }
@@ -960,7 +962,7 @@
         await consumeNdjson(res, ev => {
             if (revision !== sessionRevision) return;
             if (ev.type === 'gate') {
-              out.textContent += `Gate del server${mode === 'agentic' ? '' : ' (advisory)'} · validazione: ${ev.gate.validation_id || 'assente'} · tentativo: ${ev.attempt_id || 'non registrato'}\n`;
+              out.textContent += t(mode === 'agentic' ? 'pipeline.agent.gate' : 'pipeline.agent.gateAdvisory', { validation: ev.gate.validation_id || t('pipeline.gate.absent'), attempt: ev.attempt_id || t('pipeline.agent.attemptUnrecorded') }) + '\n';
               out.textContent += gateMessages(ev.gate).join('\n') + '\n';
             } else if (ev.type === 'text') {
               out.textContent += ev.text + '\n';
@@ -970,41 +972,38 @@
               terminated = true;
               const secs = ev.duration_ms != null ? (ev.duration_ms / 1000).toFixed(1) + 's' : '—';
               const cost = ev.total_cost_usd != null ? '$' + ev.total_cost_usd.toFixed(4) : '—';
-              out.textContent += `\n${ev.is_error ? '❌ Terminato con errore' : 'Esecuzione terminata'} · ${secs} · ${cost} · ${ev.num_turns ?? '—'} turni\n${openPointsSummary(ev)}\n`;
+              out.textContent += '\n' + t(ev.is_error ? 'pipeline.agent.endedError' : 'pipeline.agent.endedOk', { secs, cost, turns: ev.num_turns ?? '—' }) + '\n' + openPointsSummary(ev) + '\n';
             } else if (ev.type === 'error') {
               terminated = true;
-              out.textContent += `\n❌ Errore: ${ev.message}\n${openPointsSummary(ev)}\n`;
+              out.textContent += '\n' + t('pipeline.err.prefix', { msg: ev.message }) + '\n' + openPointsSummary(ev) + '\n';
             } else if (ev.type === 'verification') {
               // Esito della suite ESEGUITA dal server: l'unica riga di questo output che non
               // riporta una dichiarazione dell'agente.
               const icona = ev.status === 'passed' ? '✅' : (ev.status === 'failed' ? '❌' : '⚠️');
               const comando = ev.command && ev.command.length ? ev.command.join(' ') : '—';
-              out.textContent += `\n${icona} Verifica eseguita dal server · code/${ev.dev_type} · ${comando}`
-                + ` · esito: ${ev.status}${ev.exit_code != null ? ` (exit ${ev.exit_code})` : ''}`
-                + ` · ${ev.duration_seconds}s\n`;
+              out.textContent += '\n' + t('pipeline.agent.verification', { icon: icona, type: ev.dev_type, command: comando, status: ev.status, exit: ev.exit_code != null ? ` (exit ${ev.exit_code})` : '', secs: ev.duration_seconds }) + '\n';
               if (ev.reason) out.textContent += `   ${ev.reason}\n`;
               if (ev.status === 'unavailable') {
-                out.textContent += '   La feature resta NON verificata: manca lo strumento di misura, non si ritenta.\n';
+                out.textContent += '   ' + t('pipeline.agent.verifyUnavailable') + '\n';
               }
               if (ev.output_tail) out.textContent += ev.output_tail.trimEnd() + '\n';
               if (ev.status === 'failed' && ev.attempts_left === 0) {
-                out.textContent += '   Nessun tentativo rimasto: la feature resta NON verificata.\n';
+                out.textContent += '   ' + t('pipeline.agent.noAttemptsLeft') + '\n';
               }
             } else if (ev.type === 'retry') {
-              out.textContent += `\n🔁 Rilancio dell'agente con le failure in prompt · tentativo ${ev.attempt_id}`
-                + ` (ripresa di ${ev.retry_of_attempt_id}) · ancora ${ev.attempts_left} dopo questo\n\n`;
+              out.textContent += '\n' + t('pipeline.agent.retry', { id: ev.attempt_id, of: ev.retry_of_attempt_id, left: ev.attempts_left }) + '\n\n';
             } else if (ev.type === 'retry_blocked') {
               terminated = true;
-              out.textContent += `\n⚠️ Rilancio non effettuato: ${ev.detail}\n`;
+              out.textContent += '\n⚠️ ' + t('pipeline.agent.retryBlocked', { detail: ev.detail }) + '\n';
             } else if (ev.type === 'verification_unrecorded') {
-              out.textContent += `\n⚠️ Esito della verifica non registrato nel journal: ${ev.detail}\n`;
+              out.textContent += '\n⚠️ ' + t('pipeline.agent.verifyUnrecorded', { detail: ev.detail }) + '\n';
             }
             out.scrollTop = out.scrollHeight;
         });
-        if (revision === sessionRevision && !terminated) throw new Error('Stream interrotto senza risultato finale');
+        if (revision === sessionRevision && !terminated) throw new Error(t('pipeline.agent.streamInterrupted'));
       } catch (e) {
         if (revision !== sessionRevision) return;
-        out.textContent += `\n❌ Errore: ${e.message}\n${openPointsSummary({})}\n`;
+        out.textContent += '\n' + t('pipeline.err.prefix', { msg: e.message }) + '\n' + openPointsSummary({}) + '\n';
       } finally {
         agentRunning = false;
         syncRunnerAvailability();
@@ -1029,7 +1028,7 @@
 
     /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */
     async function runDriftCheck() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
       const revision = sessionRevision;
       const btn = document.getElementById('drift-check-btn');
       const box = document.getElementById('drift-report-box');
@@ -1062,17 +1061,17 @@
         });
         if (revision !== sessionRevision) return;
         const clean = !hadError && verdict.startsWith('✅');
-        const label = hadError || verdict.startsWith('❌') ? 'verifica fallita'
-          : verdict.startsWith('⚠️ DRIFT') ? 'drift rilevato'
-          : verdict.startsWith('⚠️ PUNTI APERTI') ? 'punti aperti da decidere'
-          : clean ? 'verificato' : 'verifica incompleta';
+        const label = hadError || verdict.startsWith('❌') ? t('pipeline.drift.failed')
+          : verdict.startsWith('⚠️ DRIFT') ? t('pipeline.drift.detected')
+          : verdict.startsWith('⚠️ PUNTI APERTI') ? t('pipeline.drift.openPoints')
+          : clean ? t('pipeline.drift.verified') : t('pipeline.drift.incomplete');
         setStepState(4, clean ? 'done' : 'failed', label);
-        if (!clean) toast(`Drift check: ${label}. Leggi il report.`, 'warning');
+        if (!clean) toast(t('pipeline.drift.toastWarn', { label }), 'warning');
       } catch (e) {
         if (revision !== sessionRevision) return;
-        box.textContent += `\n❌ Errore: ${e.message}`;
-        setStepState(4, 'failed', 'verifica fallita');
-        toast(`Verifica del drift fallita: ${e.message}`, 'error');
+        box.textContent += '\n' + t('pipeline.err.prefix', { msg: e.message });
+        setStepState(4, 'failed', t('pipeline.drift.failed'));
+        toast(t('pipeline.drift.toastFail', { msg: e.message }), 'error');
       } finally {
         if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('drift-loader', false); }
       }
@@ -1080,11 +1079,11 @@
 
     /* ──────────── STEP 5: ARCHIVIAZIONE + RE-INDICIZZAZIONE (streaming) ──────────── */
     async function runArchive() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
       const revision = sessionRevision;
       if (!await confirmDialog(
-        `Archiviare la feature "${featureName}" e ricostruire il Graph RAG?\nLa cartella verrà spostata in changes/archive/ e l'operazione non è reversibile dall'interfaccia.`,
-        { title: 'Archiviazione feature', confirmText: 'Archivia', danger: true }
+        t('pipeline.archive.confirmBody', { name: featureName }),
+        { title: t('pipeline.archive.confirmTitle'), confirmText: t('pipeline.archive.confirmOk'), danger: true }
       )) return;
       if (revision !== sessionRevision) return;
 
@@ -1108,24 +1107,24 @@
         await consumeNdjson(res, ev => {
           if (revision !== sessionRevision) return;
           if (ev.type === 'log') box.textContent += ev.line + '\n';
-          else if (ev.type === 'reloaded') box.textContent += '\n🔄 Indice ricaricato in memoria.\n';
+          else if (ev.type === 'reloaded') box.textContent += '\n🔄 ' + t('pipeline.archive.reloaded') + '\n';
           else if (ev.type === 'reindex_queued') {
             archived = true;
-            box.textContent += `\n🔄 Re-indicizzazione accodata, job ${ev.job_id} (stato su /api/reindex/${ev.job_id}).\n`;
+            box.textContent += '\n🔄 ' + t('pipeline.archive.reindexQueued', { id: ev.job_id }) + '\n';
             pollReindexJob(ev.job_id, box);
           }
           else if (ev.type === 'error') { hadError = true; box.textContent += `\n❌ ${ev.message}\n`; }
           box.scrollTop = box.scrollHeight;
         });
         if (revision !== sessionRevision) return;
-        if (!hadError && !archived) throw new Error('Stream interrotto senza conferma di archiviazione');
-        setStepState(5, hadError ? 'failed' : 'done', hadError ? 'errori in archiviazione' : 'archiviato');
+        if (!hadError && !archived) throw new Error(t('pipeline.archive.streamInterrupted'));
+        setStepState(5, hadError ? 'failed' : 'done', hadError ? t('pipeline.archive.errors') : t('pipeline.archive.done'));
         await refreshFilesControl();
       } catch (e) {
         if (revision !== sessionRevision) return;
-        box.textContent += `\n❌ Errore: ${e.message}`;
-        setStepState(5, 'failed', 'archiviazione fallita');
-        toast(`Archiviazione fallita: ${e.message}`, 'error');
+        box.textContent += '\n' + t('pipeline.err.prefix', { msg: e.message });
+        setStepState(5, 'failed', t('pipeline.archive.failed'));
+        toast(t('pipeline.archive.toastFail', { msg: e.message }), 'error');
       } finally {
         if (revision === sessionRevision) { btn.disabled = false; setPanelVisible('archive-loader', false); }
       }
@@ -1133,12 +1132,15 @@
 
     /* ──────────── NOTIFICA A FINE RE-INDICIZZAZIONE (poll job in background) ──────────── */
     const _TERMINAL_REINDEX_STATES = ['completed', 'completed_not_promoted', 'failed', 'interrupted'];
-    const _REINDEX_STATUS_LABELS = {
-      completed: 'completata',
-      completed_not_promoted: 'completata ma NON promossa (eval-gate sotto soglia)',
-      failed: 'fallita',
-      interrupted: 'interrotta',
-    };
+    function reindexStatusLabel(status) {
+      const map = {
+        completed: 'pipeline.reindex.completed',
+        completed_not_promoted: 'pipeline.reindex.notPromoted',
+        failed: 'pipeline.reindex.failed',
+        interrupted: 'pipeline.reindex.interrupted',
+      };
+      return map[status] ? t(map[status]) : status;
+    }
 
     async function notifyReindexDone(message, ok) {
       toast(message, ok ? 'success' : 'warning');
@@ -1146,7 +1148,7 @@
       try {
         let perm = Notification.permission;
         if (perm === 'default') perm = await Notification.requestPermission();
-        if (perm === 'granted') new Notification('VibeCraft — Re-indicizzazione', { body: message });
+        if (perm === 'granted') new Notification(t('pipeline.reindex.notifyTitle'), { body: message });
       } catch (_e) { /* Notification bloccata/non disponibile: il toast basta comunque. */ }
     }
 
@@ -1167,7 +1169,7 @@
           job = await res.json();
         } catch (e) {
           if (revision !== sessionRevision) { finish(); return; }
-          box.textContent += `\n⚠ Impossibile verificare lo stato del job ${jobId}: ${e.message}\n`;
+          box.textContent += '\n⚠ ' + t('pipeline.reindex.pollError', { id: jobId, msg: e.message }) + '\n';
           box.scrollTop = box.scrollHeight;
           // Senza stato terminale il job può ancora lavorare: il frame resta residente.
           if (missing) finish(); else setTimeout(tick, POLL_MS);
@@ -1176,8 +1178,8 @@
         if (revision !== sessionRevision) { finish(); return; }
         if (!_TERMINAL_REINDEX_STATES.includes(job.status)) { setTimeout(tick, POLL_MS); return; }
         const ok = job.status === 'completed';
-        const label = _REINDEX_STATUS_LABELS[job.status] || job.status;
-        const message = `Re-indicizzazione ${label} (job ${jobId}).`;
+        const label = reindexStatusLabel(job.status);
+        const message = t('pipeline.reindex.doneMsg', { label, id: jobId });
         box.textContent += `\n${ok ? '✅' : '⚠'} ${message}\n`;
         box.scrollTop = box.scrollHeight;
         notifyReindexDone(message, ok);
@@ -1193,12 +1195,12 @@
         const text = await fetchFinalPrompt(featureName, devType, 'external', mode, runner);
         await navigator.clipboard.writeText(text);
         const original = btn.textContent;
-        btn.textContent = 'Copiato ✓';
+        btn.textContent = t('pipeline.prompt.copied');
         setTimeout(() => { btn.textContent = original; }, 1500);
       } catch (err) {
         toast(err.message, 'error');
         const original = btn.textContent;
-        btn.textContent = 'Copia non riuscita';
+        btn.textContent = t('pipeline.prompt.copyFailed');
         setTimeout(() => { btn.textContent = original; }, 1500);
       }
     }
@@ -1214,7 +1216,7 @@
       const body = document.getElementById('dryrun-body');
       btn.disabled = true;
       card.classList.remove('hidden');
-      body.innerHTML = '<span class="text-slate-400">Recupero sorgenti…</span>';
+      body.innerHTML = `<span class="text-slate-400">${t('pipeline.canvas.dryrunLoading')}</span>`;
       try {
         const res = await fetch('/api/pipeline/canvas/dry-run', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1231,11 +1233,11 @@
         // branch e note/e.message arrivano dal server: tutto passa da escapeHtml (shared.js),
         // altrimenti un titolo `<img onerror=…>` verrebbe eseguito in questo pannello.
         const src = (data.sources || []).map(s =>
-          `<div class="flex justify-between gap-2 border-b border-slate-800 py-1"><span class="font-mono truncate">${s.branch ? `<span class="text-blue-400">[${escapeHtml(s.branch)}]</span> ` : ''}${escapeHtml(s.doc_id)}${s.section ? ' § ' + escapeHtml(s.section) : ''}</span><span class="font-mono text-slate-400 shrink-0">D ${fmt(s.dense_score)} · S ${fmt(s.sparse_score)} · CB ${fmt(s.colbert_score)} · A ${fmt(s.authority)}</span></div>`).join('') || '<span class="text-slate-400">nessuna sorgente</span>';
+          `<div class="flex justify-between gap-2 border-b border-slate-800 py-1"><span class="font-mono truncate">${s.branch ? `<span class="text-blue-400">[${escapeHtml(s.branch)}]</span> ` : ''}${escapeHtml(s.doc_id)}${s.section ? ' § ' + escapeHtml(s.section) : ''}</span><span class="font-mono text-slate-400 shrink-0">D ${fmt(s.dense_score)} · S ${fmt(s.sparse_score)} · CB ${fmt(s.colbert_score)} · A ${fmt(s.authority)}</span></div>`).join('') || `<span class="text-slate-400">${t('pipeline.canvas.noSources')}</span>`;
         const gov = (data.governed_docs || []).map(g =>
-          `<span class="inline-block mr-2 mb-1 rounded border border-slate-700 px-2 py-0.5">${escapeHtml(g.doc_id)} <span class="text-blue-400">A ${fmt(g.authority)}</span> · ${g.chars} char</span>`).join('') || '<span class="text-slate-400">nessuno</span>';
-        body.innerHTML = `<div class="mb-2"><div class="text-slate-400 mb-1">Retrieval (ranking ibrido):</div>${src}</div>
-          <div><div class="text-slate-400 mb-1">Documenti normativi che verrebbero iniettati:</div>${gov}</div>`;
+          `<span class="inline-block mr-2 mb-1 rounded border border-slate-700 px-2 py-0.5">${escapeHtml(g.doc_id)} <span class="text-blue-400">A ${fmt(g.authority)}</span> · ${g.chars} char</span>`).join('') || `<span class="text-slate-400">${t('pipeline.canvas.none')}</span>`;
+        body.innerHTML = `<div class="mb-2"><div class="text-slate-400 mb-1">${t('pipeline.canvas.retrieval')}</div>${src}</div>
+          <div><div class="text-slate-400 mb-1">${t('pipeline.canvas.governed')}</div>${gov}</div>`;
       } catch (e) {
         if (revision !== sessionRevision) return;
         body.innerHTML = `<span class="text-red-400">❌ ${escapeHtml(e.message)}</span>`;
@@ -1244,30 +1246,30 @@
 
     /* ──────────── AGENT CONTEXT (blocco strutturato + confidence, Art. 1) ──────────── */
     async function loadAgentContext() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
       const revision = sessionRevision;
       const btn = document.getElementById('agent-context-btn');
       const wrap = document.getElementById('agent-context-wrap');
       const box = document.getElementById('agent-context-box');
       btn.disabled = true;
       wrap.classList.remove('hidden');
-      box.textContent = '⏳ Costruzione del contesto…';
+      box.textContent = t('pipeline.prompt.contextLoading');
       try {
         const res = await fetch(`/api/pipeline/agent-context?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
         const data = await res.json();
         if (revision !== sessionRevision) return;
         document.getElementById('agent-confidence').textContent = `${data.confidence} (${data.confidence_label})`;
-        box.textContent = data.text || '(vuoto)';
+        box.textContent = data.text || t('pipeline.prompt.empty');
       } catch (e) {
         if (revision !== sessionRevision) return;
-        box.textContent = `❌ Errore: ${e.message}`;
+        box.textContent = t('pipeline.err.prefix', { msg: e.message });
       } finally { if (revision === sessionRevision) btn.disabled = false; }
     }
 
     /* ──────────── EXPORT JSON del design contract ──────────── */
     async function exportBundle() {
-      if (!featureName) { toast('Carica prima la feature.', 'error'); return; }
+      if (!featureName) { toast(t('pipeline.feature.loadFirst'), 'error'); return; }
       try {
         const res = await fetch(`/api/pipeline/export?feature=${encodeURIComponent(featureName)}&dev_type=${encodeURIComponent(devType)}`);
         if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(apiErrorMessage(e.detail, `HTTP ${res.status}`)); }
@@ -1279,7 +1281,7 @@
         document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
       } catch (e) {
-        toast(`Errore export: ${e.message}`, 'error');
+        toast(t('pipeline.prompt.exportError', { msg: e.message }), 'error');
       }
     }
 
@@ -1287,7 +1289,7 @@
     async function saveMdFile(name, editorId) {
       if (!featureName) return;
       if (sessionLoading || pendingDraft) {
-        toast('Scegli prima se ripristinare o scartare la bozza locale.', 'error');
+        toast(t('pipeline.session.chooseDraft'), 'error');
         return;
       }
       const savingFeature = featureName;
@@ -1307,7 +1309,7 @@
         }
         await refreshFilesControl();
       } catch (e) {
-        toast(`Errore nel salvataggio di ${name}: ${e.message}`, 'error');
+        toast(t('pipeline.review.saveError', { name, msg: e.message }), 'error');
       }
     }
 
@@ -1329,7 +1331,28 @@
     }
     document.getElementById('feature-name-input').addEventListener('change', () => retainWorkspaceTask(loadFeatureStatus()));
     document.getElementById('feature-name-input').addEventListener('input', updateChatControls);
+    document.getElementById('session-status').textContent = t('pipeline.session.draftsLocalOnly');
     updateChatControls();
+
+    window.onLangChange = function () {
+      updateChatControls();
+      for (let i = 1; i <= 5; i++) setStepState(i, stepStates[i]);
+      if (featureName) refreshFilesControl();
+      else {
+        const list = document.getElementById('files-control-list');
+        if (list) list.innerHTML = `<p class="text-slate-400">${t('pipeline.files.empty')}</p>`;
+      }
+      if (!pendingDraft && !sessionLoading) {
+        document.getElementById('session-status').textContent = t('pipeline.session.draftsLocalOnly');
+      }
+      if (gateReview) renderDecisionEditor(gateReview.data);
+      syncAttemptsAvailability();
+      fillAttempts();
+      const specStatus = document.getElementById('spec-open-points-status');
+      if (specStatus && !document.getElementById('spec-md-editor').value) {
+        specStatus.textContent = openPointsSummary({});
+      }
+    };
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
@@ -1360,6 +1383,6 @@
       runWithAgent: () => runWithAgent(),
       saveMdFile: el => saveMdFile(el.dataset.arg, el.dataset.arg2),
       sendExploreTurn: () => sendExploreTurn(),
-      specEdited: () => { document.getElementById('spec-open-points-status').textContent = '⚠ Modifiche non salvate: resoconto da verificare.'; },
+      specEdited: () => { document.getElementById('spec-open-points-status').textContent = t('pipeline.review.unsaved'); },
       syncAttemptsAvailability: () => syncAttemptsAvailability(),
     });
