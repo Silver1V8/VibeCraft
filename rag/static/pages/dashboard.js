@@ -944,6 +944,10 @@
     }
 
     /* ASK_STREAM_PARSER_START */
+    /* Messaggi con fallback IT: i test estraggono questo blocco in Node senza i18n.js. */
+    function askStreamMsg(key, fallback) {
+      return (typeof t === 'function') ? t(key) : fallback;
+    }
     function createAskStreamParser(onEvent) {
       const decoder = new TextDecoder();
       let buffer = '';
@@ -951,10 +955,10 @@
 
       function parseLine(line) {
         if (!line.trim()) return;
-        if (terminal) throw new Error(t('dashboard.streamAfterTerminal'));
+        if (terminal) throw new Error(askStreamMsg('dashboard.streamAfterTerminal', 'Dati ricevuti dopo l’evento terminale.'));
         const event = JSON.parse(line);
         if (!event || !['meta', 'delta', 'result', 'error'].includes(event.type)) {
-          throw new Error(t('dashboard.streamInvalidEvent'));
+          throw new Error(askStreamMsg('dashboard.streamInvalidEvent', 'Evento streaming /ask non valido.'));
         }
         onEvent(event);
         if (event.type === 'result' || event.type === 'error') terminal = true;
@@ -971,7 +975,7 @@
           if (done) {
             parseLine(buffer);
             buffer = '';
-            if (!terminal) throw new Error(t('dashboard.streamNoTerminal'));
+            if (!terminal) throw new Error(askStreamMsg('dashboard.streamNoTerminal', 'Stream /ask terminato senza evento terminale.'));
           }
           return terminal;
         },
