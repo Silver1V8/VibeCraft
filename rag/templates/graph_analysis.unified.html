@@ -8,7 +8,9 @@
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
   <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/i18n/messages.js"></script>
   <script src="/static/shared.js"></script>
+  <script src="/static/i18n.js"></script>
 
   <style>
     /* Shell della pagina (body, header, main, section, h2, .desc, scrollbar):
@@ -161,14 +163,14 @@
 <body class="page-doc">
   <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
        da tastiera attraversa 6 pill a ogni caricamento. -->
-  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+  <a href="#main-content" class="skip-link" data-i18n="analysis.skip">Vai al contenuto</a>
 
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
        shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
-  <h1 class="sr-only">Analisi del Grafo</h1>
+  <h1 class="sr-only" data-i18n="analysis.title.sr">Analisi del Grafo</h1>
 
   <!-- Banco di lavoro: a sinistra la mappa, a destra il nodo selezionato con relazioni e
        propagazione dell'impatto. Prima erano quattro sezioni impilate (~3.400 px) e il click
@@ -178,13 +180,13 @@
   <main id="main-content" tabindex="-1" class="analysis-layout">
     <!-- ══════════ MAPPA SEMANTICA ══════════ -->
     <section id="section-map">
-      <h2 title="Semantic Map">🗺️ Mappa semantica</h2>
-      <p class="desc">Ogni punto è una <em>sezione</em>, vicina alle sezioni di significato simile (PCA sui
+      <h2 title="Semantic Map" data-i18n-title="analysis.map.titleAttr" data-i18n="analysis.map.h2">🗺️ Mappa semantica</h2>
+      <p class="desc" data-i18n-html="analysis.map.desc">Ogni punto è una <em>sezione</em>, vicina alle sezioni di significato simile (PCA sui
         vettori densi bge-m3). Il colore è il <em>gruppo</em> di documenti che citano le stesse entità;
         l'anello bianco segna i documenti <em>ponte</em>. Clicca un punto per vederne relazioni e impatto.</p>
       <div class="toolbar">
-        <button type="button" data-click="loadSemanticMap" data-requires="qdrant" class="btn btn-secondary">↻ Ricarica</button>
-        <span id="map-status" class="status">Caricamento…</span>
+        <button type="button" data-click="loadSemanticMap" data-requires="qdrant" class="btn btn-secondary" data-i18n="analysis.map.reload">↻ Ricarica</button>
+        <span id="map-status" class="status" data-i18n="analysis.map.loading">Caricamento…</span>
       </div>
       <div class="canvas-wrap">
         <canvas id="map-canvas" height="560"></canvas>
@@ -196,23 +198,23 @@
 
     <!-- ══════════ NODO SELEZIONATO ══════════ -->
     <section id="section-node" class="analysis-inspector" aria-labelledby="node-title">
-      <h2 id="node-title">🔎 Nodo selezionato</h2>
+      <h2 id="node-title" data-i18n="analysis.node.h2">🔎 Nodo selezionato</h2>
       <div class="toolbar">
-        <label for="node-search" class="sr-only">Cerca un nodo</label>
-        <input id="node-search" list="nodes-list" placeholder="Cerca un nodo: documento, entità o codice" autocomplete="off" />
+        <label for="node-search" class="sr-only" data-i18n="analysis.node.searchLabel">Cerca un nodo</label>
+        <input id="node-search" list="nodes-list" placeholder="Cerca un nodo: documento, entità o codice" data-i18n-placeholder="analysis.node.searchPlaceholder" autocomplete="off" />
         <datalist id="nodes-list"></datalist>
-        <button type="button" data-click="selectSearchedNode" class="btn btn-primary">Mostra</button>
+        <button type="button" data-click="selectSearchedNode" class="btn btn-primary" data-i18n="analysis.node.show">Mostra</button>
       </div>
-      <p id="node-empty" class="desc">Clicca un punto della mappa o cerca un nodo per vederne le relazioni
+      <p id="node-empty" class="desc" data-i18n="analysis.node.empty">Clicca un punto della mappa o cerca un nodo per vederne le relazioni
         e cosa viene toccato se lo modifichi.</p>
       <div id="node-detail" hidden>
         <p id="node-name" class="node-name"></p>
-        <h3>Relazioni <span id="rel-status" class="status"></span></h3>
+        <h3><span data-i18n="analysis.node.relations">Relazioni</span> <span id="rel-status" class="status"></span></h3>
         <ul id="node-relations" class="relations"></ul>
-        <h3 title="Impact Ripple">Propagazione dell'impatto <span id="ripple-status" class="status"></span></h3>
-        <p class="desc">Anelli concentrici: il centro è il nodo scelto, ogni anello un passo di distanza nel grafo.
+        <h3 title="Impact Ripple" data-i18n-title="analysis.node.rippleTitleAttr"><span data-i18n="analysis.node.ripple">Propagazione dell'impatto</span> <span id="ripple-status" class="status"></span></h3>
+        <p class="desc" data-i18n="analysis.node.rippleDesc">Anelli concentrici: il centro è il nodo scelto, ogni anello un passo di distanza nel grafo.
           Clicca un nodo per selezionarlo.</p>
-        <label class="status">Profondità
+        <label class="status"><span data-i18n="analysis.node.depth">Profondità</span>
           <select id="ripple-depth" data-change="loadImpact">
             <option>1</option><option selected>2</option><option>3</option><option>4</option>
           </select>
@@ -222,9 +224,9 @@
           <div id="ripple-tooltip" class="tooltip"></div>
         </div>
         <div class="legend">
-          <span><i class="dot" style="background:var(--type-document)"></i> documento</span>
-          <span><i class="dot" style="background:var(--type-entity)"></i> entità</span>
-          <span><i class="dot" style="background:var(--type-code)"></i> codice</span>
+          <span><i class="dot" style="background:var(--type-document)"></i> <span data-i18n="analysis.legend.document">documento</span></span>
+          <span><i class="dot" style="background:var(--type-entity)"></i> <span data-i18n="analysis.legend.entity">entità</span></span>
+          <span><i class="dot" style="background:var(--type-code)"></i> <span data-i18n="analysis.legend.code">codice</span></span>
         </div>
       </div>
     </section>
