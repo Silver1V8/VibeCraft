@@ -1462,7 +1462,7 @@ window.VIBECRAFT_MESSAGES = {
     'workspace.twoProjectsBusy': 'Two projects have active operations. Wait for them to finish before opening a third project.',
     'workspace.updateIndex': 'Update index',
     'workspace.welcomeLead': 'Choose the project to work on.',
-    'workspace.welcomeManuals': '<a href="/static/manuale/percorso-guidato.html">Guided walkthrough</a> — a real case, from start to finish. <a href="/static/manuale/manuale-utente.html">User manual</a> — the controls, chapter by chapter.',
+    'workspace.welcomeManuals': '<a href="/static/manuale/percorso-guidato.en.html">Guided walkthrough</a> — a real case, from start to finish. <a href="/static/manuale/manuale-utente.en.html">User manual</a> — the controls, chapter by chapter.',
     'workspace.welcomeNote': 'Code, documents, and the index stay separate for each project.',
     'workspace.welcomeTitle': 'Welcome to VibeCraft.',
 

@@ -1,3 +1,7 @@
+Italiano | [English](README.en.md)
+
+> **Lingue della documentazione.** L'italiano è canonico in `README.md`; l'inglese è `README.en.md`. La preferenza lingua della console è separata (selettore IT/EN nell'interfaccia, chiave `localStorage` `vibecraft-lang`).
+
 # VibeCraft
 
 Una console **Graph-RAG per la governance documentale**: indicizza un corpus di documenti
@@ -28,6 +32,8 @@ Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono cos
 
 - [Percorso guidato](rag/static/manuale/percorso-guidato.html) — un caso reale dall'inizio alla fine, per chi deve decidere se adottarlo. In esecuzione: [`/static/manuale/percorso-guidato.html`](http://127.0.0.1:8000/static/manuale/percorso-guidato.html).
 - [Manuale utente](rag/static/manuale/manuale-utente.html) — i controlli, capitolo per capitolo. In esecuzione: [`/static/manuale/manuale-utente.html`](http://127.0.0.1:8000/static/manuale/manuale-utente.html).
+
+Versioni in inglese: [Guided walkthrough](rag/static/manuale/percorso-guidato.en.html), [User manual](rag/static/manuale/manuale-utente.en.html).
 
 `archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Toglierla con un commit ordinario non alleggerisce i clone: i byte restano nella history.
 
@@ -596,8 +602,8 @@ La superficie di attacco è mappata rotta per rotta in
 | | |
 |---|---|
 | [`rag/README.md`](rag/README.md) | architettura, retrieval, pipeline, indicizzazione — stesso stato documentato di questo file |
-| [`rag/static/manuale/percorso-guidato.html`](rag/static/manuale/percorso-guidato.html) | un caso reale, per chi deve decidere se adottarlo |
-| [`rag/static/manuale/manuale-utente.html`](rag/static/manuale/manuale-utente.html) | i controlli della console, capitolo per capitolo |
+| [`rag/static/manuale/percorso-guidato.html`](rag/static/manuale/percorso-guidato.html) ([EN](rag/static/manuale/percorso-guidato.en.html)) | un caso reale, per chi deve decidere se adottarlo |
+| [`rag/static/manuale/manuale-utente.html`](rag/static/manuale/manuale-utente.html) ([EN](rag/static/manuale/manuale-utente.en.html)) | i controlli della console, capitolo per capitolo |
 | [`rag/adr/`](rag/adr/README.md) | le decisioni architetturali e il perché |
 | [`rag/adr/PIPELINE_GATE.md`](rag/adr/PIPELINE_GATE.md) | contratto validato, decisioni e avvio agentic |
 | [`templates/docs/README.md`](templates/docs/README.md) | indice della baseline documentale inclusa |

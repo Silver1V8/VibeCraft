@@ -1,3 +1,7 @@
+Italiano | [English](README.en.md)
+
+> **Lingue della documentazione.** L'italiano è canonico in `README.md`; l'inglese è `README.en.md`. La preferenza lingua della console è separata (selettore IT/EN nell'interfaccia).
+
 # rag/ — Console Graph-RAG
 
 **Stato documentato: `main`, 25 ottobre 2026.**
