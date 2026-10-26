@@ -195,11 +195,8 @@ let _richiestaChiave = null;
 function chiediApiKey() {
   if (_richiestaChiave) return _richiestaChiave;
   _richiestaChiave = new Promise((resolve) => {
-    const v = (window.prompt(
-      'Questa console richiede una API key (VIBECRAFT_API_KEY del server).\n' +
-      'Succede quando il browser e il server non sono sulla stessa macchina — '
-      + 'per esempio con lo stack Docker.\n\nLa chiave resta in questo browser.') || '').trim();
-    if (v) { setApiKey(v); if (typeof toast === 'function') toast('API key salvata in questo browser.', 'success'); }
+    const v = (window.prompt(t('common.apiKeyPrompt')) || '').trim();
+    if (v) { setApiKey(v); if (typeof toast === 'function') toast(t('common.apiKeySaved'), 'success'); }
     resolve(v);
   }).finally(() => { _richiestaChiave = null; });
   return _richiestaChiave;
@@ -352,11 +349,9 @@ function syncMotionToggle() {
   const btn = document.getElementById('motion-toggle');
   if (!btn) return;
   const on = motionEnabled();
-  btn.textContent = on ? '🌧 Rain on' : '🌧 Rain off';
+  btn.textContent = on ? t('common.rainOn') : t('common.rainOff');
   btn.setAttribute('aria-pressed', String(on));
-  btn.title = on
-    ? 'Disattiva le animazioni di sfondo (rain)'
-    : 'Attiva le animazioni di sfondo (rain)';
+  btn.title = on ? t('common.rainOnTitle') : t('common.rainOffTitle');
   btn.hidden = document.documentElement.dataset.theme !== 'matrix';
 }
 
@@ -413,7 +408,7 @@ function toast(message, level) {
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'toast-close';
-  close.setAttribute('aria-label', 'Chiudi la notifica');
+  close.setAttribute('aria-label', t('common.closeNotification'));
   close.textContent = '×';
   close.addEventListener('click', () => el.remove());
   el.append(ico, txt, close);
@@ -432,9 +427,9 @@ function toast(message, level) {
    dall'interfaccia come l'archiviazione. */
 function confirmDialog(message, opts) {
   opts = opts || {};
-  const title = opts.title || 'Conferma azione';
-  const confirmText = opts.confirmText || 'Conferma';
-  const cancelText = opts.cancelText || 'Annulla';
+  const title = opts.title || t('common.confirmTitle');
+  const confirmText = opts.confirmText || t('common.confirm');
+  const cancelText = opts.cancelText || t('common.cancel');
   const danger = !!opts.danger;
 
   return new Promise(resolve => {
@@ -574,7 +569,8 @@ function registerActions(map) {
     }
     const missing = type === 'click' && (el.dataset.requires || '').split(' ').find(s => _servicesDown.includes(s));
     if (missing) {
-      toast(`${missing[0].toUpperCase() + missing.slice(1)} non raggiungibile: avvialo e riprova.`, 'warning');
+      const service = missing[0].toUpperCase() + missing.slice(1);
+      toast(t('common.serviceDownToast', { service }), 'warning');
       return;
     }
     const result = action(el, event);
@@ -582,6 +578,11 @@ function registerActions(map) {
   });
 });
 registerActions({ setUiTheme: el => setUiTheme(el.value) });
+/* setUiLang è definito in i18n.js (caricato dopo shared.js nella shell); lo
+   registriamo anche al bootstrap se già disponibile. */
+if (typeof setUiLang === 'function') {
+  registerActions({ setUiLang: el => setUiLang(el.value) });
+}
 
 /* ──────────── BOOTSTRAP ──────────── */
 document.addEventListener('DOMContentLoaded', function () {
@@ -589,6 +590,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // blocco serve solo a sincronizzare lo stato del <select id="theme-switcher">.
   const sel = document.getElementById('theme-switcher');
   if (sel) sel.value = document.documentElement.dataset.theme || 'matrix';
+  if (typeof setUiLang === 'function') {
+    registerActions({ setUiLang: el => setUiLang(el.value) });
+  }
   applyMotionAttr();
   initMotionToggle();
   if (document.documentElement.dataset.theme === 'matrix') startMatrixRain();
