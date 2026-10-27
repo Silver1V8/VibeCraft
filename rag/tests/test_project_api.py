@@ -504,3 +504,166 @@ def test_legacy_ask_fallback_rejects_docs_junction_after_capture(ab, monkeypatch
         elif a.docs_dir.is_symlink():
             a.docs_dir.unlink()
         a.docs_dir.mkdir(exist_ok=True)
+
+
+def test_list_projects_filters_by_q_on_name_and_id(client):
+    http, registry = client
+    alpha = registry.create("Alpha One")
+    beta = registry.create("Beta Two")
+    by_name = http.get("/api/projects", params={"q": "alpha"}).json()["projects"]
+    assert [row["id"] for row in by_name] == [alpha.id]
+    by_id = http.get("/api/projects", params={"q": alpha.id[:8]}).json()["projects"]
+    assert [row["id"] for row in by_id] == [alpha.id]
+    both = http.get("/api/projects", params={"q": "e"}).json()["projects"]
+    assert {row["id"] for row in both} == {alpha.id, beta.id}
+    assert http.get("/api/projects", params={"q": "nomatch"}).json()["projects"] == []
+    assert len(http.get("/api/projects").json()["projects"]) == 2
+
+
+def test_patch_renames_display_name_only(client):
+    http, registry = client
+    project = registry.create("Before")
+    root, collection = project.root, project.collection_name
+    response = http.patch(f"/api/projects/{project.id}", json={"name": "After"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == project.id and body["name"] == "After"
+    updated = registry.get(project.id)
+    assert updated.name == "After" and updated.root == root
+    assert updated.collection_name == collection
+    assert http.get(f"/api/projects/{project.id}").json()["name"] == "After"
+
+
+def test_patch_rejects_empty_name_and_unknown_id(client):
+    http, registry = client
+    project = registry.create("Keep")
+    empty = http.patch(f"/api/projects/{project.id}", json={"name": "  "})
+    assert empty.status_code == 422
+    assert empty.json()["detail"]["code"] == "invalid_project_name"
+    missing = http.patch("/api/projects/" + ("f" * 32), json={"name": "X"})
+    assert missing.status_code == 404
+    assert missing.json()["detail"]["code"] == "project_not_found"
+    assert registry.get(project.id).name == "Keep"
+
+
+def test_patch_and_delete_cross_site_and_reader(client, monkeypatch):
+    from api import routes_projects
+    import core.config as config
+    import core.projects as projects_mod
+    http, registry = client
+    project = registry.create("Guarded")
+    for method, path, kwargs in (
+        ("patch", f"/api/projects/{project.id}", {"json": {"name": "Nope"}}),
+        ("delete", f"/api/projects/{project.id}", {"params": {"confirm": project.name}}),
+    ):
+        response = getattr(http, method)(path, headers={"Sec-Fetch-Site": "cross-site"}, **kwargs)
+        assert response.status_code == 403
+    monkeypatch.setattr(routes_projects, "ROLE", "reader")
+    monkeypatch.setattr(deps, "ROLE", "reader")
+    monkeypatch.setattr(deps, "API_KEY", "reader-secret")
+    monkeypatch.setattr(config, "ROLE", "reader")
+    monkeypatch.setattr(projects_mod.installation, "ROLE", "reader")
+    headers = {"X-API-Key": "reader-secret"}
+    renamed = http.patch(f"/api/projects/{project.id}", json={"name": "Reader"}, headers=headers)
+    assert renamed.status_code == 409
+    assert renamed.json()["detail"]["code"] == "read_only"
+    deleted = http.delete(f"/api/projects/{project.id}", params={"confirm": project.name},
+                          headers=headers)
+    assert deleted.status_code == 409
+    assert deleted.json()["detail"]["code"] == "read_only"
+    assert registry.get(project.id).name == "Guarded"
+
+
+def test_delete_destroy_managed_project(client, monkeypatch):
+    from core import ask_cache
+    http, registry = client
+    project = registry.create("Destroy Me")
+    root = project.root
+    deps.project_runtime(project)["reload_error"] = "stale"
+    cache = ask_cache.for_app(http.app)
+    cache.set(ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id=project.id), {"answer": "x"})
+    response = http.delete(f"/api/projects/{project.id}",
+                           params={"confirm": "Destroy Me", "mode": "destroy"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == project.id
+    assert body["mode"] == "destroy" and body["managed"] is True
+    assert body["cleanup"]["filesystem"] == "ok"
+    assert body["cleanup"]["qdrant"] == "skipped"
+    assert not root.exists()
+    assert http.get(f"/api/projects/{project.id}").status_code == 404
+    assert http.get("/api/projects").json()["projects"] == []
+    assert project.id not in deps._project_states
+    assert cache.get(ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id=project.id)) is None
+
+
+def test_delete_unregister_external_leaves_files(client, tmp_path):
+    http, registry = client
+    external = ProjectRegistry(tmp_path / "external", bootstrap_legacy=False).create("External")
+    registered = registry.register(external.root)
+    response = http.delete(f"/api/projects/{registered.id}",
+                           params={"confirm": registered.id})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "unregister" and body["managed"] is False
+    assert body["cleanup"] == {"filesystem": "skipped", "qdrant": "skipped"}
+    assert external.root.exists() and (external.root / "project.yaml").is_file()
+    assert http.get(f"/api/projects/{registered.id}").status_code == 404
+
+
+def test_delete_confirm_and_mode_errors(client, tmp_path):
+    http, registry = client
+    project = registry.create("Confirm")
+    missing = http.delete(f"/api/projects/{project.id}")
+    assert missing.status_code == 422
+    assert missing.json()["detail"]["code"] == "project_delete_confirm"
+    wrong = http.delete(f"/api/projects/{project.id}", params={"confirm": "other"})
+    assert wrong.status_code == 422
+    assert wrong.json()["detail"]["code"] == "project_delete_confirm"
+    assert registry.get(project.id).name == "Confirm"
+    external = ProjectRegistry(tmp_path / "ext2", bootstrap_legacy=False).create("Ext")
+    registered = registry.register(external.root)
+    refused = http.delete(f"/api/projects/{registered.id}",
+                          params={"confirm": registered.name, "mode": "destroy"})
+    assert refused.status_code == 422
+    assert refused.json()["detail"]["code"] == "project_delete_mode"
+    assert registry.get(registered.id).name == "Ext"
+    unknown = http.delete("/api/projects/" + ("a" * 32), params={"confirm": "a" * 32})
+    assert unknown.status_code == 404
+    assert unknown.json()["detail"]["code"] == "project_not_found"
+
+
+def test_delete_accepts_json_body_confirm(client):
+    http, registry = client
+    project = registry.create("Body Confirm")
+    response = http.request(
+        "DELETE", f"/api/projects/{project.id}",
+        json={"confirm": "Body Confirm", "mode": "destroy"},
+    )
+    assert response.status_code == 200
+    assert response.json()["mode"] == "destroy"
+    assert http.get(f"/api/projects/{project.id}").status_code == 404
+
+
+def test_delete_busy_when_reindex_running(client):
+    from types import SimpleNamespace
+    http, registry = client
+    project = registry.create("Busy")
+    deps.project_runtime(project)["reindex_manager"] = SimpleNamespace(
+        is_running=True, pending_id=None)
+    response = http.delete(f"/api/projects/{project.id}", params={"confirm": project.name})
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "project_busy"
+    assert registry.get(project.id).name == "Busy"
+
+
+def test_delete_isolation_preserves_sibling(client):
+    http, registry = client
+    a, b = registry.create("Keep A"), registry.create("Drop B")
+    response = http.delete(f"/api/projects/{b.id}", params={"confirm": b.id, "mode": "destroy"})
+    assert response.status_code == 200
+    assert http.get(f"/api/projects/{a.id}").status_code == 200
+    assert http.get(f"/api/projects/{b.id}").status_code == 404
+    assert a.root.exists() and not b.root.exists()
+    listed = http.get("/api/projects").json()["projects"]
+    assert [row["id"] for row in listed] == [a.id]

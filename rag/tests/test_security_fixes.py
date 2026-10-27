@@ -762,6 +762,8 @@ def test_route_propose_generate_rejects_stale_or_tampered_meta_dev_type(code_dir
 _ANTI_XSITE_ROUTES = [
     (routes_projects.router, "POST", "/api/projects"),
     (routes_projects.router, "POST", "/api/projects/register"),
+    (routes_projects.router, "PATCH", "/api/projects/{project_id}"),
+    (routes_projects.router, "DELETE", "/api/projects/{project_id}"),
     (routes_reindex.router, "POST", "/api/reindex"),
     (routes_reindex.router, "POST", "/api/index/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
@@ -813,7 +815,8 @@ _ALL_ROUTERS = [routes_pages.router, routes_pipeline.router, routes_reindex.rout
 def _concrete(path: str) -> str:
     """Template di route → URL concreto per le richieste HTTP. Gli id inesistenti sono
     voluti: il ramo "come oggi" deve fermarsi su un 404/422, mai su un documento vero."""
-    return path.replace("{doc_id}", "non-esiste").replace("{job_id}", "non-esiste")
+    return (path.replace("{doc_id}", "non-esiste").replace("{job_id}", "non-esiste")
+            .replace("{project_id}", "non-esiste"))
 
 
 # --- Semantica della dependency, in isolamento (stesso pattern _FakeRequest) ---

@@ -2,7 +2,7 @@
 
 ## Superficie MCP locale (sessione 5, 2026-09-11)
 
-`mcp_server.py` espone **tre tool stdio**, distinti dalle **70 route HTTP** sotto:
+`mcp_server.py` espone **tre tool stdio**, distinti dalle **72 route HTTP** sotto:
 `vibecraft_retrieve` → GET `/api/retrieve`, `vibecraft_code_search` → GET
 `/api/code/search`, `vibecraft_graph_query` → GET `/api/graph/query`.
 Nessuna porta MCP, risorsa filesystem, prompt o tool aggiuntivo. Il confine di accesso
@@ -59,7 +59,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 70** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 72** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
   - `routes_pipeline.py` → 25
@@ -67,14 +67,15 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
   - `routes_retrieval.py` → 5
   - `routes_graph.py` → 5
   - `routes_health.py` → 4
-  - `routes_projects.py` → 4
+  - `routes_projects.py` → 6
   - `routes_intake.py` → 15
-- **La tabella §1 ha 70 righe numerate** (una per route registrata) → il conteggio
+- **La tabella §1 ha 72 righe numerate** (una per route registrata) → il conteggio
   coincide con il criterio di completezza. La numerazione segue l'ordine di
   `include_router` in [`server.py`](server.py), poi l'ordine originario nel file;
   le due nuove route del gate e, più tardi, `GET /api/pipeline/agent/runners` (riga 60,
-  aggiunta coi runner alternativi, §5) e GET/DELETE `/api/ask/thread` (righe 69–70,
-  VC-3 WP2) sono aggiunte in coda per conservare i riferimenti.
+  aggiunta coi runner alternativi, §5), GET/DELETE `/api/ask/thread` (righe 69–70,
+  VC-3 WP2) e PATCH/DELETE `/api/projects/{project_id}` (righe 71–72, VC-12 WP3)
+  sono aggiunte in coda per conservare i riferimenti.
   Questi conteggi sono verificati dal codice, non solo dichiarati, da
   `test_declared_route_counts_match_code` in
   [`tests/test_security_fixes.py`](tests/test_security_fixes.py): un router che guadagna
@@ -83,12 +84,14 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
   sottoinsieme di questi stessi router/route (mai una route aggiuntiva): verificato da
   `test_reader_role_routes_are_a_subset_of_matrix`.
 - **POST totali: 28** — 25 con la dependency anti-cross-site, 3 esclusi con motivazione
-  (§2C). **DELETE mutanti con anti-cross-site: 1** (`DELETE /api/ask/thread`). Nessun
-  POST/DELETE mutante non classificato (asserito dalla suite).
+  (§2C). **DELETE mutanti con anti-cross-site: 2** (`DELETE /api/ask/thread`,
+  `DELETE /api/projects/{project_id}`). **PATCH mutanti con anti-cross-site: 1**
+  (`PATCH /api/projects/{project_id}`). Nessun POST/DELETE/PATCH mutante non
+  classificato (asserito dalla suite).
 - Fuori dai router, montati sull'app in [`server.py`](server.py): 3 route esplicite per
   `shared.css`/`shared.js`/`pages/*.js`, 1 mount statico (`/static`) e 3 route di default di FastAPI
   (`/docs`, `/redoc`, `/openapi.json`) + `/docs/oauth2-redirect`. Sono elencate
-  nell'**Appendice A** (non conteggiate nelle 70 perché non registrate sui router), ma
+  nell'**Appendice A** (non conteggiate nelle 72 perché non registrate sui router), ma
   hanno rilievo di sicurezza e vanno lette.
 
 ### Fatti architetturali verificati (valgono per tutta la tabella)
@@ -269,7 +272,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ---
 
-## 1. Tabella completa delle route (70 righe)
+## 1. Tabella completa delle route (72 righe)
 
 Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
 *JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
@@ -346,7 +349,7 @@ oltre a `require_api_key` del router.
 | 60 | GET | `/api/pipeline/agent/runners` | require_api_key | assente | Sì | read-only (elenco runner disponibili — Claude/local/Codex/Cursor —, modalità e modelli; interroga Ollama `/api/tags` con timeout 2 s e il PATH per i binari: rivela i modelli locali installati e quali CLI sono presenti sul server, §5) | Basso | nessuna |
 
 | 61 | GET | `/api/health/live` | require_api_key | assente | Sì | read-only (liveness, indipendente da indice/registry/risorse) | Basso | nessuna |
-| 62 | GET | `/api/projects` | require_api_key | assente | Sì | read-only (metadata; root solo loopback con bind locale, nessun segreto/settings) | Basso | nessuna |
+| 62 | GET | `/api/projects` | require_api_key | query (`q`, `stale`) | Sì | read-only (metadata; filtro opzionale `q` su name/id; root solo loopback con bind locale, nessun segreto/settings) | Basso | nessuna |
 | 63 | GET | `/api/projects/{project_id}` | require_api_key | path | Sì | read-only (metadata e stato indice del progetto richiesto) | Basso | nessuna |
 | 64 | POST | `/api/projects` | require_api_key | JSON Pydantic | No (preflight) | scrive registry e cartelle del nuovo UUID; reader rifiutato | Medio | **anti-x-site** |
 | 65 | POST | `/api/projects/register` | require_api_key | JSON Pydantic | No (preflight) | legge manifest e scrive registry; path host arbitrario solo con bind locale, altrimenti root canonica senza link strettamente sotto PROJECTS_DIR, verificata prima del manifest; reader rifiutato | Medio | **anti-x-site + confinement managed-root remoto** |
@@ -355,6 +358,8 @@ oltre a `require_api_key` del router.
 | 68 | GET | `/api/health/deps` | require_api_key | assente | Sì | read-only (ping Qdrant/Ollama per l'indicatore della shell; crea il client Qdrant condiviso se manca, senza modello di embedding; `ollama` è `null` se non è il provider attivo) | Basso | nessuna |
 | 69 | GET | `/api/ask/thread` | require_api_key | assente | Sì | read-only (thread corto per-progetto sotto `database/ask/thread.json`; missing/corrupt → thread vuoto) | Basso | nessuna |
 | 70 | DELETE | `/api/ask/thread` | require_api_key | **assente** | **Sì (bodyless; CORS preflight su DELETE)** | **scrive filesystem** (reset idempotente del thread: turns+citations vuoti) | Medio | **anti-x-site** |
+| 71 | PATCH | `/api/projects/{project_id}` | require_api_key | JSON Pydantic (`name`) | No (preflight) | rinomina solo il display name in registry + `project.yaml`; id/root/Qdrant invariati; reader rifiutato | Medio | **anti-x-site** |
+| 72 | DELETE | `/api/projects/{project_id}` | require_api_key | query/body (`mode`, `confirm`) | **Parziale** (DELETE non-simple; body JSON opzionale) | unregister o destroy (registry ± rmtree ± Qdrant prefix); conferma obbligatoria name/id; busy → 409; reader rifiutato | **Alto** | **anti-x-site** |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
@@ -388,11 +393,13 @@ quelli che sembrano esposti.
 `require_api_key` (schema di `require_gitlab_token`) e rifiuta con **403** le richieste
 con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 
-### 2A — Mutano stato persistente (16)
+### 2A — Mutano stato persistente (18)
 
 | Route | Motivazione |
 |-------|-------------|
 | DELETE `/api/ask/thread` (70) | Bodyless; reset idempotente di `database/ask/thread.json`. DELETE non è un metodo CORS "simple" (preflight), ma la dependency resta esplicita come sugli altri mutanti. |
+| PATCH `/api/projects/{project_id}` (71) | Rinomina display name (registry + manifest); body JSON obbligatorio → preflight, ma mutante writer come create/register. |
+| DELETE `/api/projects/{project_id}` (72) | Unregister/destroy: registry, filesystem managed, Qdrant prefix-scoped. DELETE non-simple (preflight); `confirm` obbligatorio lato handler. |
 | POST `/api/reindex` (28) | Consegnabile bodyless; muta Qdrant sotto writer lock. In default keyless nessuna altra barriera. |
 | POST `/api/index/reindex` (66) | Comando della console: stesso job, writer lock e confine di progetto di #28; protetto da API key e anti-cross-site. |
 | POST `/api/index/rollback` (32) | Consegnabile bodyless; muove CURRENT + alias Qdrant → degrada la produzione a una versione arbitraria. |
@@ -434,7 +441,8 @@ dependency è a costo nullo e non rompe la UI same-origin.
 | Pagine HTML (1-6) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. Eccezione documentata: `/pipeline` (2) inietta la API key per i soli client locali → §4 #6. |
 
 **Sintesi ambito:** **22 POST protetti** su 25 (13 mutanti §2A + 9 LLM/filesystem §2B)
-più **1 DELETE** mutante (`/api/ask/thread`, §2A).
+più **2 DELETE** mutanti (`/api/ask/thread`, `/api/projects/{project_id}`, §2A) e
+**1 PATCH** mutante (`/api/projects/{project_id}`, §2A).
 Escluse: `agent/run` e `open-points/decision` (già strict), e `canvas/dry-run`; GET e pagine invariate.
 
 ---
@@ -569,7 +577,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ---
 
-## Appendice A — Superfici app-level (fuori dalle 70, montate in `server.py`)
+## Appendice A — Superfici app-level (fuori dalle 72, montate in `server.py`)
 
 | Metodo | Path | Auth | Effetto | Nota |
 |--------|------|------|---------|------|
@@ -586,15 +594,17 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 70** (6 pages · 25 pipeline · 6 reindex ·
-  5 retrieval · 5 graph · 4 health · 15 intake · 4 projects) — **coincide** con le 70 righe della
+- **Conteggio route registrate sui router: 72** (6 pages · 25 pipeline · 6 reindex ·
+  5 retrieval · 5 graph · 4 health · 15 intake · 6 projects) — **coincide** con le 72 righe della
   tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + 4 route di default
   FastAPI (Appendice A).
 - **POST: 28** — **25 protetti** da `require_not_cross_site_request`, 3 esclusi con
   motivazione (`agent/run` e `open-points/decision` già strict, `canvas/dry-run` read-only).
-  **DELETE mutanti protetti: 1** (`/api/ask/thread`). Nessun POST/DELETE mutante non
-  classificato: lo garantisce `test_every_post_route_is_classified`.
-- **Route mutanti individuate: 16** — `DELETE /api/ask/thread`, `dev-types` (POST), `explore/save`, `canvas/generate`,
+  **DELETE mutanti protetti: 2** (`/api/ask/thread`, `/api/projects/{project_id}`).
+  **PATCH mutanti protetti: 1** (`/api/projects/{project_id}`). Nessun POST/DELETE/PATCH
+  mutante non classificato: lo garantisce `test_every_post_route_is_classified`.
+- **Route mutanti individuate: 18** — `DELETE /api/ask/thread`, `PATCH /api/projects/{id}`,
+  `DELETE /api/projects/{id}`, `dev-types` (POST), `explore/save`, `canvas/generate`,
   `propose/generate`, `archive`, `archive/stream`, `file/save`, `POST /api/reindex`,
   `POST /api/index/reindex`, `POST /api/index/rollback`, `intake/docs`, `intake/approve`, `intake/reject`,
   `intake/project/apply`, `intake/project/browse-path`. Più `agent/run` che **esegue
@@ -609,7 +619,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
   utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
   bind aperto non resta nulla da proteggere.
-- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 70 route e
+- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 72 route e
   all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
   chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
 - **Anti-framing su tutta l'app** (Fatto 10): `X-Frame-Options: DENY` e
