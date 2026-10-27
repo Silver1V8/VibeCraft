@@ -28,6 +28,10 @@ SCHEMA_VERSION = 1
 DEFAULT_MAX_TURNS = 4
 DEFAULT_MAX_CITATIONS = 24
 ANSWER_EXCERPT_MAX_CHARS = 800
+# Prompt injection budgets (WP3): shrink excerpts before ever touching retrieval top_k.
+QUESTION_EXCERPT_MAX_CHARS = 240
+# Hard char budget for the whole [FILO-THREAD] block (~900 tokens at ~3 chars/token).
+THREAD_BLOCK_MAX_CHARS = 2800
 THREAD_DIRNAME = "ask"
 THREAD_FILENAME = "thread.json"
 
@@ -278,6 +282,126 @@ def append_turn(
     return thread
 
 
+def citations_from_qdrant_scores(scores: list[dict] | None) -> list[dict[str, Any]]:
+    """Map this-turn `qdrant_scores` rows into citation-ledger dicts for `merge_citations`."""
+    out: list[dict[str, Any]] = []
+    for raw in scores or []:
+        if not isinstance(raw, dict):
+            continue
+        doc_id = raw.get("doc_id")
+        if not isinstance(doc_id, str) or not doc_id.strip():
+            continue
+        score = raw.get("score")
+        if score is None:
+            score = raw.get("colbert_score")
+        if score is None:
+            score = raw.get("dense_score", 0.0)
+        try:
+            score_f = float(score) if score is not None else 0.0
+        except (TypeError, ValueError):
+            score_f = 0.0
+        authority = raw.get("authority", 0.0)
+        try:
+            authority_f = float(authority) if authority is not None else 0.0
+        except (TypeError, ValueError):
+            authority_f = 0.0
+        chunk_id = raw.get("chunk_id")
+        chunk_ids = [str(chunk_id)] if isinstance(chunk_id, str) and chunk_id else []
+        out.append({
+            "doc_id": doc_id.strip(),
+            "last_score": score_f,
+            "authority": authority_f,
+            "chunk_ids": chunk_ids,
+        })
+    return out
+
+
+def _truncate_chars(text: str, limit: int) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 1)].rstrip() + "…"
+
+
+def index_version_changed(thread: dict | None, current_index_version: str | None) -> bool:
+    """True when the last turn was answered on a different snapshot than `current`."""
+    if not thread or current_index_version is None:
+        return False
+    turns = thread.get("turns") or []
+    if not turns or not isinstance(turns[-1], dict):
+        return False
+    last = str(turns[-1].get("index_version") or "")
+    if not last:
+        return False
+    return last != str(current_index_version)
+
+
+def format_thread_block(
+    thread: dict | None,
+    *,
+    current_index_version: str | None = None,
+    max_chars: int | None = None,
+) -> str:
+    """Bounded `[FILO-THREAD]` prompt block, or empty string when there is nothing to inject.
+
+    Oldest→newest within the FIFO turn cap. Prefer shrinking per-turn excerpts when the
+    hard char budget would overflow — never a signal to reduce retrieval `top_k`.
+    """
+    if not thread or not isinstance(thread, dict):
+        return ""
+    turns = [t for t in (thread.get("turns") or []) if isinstance(t, dict) and t.get("question")]
+    if not turns:
+        return ""
+    budget = max_chars if max_chars is not None else THREAD_BLOCK_MAX_CHARS
+    citations = [
+        c for c in (thread.get("citations") or [])
+        if isinstance(c, dict) and c.get("doc_id")
+    ]
+    cite_ids = ", ".join(str(c["doc_id"]) for c in citations) or "(nessuna)"
+    stale = index_version_changed(thread, current_index_version)
+    header_lines = [
+        "[FILO-THREAD]: filo breve del progetto (turni precedenti, dal più vecchio).",
+        "Usalo SOLO per risolvere riferimenti e pronomi della domanda corrente.",
+        "I FATTI devono comparire nel contesto recuperato O nelle citazioni elencate "
+        "qui sotto; è vietato inventare dalla sola memoria del filo.",
+        f"Citazioni accumulate (doc_id): {cite_ids}",
+    ]
+    if stale:
+        header_lines.append(
+            "ATTENZIONE: l'indice CURRENT è cambiato rispetto all'ultimo turno; "
+            "le risposte precedenti possono essere stale — privilegi il contesto "
+            f"recuperato ora (index_version={current_index_version})."
+        )
+    header = "\n".join(header_lines)
+
+    # Reserve header (+ blank line) from the budget; shrink Q/A excerpts evenly if needed.
+    reserved = len(header) + 1
+    remaining = max(0, budget - reserved)
+    n = len(turns)
+    # Each turn: "Q: …\nA(status): …\n" — split remaining across turns, Q gets ~1/3 of slot.
+    per_turn = max(80, remaining // max(1, n)) if remaining else 0
+    q_limit = min(QUESTION_EXCERPT_MAX_CHARS, max(40, per_turn // 3))
+    a_limit = min(ANSWER_EXCERPT_MAX_CHARS, max(40, per_turn - q_limit - 20))
+
+    body_parts: list[str] = []
+    used = 0
+    for turn in turns:
+        q = _truncate_chars(str(turn.get("question") or ""), q_limit)
+        a = _truncate_chars(str(turn.get("answer_excerpt") or ""), a_limit)
+        status = str(turn.get("status") or "")
+        part = f"Q: {q}\nA({status}): {a}"
+        if used + len(part) + (1 if body_parts else 0) > remaining:
+            # Drop older turns first if still over (should be rare after per-turn shrink).
+            break
+        body_parts.append(part)
+        used += len(part) + (1 if len(body_parts) > 1 else 0)
+    if not body_parts:
+        return ""
+    block = header + "\n" + "\n".join(body_parts)
+    if len(block) > budget:
+        return _truncate_chars(block, budget)
+    return block
+
+
 def fingerprint(thread: dict | None) -> str:
     """Stable digest for ask_cache keys: turn count + last turn id + content digest.
 
@@ -409,7 +533,11 @@ def reset_thread(project: ProjectContext) -> dict[str, Any]:
     return save_thread(project, empty)
 
 
-def thread_summary(thread: dict) -> dict[str, Any]:
+def thread_summary(
+    thread: dict,
+    *,
+    current_index_version: str | None = None,
+) -> dict[str, Any]:
     """Compact view suitable for API responses (WP2/WP3); pure, no I/O."""
     turns = thread.get("turns") or []
     citations = thread.get("citations") or []
@@ -417,6 +545,7 @@ def thread_summary(thread: dict) -> dict[str, Any]:
         "turn_count": len(turns),
         "max_turns": int(thread.get("max_turns") or DEFAULT_MAX_TURNS),
         "updated_at": thread.get("updated_at"),
+        "index_version_changed": index_version_changed(thread, current_index_version),
         "fingerprint": fingerprint(thread),
         "citations": [
             {"doc_id": c.get("doc_id"), "last_score": c.get("last_score"),

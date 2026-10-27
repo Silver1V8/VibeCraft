@@ -27,6 +27,8 @@ from core import ask_cache, llm, retrieval
 
 _CHUNK_ID = "spec.md#01-form"
 _QUESTION = "come funziona il lock sui posti?"
+# Bench isolati: senza filo il fingerprint non entra in chiave (hit-rate storica).
+_ISOLATED = {"use_thread": False}
 
 
 
@@ -119,8 +121,8 @@ def ask_env(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 def test_domanda_ripetuta_servita_dalla_cache_senza_llm(ask_env, caplog):
     with caplog.at_level(logging.INFO, logger="api.routes_retrieval"):
-        first = ask_env.client.post("/ask", json={"question": _QUESTION})
-        second = ask_env.client.post("/ask", json={"question": _QUESTION})
+        first = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
+        second = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
     assert first.status_code == 200 and second.status_code == 200
     body1, body2 = first.json(), second.json()
@@ -150,9 +152,10 @@ def test_domanda_ripetuta_servita_dalla_cache_senza_llm(ask_env, caplog):
 
 
 def test_domanda_equivalente_a_meno_di_spazi_e_maiuscole_e_un_hit(ask_env):
-    ask_env.client.post("/ask", json={"question": _QUESTION})
+    ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
-    r = ask_env.client.post("/ask", json={"question": "  Come  FUNZIONA il lock sui posti?\n"})
+    r = ask_env.client.post(
+        "/ask", json={"question": "  Come  FUNZIONA il lock sui posti?\n", **_ISOLATED})
 
     assert r.json()["cached"] is True
     assert ask_env.calls["llm"] == 1
@@ -162,11 +165,11 @@ def test_domanda_equivalente_a_meno_di_spazi_e_maiuscole_e_un_hit(ask_env):
 # Miss: index_version diversa ⇒ la risposta viene ricalcolata (invalidazione)
 # ---------------------------------------------------------------------------
 def test_cambio_index_version_invalida_la_cache(ask_env):
-    first = ask_env.client.post("/ask", json={"question": _QUESTION})
+    first = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
     # Re-indicizzazione: stessa app, stessa cache, ma indice (e versione) nuovi.
     ask_env.current["snap"] = _snapshot("v-cache-2")
-    second = ask_env.client.post("/ask", json={"question": _QUESTION})
+    second = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
     assert first.json()["answer"] == "RISPOSTA-1"
     assert second.json()["cached"] is False
@@ -176,10 +179,12 @@ def test_cambio_index_version_invalida_la_cache(ask_env):
 
 
 def test_parametri_diversi_sono_voci_diverse(ask_env):
-    ask_env.client.post("/ask", json={"question": _QUESTION})
+    ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
-    altro_k = ask_env.client.post("/ask", json={"question": _QUESTION, "top_k": 7})
-    altra_depth = ask_env.client.post("/ask", json={"question": _QUESTION, "bfs_depth": 3})
+    altro_k = ask_env.client.post(
+        "/ask", json={"question": _QUESTION, "top_k": 7, **_ISOLATED})
+    altra_depth = ask_env.client.post(
+        "/ask", json={"question": _QUESTION, "bfs_depth": 3, **_ISOLATED})
 
     assert altro_k.json()["cached"] is False
     assert altra_depth.json()["cached"] is False
@@ -193,8 +198,8 @@ def test_parametri_diversi_sono_voci_diverse(ask_env):
 def test_no_results_non_viene_cachato(ask_env):
     ask_env.current["results"] = []
 
-    first = ask_env.client.post("/ask", json={"question": _QUESTION})
-    second = ask_env.client.post("/ask", json={"question": _QUESTION})
+    first = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
+    second = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
     assert first.json()["status"] == second.json()["status"] == "no_results"
     assert "cached" not in second.json()
@@ -208,8 +213,8 @@ def test_no_graph_nodes_non_viene_cachato(ask_env):
     ask_env.current["results"] = [{"chunk_id": "altro.md#01", "doc_id": "altro.md",
                                    "section": "x", "dense_score": 0.9, "colbert_score": None}]
 
-    first = ask_env.client.post("/ask", json={"question": _QUESTION})
-    second = ask_env.client.post("/ask", json={"question": _QUESTION})
+    first = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
+    second = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
     assert first.json()["status"] == second.json()["status"] == "no_graph_nodes"
     assert "cached" not in second.json()
@@ -219,8 +224,8 @@ def test_no_graph_nodes_non_viene_cachato(ask_env):
 def test_ramo_graph_non_viene_cachato(ask_env):
     domanda = "quali documenti esistono nel corpus?"
 
-    first = ask_env.client.post("/ask", json={"question": domanda})
-    second = ask_env.client.post("/ask", json={"question": domanda})
+    first = ask_env.client.post("/ask", json={"question": domanda, **_ISOLATED})
+    second = ask_env.client.post("/ask", json={"question": domanda, **_ISOLATED})
 
     assert first.json()["status"] == second.json()["status"] == "graph_answer"
     assert "cached" not in second.json()
@@ -238,7 +243,7 @@ def test_errore_della_cache_non_fa_fallire_ask(ask_env, monkeypatch, caplog):
     monkeypatch.setattr(ask_cache, "for_app", esplode)
 
     with caplog.at_level(logging.WARNING, logger="api.routes_retrieval"):
-        r = ask_env.client.post("/ask", json={"question": _QUESTION})
+        r = ask_env.client.post("/ask", json={"question": _QUESTION, **_ISOLATED})
 
     assert r.status_code == 200
     assert r.json()["answer"] == "RISPOSTA-1"
@@ -263,6 +268,14 @@ def test_make_key_normalizza_la_domanda_e_separa_il_resto():
     assert ask_cache.make_key(1712345.5, "hybrid", 5, 2, "q")[1] == "1712345.5"
     # La domanda in chiaro non è trattenuta: solo il suo digest esadecimale.
     assert len(base[5]) == 64 and "vincoli" not in base[5]
+    # Fingerprint vuoto ⇒ forma storica a 7 elementi; non vuoto ⇒ 8° componente.
+    assert len(base) == 7
+    assert base == ask_cache.make_key(
+        "v1", "hybrid", 5, 2, "Quali  vincoli?", thread_fingerprint="")
+    threaded = ask_cache.make_key(
+        "v1", "hybrid", 5, 2, "Quali  vincoli?", thread_fingerprint="1:t-abc:deadbeef")
+    assert len(threaded) == 8 and threaded[:7] == base and threaded[7] == "1:t-abc:deadbeef"
+    assert threaded != base
 
 
 def test_lru_espelle_la_voce_meno_recente():
