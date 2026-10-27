@@ -26,7 +26,7 @@ del corpus sia stata trovata.
 | serve una risposta **verificabile**, con la fonte e il peso che l'ha fatta vincere | serve un assistente conversazionale rapido |
 | i dati non devono uscire dalla macchina | va bene un servizio esterno |
 
-Il sistema rende trovabili i documenti, non li migliora. Se sono scritti male, le risposte lo saranno. Non ricorda la conversazione precedente, non interroga più progetti insieme e non ha permessi per utente: nasce per girare in locale o su una rete controllata.
+Il sistema rende trovabili i documenti, non li migliora. Se sono scritti male, le risposte lo saranno. Su `/ask` tiene un filo breve per progetto con citazioni accumulate (non è un chatbot generico); non interroga più progetti insieme e non ha permessi per utente: nasce per girare in locale o su una rete controllata.
 
 Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono così come sono; su GitHub il link mostra il file.
 
