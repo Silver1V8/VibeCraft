@@ -183,7 +183,8 @@ def _manifest(root: Path) -> ProjectContext:
         name = _name(raw.get("name"))
         settings = _settings(raw.get("settings", {}))
         paths = [root / part for part in ("code", "docs", "changes", "database", "database/staging")]
-        for directory in [*paths, *(root / "database" / part for part in ("versions", "pipeline", "eval"))]:
+        for directory in [*paths, *(root / "database" / part
+                                   for part in ("versions", "pipeline", "eval", "ask"))]:
             _unlinked(directory)
             if directory.exists() and not directory.is_dir():
                 raise ValueError(f"Expected project directory: {directory}")
@@ -242,7 +243,7 @@ def _create_project_root(root: Path, project_id: str, name: str,
         if existing.id != project_id or existing.name != name or existing.settings != _settings(settings or {}):
             raise ProjectError("Prepared project manifest changed")
     for directory in ("code", "docs", "changes", "database/versions", "database/staging",
-                      "database/pipeline", "database/eval"):
+                      "database/pipeline", "database/eval", "database/ask"):
         (root / directory).mkdir(parents=True, exist_ok=resume)
     manifest = {"schema_version": 1, "id": project_id, "name": name}
     if settings:

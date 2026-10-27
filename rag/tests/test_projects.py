@@ -52,7 +52,8 @@ def test_create_project_layout_and_unique_ids(tmp_path):
     for project in (a, b):
         assert project.root.name == project.id
         for relative in ("code", "docs", "changes", "database", "database/staging",
-                         "database/versions", "database/pipeline", "database/eval"):
+                         "database/versions", "database/pipeline", "database/eval",
+                         "database/ask"):
             assert (project.root / relative).is_dir()
         assert not (project.database_dir / "CURRENT").exists()
         assert not (project.database_dir / "models").exists()
@@ -352,7 +353,7 @@ def test_linked_registry_storage_is_rejected(tmp_path):
     assert not list(outside.iterdir())
 
 
-@pytest.mark.parametrize("directory", ["versions", "pipeline", "eval"])
+@pytest.mark.parametrize("directory", ["versions", "pipeline", "eval", "ask"])
 def test_linked_database_subdirectories_are_rejected(tmp_path, directory):
     store = registry(tmp_path)
     project = store.create("A")
