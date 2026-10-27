@@ -94,6 +94,7 @@ def test_corrupt_registry_is_never_overwritten(tmp_path, payload):
     store.registry_path.write_text(payload, encoding="utf-8")
     before = store.registry_path.read_bytes()
     for action in (store.list, lambda: store.create("New"),
+                   lambda: store.rename("any-id", "New"),
                    lambda: ProjectRegistry(store.projects_dir)):
         with pytest.raises(ProjectError) as error:
             action()
@@ -183,7 +184,8 @@ def test_v1_legacy_requires_explicit_migration(tmp_path):
     ]}), encoding="utf-8")
     registry_before = store.registry_path.read_bytes()
     for action in (lambda: store.get("legacy"), lambda: store.create("Other"),
-                   lambda: store.register(manifest(tmp_path / "external"))):
+                   lambda: store.register(manifest(tmp_path / "external")),
+                   lambda: store.rename("legacy", "Renamed")):
         with pytest.raises(ProjectError) as error:
             action()
         assert error.value.code == "project_migration_required"
@@ -277,9 +279,98 @@ def test_reader_registry_is_read_only(tmp_path, monkeypatch):
         reader.create("B")
     assert error.value.status_code == 409
     assert store.registry_path.read_bytes() == before
+    with pytest.raises(ProjectError) as error:
+        reader.rename(project.id, "Renamed")
+    assert error.value.status_code == 409
+    assert error.value.code == "read_only"
+    assert store.registry_path.read_bytes() == before
     missing = tmp_path / "reader absent"
     assert ProjectRegistry(missing).list() == []
     assert not missing.exists()
+
+
+def test_rename_updates_display_name_only(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Original")
+    other = store.create("Other")
+    root_before = project.root
+    collection_before = project.collection_name
+    renamed = store.rename(project.id, "  Nuovo nome  ")
+    assert renamed.id == project.id
+    assert renamed.root == root_before
+    assert renamed.collection_name == collection_before
+    assert renamed.name == "Nuovo nome"
+    assert store.get(project.id).name == "Nuovo nome"
+    assert yaml.safe_load((root_before / "project.yaml").read_text(encoding="utf-8"))["name"] == "Nuovo nome"
+    assert store.get(other.id) == other
+    assert [p.id for p in store.list()] == [project.id, other.id]
+
+
+def test_rename_allows_duplicate_display_names(tmp_path):
+    store = registry(tmp_path)
+    a, b = store.create("Alpha"), store.create("Beta")
+    renamed = store.rename(b.id, "Alpha")
+    assert renamed.name == "Alpha"
+    assert store.get(a.id).name == "Alpha"
+    assert {p.id for p in store.list()} == {a.id, b.id}
+
+
+def test_rename_rejects_empty_name_and_unknown_id(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Keep")
+    before = store.registry_path.read_bytes()
+    manifest_before = (project.root / "project.yaml").read_bytes()
+    for bad in ("", "   ", "\t"):
+        with pytest.raises(ProjectError) as error:
+            store.rename(project.id, bad)
+        assert error.value.status_code == 422
+        assert error.value.code == "invalid_project_name"
+        assert store.registry_path.read_bytes() == before
+        assert (project.root / "project.yaml").read_bytes() == manifest_before
+    with pytest.raises(ProjectError) as error:
+        store.rename("missing-project", "Nope")
+    assert error.value.status_code == 404
+    assert error.value.code == "project_not_found"
+    assert store.registry_path.read_bytes() == before
+
+
+def test_rename_is_idempotent_for_same_name(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Same")
+    before = store.registry_path.read_bytes()
+    again = store.rename(project.id, "Same")
+    assert again == project
+    assert store.registry_path.read_bytes() == before
+
+
+def test_rename_preserves_manifest_settings(tmp_path):
+    store = registry(tmp_path)
+    root = manifest(tmp_path / "external", settings={
+        "retrieval": {"governed_max_chunks": 3},
+    })
+    project = store.register(root)
+    renamed = store.rename(project.id, "External Renamed")
+    raw = yaml.safe_load((project.root / "project.yaml").read_text(encoding="utf-8"))
+    assert raw == {
+        "schema_version": 1,
+        "id": project.id,
+        "name": "External Renamed",
+        "settings": {"retrieval": {"governed_max_chunks": 3}},
+    }
+    assert renamed.settings["retrieval"]["governed_max_chunks"] == 3
+
+
+def test_rename_fails_closed_when_manifest_disagrees(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("A")
+    raw = yaml.safe_load((project.root / "project.yaml").read_text(encoding="utf-8"))
+    raw["name"] = "Desynced"
+    (project.root / "project.yaml").write_text(yaml.safe_dump(raw), encoding="utf-8")
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError):
+        store.rename(project.id, "Fixed")
+    assert store.registry_path.read_bytes() == before
+    assert yaml.safe_load((project.root / "project.yaml").read_text(encoding="utf-8"))["name"] == "Desynced"
 
 
 def test_relative_projects_dir_is_rejected(tmp_path):
