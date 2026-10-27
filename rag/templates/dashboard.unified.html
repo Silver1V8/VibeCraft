@@ -228,6 +228,39 @@
     /* Score bar */
     .score-bar { transition: width 0.8s cubic-bezier(0.4,0,0.2,1); }
 
+    /* Strip del filo /ask: riga di notebook, non bolla di chat. */
+    .ask-thread-turn {
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      padding: 0.35rem 0.5rem;
+      border-left: 2px solid var(--glass-border);
+      border-radius: 0 0.375rem 0.375rem 0;
+      background: color-mix(in srgb, var(--stat-bg) 80%, transparent);
+    }
+    .ask-thread-turn-idx {
+      flex-shrink: 0;
+      font-family: ui-monospace, monospace;
+      font-size: var(--text-xs);
+      color: var(--slate-500);
+    }
+    .ask-thread-turn-q {
+      flex: 1;
+      min-width: 0;
+      font-size: var(--text-xs);
+      color: var(--slate-200);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .ask-thread-turn-status {
+      flex-shrink: 0;
+      font-family: ui-monospace, monospace;
+      font-size: var(--text-xs);
+      color: var(--slate-500);
+    }
+
     /* La casella della domanda cresce con il testo (field-sizing nativo, nessun JS) fino a
        40vh, poi scrolla: a 166px fissi una domanda lunga scrollava dalla quindicesima riga.
        Il minimo resta quello delle classi, e dove field-sizing non è supportato non cambia
@@ -374,6 +407,25 @@
           <span data-i18n="dashboard.ask">Interroga il grafo</span>
         </button>
       </div>
+
+      <!-- Filo breve per-progetto (VC-3): notebook di interrogazione, non chat bubbles.
+           Strip compatta + reset; la risposta resta nel pannello principale. -->
+      <section id="ask-thread-card" class="rounded-xl glass-card p-4" aria-labelledby="ask-thread-title">
+        <div class="flex items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2 min-w-0">
+            <h2 id="ask-thread-title" class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="dashboard.threadTitle">Filo</h2>
+            <span id="ask-thread-count" class="hidden shrink-0 text-xs font-mono text-slate-400 tabular-nums" aria-live="polite"></span>
+          </div>
+          <button type="button" id="ask-thread-reset" data-click="resetAskThread"
+            class="shrink-0 text-xs font-semibold text-slate-400 hover:text-slate-200 border border-slate-700 hover:border-slate-500 rounded-md px-2 py-1 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            data-i18n="dashboard.threadReset">Nuovo filo</button>
+        </div>
+        <p id="ask-thread-stale" class="hidden mb-2 text-xs leading-snug rounded-md border px-2.5 py-2"
+           style="color:var(--status-warn-fg);background:var(--status-warn-bg);border-color:var(--status-warn-fg)"
+           role="status" data-i18n="dashboard.threadIndexStale">L’indice è cambiato dall’ultimo turno: le risposte precedenti possono essere obsolete.</p>
+        <p id="ask-thread-empty" class="text-xs text-slate-400 leading-relaxed" data-i18n="dashboard.threadEmpty">Nessun turno in questo filo. La prossima domanda apre il filo del progetto.</p>
+        <ol id="ask-thread-strip" class="hidden list-none m-0 p-0 flex flex-col gap-1.5" aria-live="polite"></ol>
+      </section>
 
       <!-- Loader -->
       <div id="loader" class="hidden flex flex-col items-center justify-center gap-3 py-6">
@@ -553,8 +605,10 @@
           <!-- Fonti affiancate da 1280 px; sotto, in fondo e basse: affiancate a 1024 px lasciavano
                alla risposta meno di 300 px di larghezza. -->
           <aside id="scores-card" class="hidden shrink-0 overflow-y-auto p-4 max-h-48 border-t border-slate-800 xl:max-h-none xl:w-80 xl:border-t-0 xl:border-l" aria-labelledby="scores-title">
-            <h2 id="scores-title" class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3" data-i18n="dashboard.sourcesUsed" data-i18n-title="dashboard.sourcesUsedTitle" title="Punteggi di similarità">Fonti usate</h2>
+            <h2 id="scores-title" class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3" data-i18n="dashboard.citationsThisTurn" data-i18n-title="dashboard.sourcesUsedTitle" title="Punteggi di similarità">Citazioni di questo turno</h2>
             <div id="scores-list" class="flex flex-col gap-2.5"></div>
+            <h2 id="citations-ledger-title" class="hidden text-xs font-semibold text-slate-400 uppercase tracking-widest mt-5 mb-3" data-i18n="dashboard.citationsAccumulated">Citazioni accumulate</h2>
+            <div id="citations-ledger" class="flex flex-col gap-2.5"></div>
           </aside>
         </div>
 
