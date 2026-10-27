@@ -456,6 +456,35 @@ class ProjectRegistry:
             project = _create_project_root(root, project_id, name)
             self._append(project, records)
             return project
+
+    def rename(self, project_id: str, name: str) -> ProjectContext:
+        """Update the display name only; id, root, and Qdrant namespace stay fixed."""
+        self._require_writer()
+        project_id = validate_project_id(project_id)
+        name = _name(name)
+        with self._lock():
+            records = self._read()
+            if any(record["legacy"] for record in records):
+                raise _migration_required()
+            for index, record in enumerate(records):
+                if record["id"] != project_id:
+                    continue
+                project = self._context(record)
+                if project.name == name:
+                    return project
+                path = _unlinked(project.root / "project.yaml")
+                raw = yaml.load(path.read_text(encoding="utf-8"), Loader=_ManifestLoader)
+                if (not isinstance(raw, dict) or raw.get("id") != project_id
+                        or raw.keys() - {"schema_version", "id", "name", "settings"}):
+                    raise ProjectError("Invalid project manifest schema", status_code=422,
+                                       code="invalid_project_manifest")
+                raw["name"] = name
+                _atomic_write_text(path, yaml.safe_dump(raw, allow_unicode=True))
+                records[index] = {**record, "name": name}
+                self._write(records)
+                return self._context(records[index])
+            raise ProjectError("Project not found", status_code=404, code="project_not_found")
+
     def register(self, root: Path) -> ProjectContext:
         self._require_writer()
         path = Path(root).expanduser()
