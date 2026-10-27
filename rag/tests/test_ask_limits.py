@@ -31,3 +31,11 @@ def test_default_invariato():
 def test_stream_e_opt_in_e_non_cambia_il_json_storico():
     assert AskQuery(question="q").stream is False
     assert AskQuery(question="q", stream=True).stream is True
+
+
+def test_use_thread_default_true_e_reset_opt_in():
+    """VC-3: continuità opt-in sul default; reset è esplicito."""
+    assert AskQuery(question="q").use_thread is True
+    assert AskQuery(question="q").reset_thread is False
+    assert AskQuery(question="q", use_thread=False).use_thread is False
+    assert AskQuery(question="q", reset_thread=True).reset_thread is True

@@ -202,10 +202,12 @@ def test_retrieve_graph_and_cache_keep_same_version_projects_apart(ab, monkeypat
         graph = http.get("/api/graph/all", headers=headers).json()
         assert graph["project_id"] == project.id and graph["index_version"] == "v1"
         assert graph["nodes"][0]["description"] == text
-        result = http.post("/ask", json={"question": "Come funziona il requisito?"}, headers=headers).json()
+        # use_thread=false: append del filo cambierebbe il fingerprint e annullerebbe l'hit.
+        ask_body = {"question": "Come funziona il requisito?", "use_thread": False}
+        result = http.post("/ask", json=ask_body, headers=headers).json()
         assert result["answer"] == project.name
         assert result["cached"] is False
-        cached = http.post("/ask", json={"question": "Come funziona il requisito?"}, headers=headers).json()
+        cached = http.post("/ask", json=ask_body, headers=headers).json()
         assert cached["cached"] is True and cached["answer"] == project.name
         assert cached["project_id"] == project.id
     assert len(calls) == 2
@@ -445,7 +447,8 @@ def test_ask_cache_settings_change_same_project_query_and_version(ab, monkeypatc
 
     monkeypatch.setattr(llm, "agenerate", answer)
     headers = {"X-VibeCraft-Project": a.id}
-    query = {"question": "Come funziona il requisito?"}
+    # use_thread=false: bench isolati sul hit-rate storico della cache /ask.
+    query = {"question": "Come funziona il requisito?", "use_thread": False}
     first = http.post("/ask", json=query, headers=headers).json()
     assert first["cached"] is False
     assert http.post("/ask", json=query, headers=headers).json()["cached"] is True

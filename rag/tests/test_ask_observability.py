@@ -183,8 +183,10 @@ def test_cache_manifest_una_sola_lettura_per_versione(ask_env, monkeypatch):
 
     monkeypatch.setattr(Path, "read_text", counting_read_text)
 
-    r1 = client.post("/ask", json={"question": "prima domanda"})
-    r2 = client.post("/ask", json={"question": "seconda domanda"})
+    # use_thread=false: altrimenti load_thread legge thread.json e gonfia il contatore
+    # oltre alla sola lettura del manifest (oggetto di questo test).
+    r1 = client.post("/ask", json={"question": "prima domanda", "use_thread": False})
+    r2 = client.post("/ask", json={"question": "seconda domanda", "use_thread": False})
 
     assert r1.status_code == 200 and r2.status_code == 200
     assert r1.json()["index_version"] == r2.json()["index_version"] == "v3"

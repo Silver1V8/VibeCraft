@@ -177,7 +177,13 @@ def test_actual_http_projects_workflows_jobs_qdrant_and_browser(integrated_serve
         assert indexing.build_graph_and_index(qdrant, embed, project=project) == "v1"
 
     def ask(project, sentinel):
-        response = client.post("/ask", headers=headers(project), json={"question": "same question"})
+        # use_thread=false: altrimenti l'append del primo turno cambia il fingerprint
+        # e la ripetizione della stessa domanda non può fare hit di cache.
+        response = client.post(
+            "/ask",
+            headers=headers(project),
+            json={"question": "same question", "use_thread": False},
+        )
         assert response.status_code == 200, response.text
         body = response.json()
         assert body["answer"] == sentinel and body["project_id"] == project.id and body["index_version"] == "v1"
