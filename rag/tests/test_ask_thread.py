@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 from api import deps, routes_retrieval
 from core import ask_thread as at
 from core.ask_thread import AskThreadStorageError
-from core.projects import ProjectRegistry
+from core.projects import ProjectContext, ProjectRegistry
 
 _SHARED_JS = Path(__file__).parents[1] / "static" / "shared.js"
 
