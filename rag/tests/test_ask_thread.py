@@ -1,10 +1,11 @@
-"""WP1 storage + WP2 HTTP API tests for the short per-project /ask thread.
+"""Ask-thread storage (WP1), HTTP API (WP2), and WP6 unit/API matrix.
 
-WP3 /ask wiring and WP4 UI are out of scope here.
+WP3 /ask wiring coverage lives in test_ask_thread_wiring.py.
 """
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,7 +16,9 @@ from fastapi.testclient import TestClient
 from api import deps, routes_retrieval
 from core import ask_thread as at
 from core.ask_thread import AskThreadStorageError
-from core.projects import ProjectContext, ProjectRegistry
+from core.projects import ProjectRegistry
+
+_SHARED_JS = Path(__file__).parents[1] / "static" / "shared.js"
 
 
 def _registry(tmp_path: Path) -> ProjectRegistry:
@@ -515,3 +518,131 @@ def test_api_get_allows_cross_site_read(tmp_path, monkeypatch):
     )
     assert resp.status_code == 200
     assert resp.json()["thread"]["turn_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# WP6 — remaining unit / API matrix (caps, merge helpers, fingerprint, allowlist)
+# ---------------------------------------------------------------------------
+def test_citations_from_qdrant_scores_maps_score_fields():
+    rows = [
+        {"doc_id": "a.md", "chunk_id": "a.md#1", "score": 0.9, "authority": 0.8},
+        {"doc_id": "b.md", "chunk_id": "b.md#2", "colbert_score": 0.7},
+        {"doc_id": "c.md", "dense_score": 0.4, "authority": "bad"},
+        {"doc_id": "  ", "score": 1.0},
+        {"chunk_id": "orphan"},
+        None,
+    ]
+    cites = at.citations_from_qdrant_scores(rows)
+    by_id = {c["doc_id"]: c for c in cites}
+    assert set(by_id) == {"a.md", "b.md", "c.md"}
+    assert by_id["a.md"]["last_score"] == pytest.approx(0.9)
+    assert by_id["a.md"]["chunk_ids"] == ["a.md#1"]
+    assert by_id["b.md"]["last_score"] == pytest.approx(0.7)
+    assert by_id["c.md"]["last_score"] == pytest.approx(0.4)
+    assert by_id["c.md"]["authority"] == 0.0
+
+
+def test_index_version_changed_helper():
+    thread = at.empty_thread("p")
+    assert at.index_version_changed(None, "v1") is False
+    assert at.index_version_changed(thread, "v1") is False
+    at.append_turn(thread, at.build_turn(question="q", index_version="v-old"))
+    assert at.index_version_changed(thread, "v-old") is False
+    assert at.index_version_changed(thread, "v-new") is True
+    assert at.index_version_changed(thread, None) is False
+
+
+def test_thread_summary_index_version_changed_flag():
+    thread = at.empty_thread("p", max_turns=4)
+    at.append_turn(
+        thread,
+        at.build_turn(question="Q", status="success", index_version="v1"),
+        citations=[{"doc_id": "d.md", "last_score": 0.5}],
+    )
+    same = at.thread_summary(thread, current_index_version="v1")
+    stale = at.thread_summary(thread, current_index_version="v2")
+    assert same["index_version_changed"] is False
+    assert stale["index_version_changed"] is True
+
+
+def test_thread_file_survives_reload_from_disk(tmp_path):
+    """Acceptance #6: state under project database survives a process-style reload."""
+    project = _project(tmp_path)
+    thread = at.empty_thread(project.id, max_turns=4)
+    at.append_turn(
+        thread,
+        at.build_turn(question="persist?", answer_excerpt="yes", turn_id="t-persist1",
+                      index_version="v9"),
+        citations=[{"doc_id": "n.md", "last_score": 0.66, "authority": 0.5}],
+    )
+    at.save_thread(project, thread)
+    path = at.thread_path(project)
+    assert path.is_file()
+    assert path.is_relative_to(project.database_dir)
+    # Fresh load (no in-memory handle) — same as after server restart.
+    reloaded = at.load_thread(project)
+    assert reloaded["turns"][0]["question"] == "persist?"
+    assert reloaded["citations"][0]["doc_id"] == "n.md"
+    assert at.fingerprint(reloaded) == at.fingerprint(thread)
+
+
+def test_max_citations_from_env(monkeypatch):
+    monkeypatch.setenv("VIBECRAFT_ASK_THREAD_MAX_CITATIONS", "3")
+    assert at.max_citations_from_env() == 3
+    monkeypatch.setenv("VIBECRAFT_ASK_THREAD_MAX_CITATIONS", "nope")
+    assert at.max_citations_from_env() == at.DEFAULT_MAX_CITATIONS
+    monkeypatch.setenv("VIBECRAFT_ASK_THREAD_MAX_CITATIONS", "0")
+    assert at.max_citations_from_env() == 1
+
+
+def test_merge_keeps_lower_score_authority_refresh():
+    """When a later sighting has a lower score, authority may still refresh."""
+    existing = [{
+        "doc_id": "a.md", "last_score": 0.9, "authority": 0.1,
+        "last_seen_turn_id": "t-old", "chunk_ids": [],
+    }]
+    incoming = [{
+        "doc_id": "a.md", "last_score": 0.2, "authority": 0.95, "chunk_ids": ["a.md#z"],
+    }]
+    merged = at.merge_citations(existing, incoming, turn_id="t-new")
+    assert len(merged) == 1
+    assert merged[0]["last_score"] == pytest.approx(0.9)
+    assert merged[0]["authority"] == pytest.approx(0.95)
+    assert merged[0]["last_seen_turn_id"] == "t-new"
+    assert merged[0]["chunk_ids"] == ["a.md#z"]
+
+
+def test_shared_js_project_header_covers_ask_and_thread_routes():
+    """Fetch wrapper deny-list must leave /ask and /api/ask/thread project-scoped.
+
+    Pattern mirrors test_dashboard_stream.py: Node eval of the extracted helper, no browser.
+    """
+    script = r"""
+const fs = require('fs');
+const source = fs.readFileSync(process.argv[1], 'utf8');
+const match = source.match(/function isProjectApi\(url\) \{[\s\S]*?\n\}/);
+if (!match) throw new Error('isProjectApi missing');
+const document = { baseURI: 'http://127.0.0.1:8000/' };
+eval(match[0]);
+const cases = {
+  '/ask': true,
+  '/api/ask/thread': true,
+  '/api/projects': false,
+  '/api/projects/x': false,
+  '/api/health/live': false,
+  '/api/intake/project/browse-path': false,
+  '/api/retrieve': true,
+};
+const out = {};
+for (const [path, expected] of Object.entries(cases)) {
+  out[path] = { got: !!isProjectApi(path), expected };
+}
+process.stdout.write(JSON.stringify(out));
+"""
+    completed = subprocess.run(
+        ["node", "-e", script, str(_SHARED_JS)],
+        check=True, capture_output=True, text=True, encoding="utf-8",
+    )
+    cases = json.loads(completed.stdout)
+    for path, row in cases.items():
+        assert row["got"] is row["expected"], f"{path}: got {row['got']}, expected {row['expected']}"
