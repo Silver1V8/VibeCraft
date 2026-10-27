@@ -59,7 +59,7 @@ const { chromium } = require('playwright');
     await page.evaluate(() => setApiKey('navigation-test-key'));
     await page.locator('#project-welcome').waitFor();
     assert.equal(await page.locator('iframe').count(), 0, 'Startup must not auto-open legacy');
-    await page.locator('#project-list button[data-arg="legacy"]').click();
+    await page.locator('#project-list button.project-card-main[data-arg="legacy"]').click();
     const consolePage = page.frameLocator('iframe[data-workspace-page="/"]');
     await consolePage.locator('#question-input').fill('Domanda da conservare');
     await consolePage.locator('#ask-btn').click();
