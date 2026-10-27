@@ -184,6 +184,8 @@
     function showLoader(show) {
       document.getElementById('loader').classList.toggle('hidden', !show);
       document.getElementById('ask-btn').disabled = show;
+      const resetBtn = document.getElementById('ask-thread-reset');
+      if (resetBtn) resetBtn.disabled = show;
 
       const elapsed = document.getElementById('loader-elapsed');
       clearInterval(loaderTimer);
@@ -757,40 +759,193 @@
       renderGraph(nodes, edges, options);
     }
 
+    /* ──────────── ASK THREAD + CITATION LEDGER (VC-3 WP4) ────────────
+       Server owns truth (GET/DELETE /api/ask/thread). The strip is a compact
+       notebook of prior turns — not chat bubbles. Answer panel stays primary. */
+    let lastAskThread = null;       // last thread summary from GET or /ask result
+    let lastIndexVersion = null;    // from /api/health snapshot — for stale banner on GET
+    let lastTurnScores = null;      // this-turn qdrant_scores (kept distinct from ledger)
+
+    function emptyAskThreadSummary() {
+      return { turn_count: 0, max_turns: 4, index_version_changed: false, citations: [], turns: [] };
+    }
+
+    function threadIsIndexStale(thread) {
+      if (!thread) return false;
+      if (thread.index_version_changed) return true;
+      const turns = thread.turns || [];
+      if (!turns.length || !lastIndexVersion) return false;
+      const last = turns[turns.length - 1] && turns[turns.length - 1].index_version;
+      return !!(last && String(last) !== String(lastIndexVersion));
+    }
+
+    function truncateThreadQuestion(q, max) {
+      const text = (q || '').replace(/\s+/g, ' ').trim();
+      if (text.length <= max) return text;
+      return text.slice(0, max - 1) + '…';
+    }
+
+    function renderAskThreadStrip() {
+      const thread = lastAskThread || emptyAskThreadSummary();
+      const turns = Array.isArray(thread.turns) ? thread.turns : [];
+      const count = typeof thread.turn_count === 'number' ? thread.turn_count : turns.length;
+      const max = typeof thread.max_turns === 'number' ? thread.max_turns : 4;
+      const countEl = document.getElementById('ask-thread-count');
+      const emptyEl = document.getElementById('ask-thread-empty');
+      const stripEl = document.getElementById('ask-thread-strip');
+      const staleEl = document.getElementById('ask-thread-stale');
+      if (!countEl || !emptyEl || !stripEl || !staleEl) return;
+
+      countEl.textContent = t('dashboard.threadCount', { current: count, max });
+      countEl.classList.toggle('hidden', count === 0 && turns.length === 0);
+      staleEl.classList.toggle('hidden', !threadIsIndexStale(thread));
+
+      if (!turns.length) {
+        emptyEl.classList.remove('hidden');
+        stripEl.classList.add('hidden');
+        stripEl.replaceChildren();
+        return;
+      }
+      emptyEl.classList.add('hidden');
+      stripEl.classList.remove('hidden');
+      stripEl.innerHTML = turns.map((turn, i) => {
+        const q = truncateThreadQuestion(turn.question, 72);
+        const status = turn.status || '';
+        const title = turn.question || '';
+        return `<li class="ask-thread-turn" title="${escapeHtml(title)}">
+          <span class="ask-thread-turn-idx">${i + 1}.</span>
+          <span class="ask-thread-turn-q">${escapeHtml(q || '—')}</span>
+          ${status ? `<span class="ask-thread-turn-status">${escapeHtml(status)}</span>` : ''}
+        </li>`;
+      }).join('');
+    }
+
+    function renderCitationsLedger() {
+      const ledger = document.getElementById('citations-ledger');
+      const title = document.getElementById('citations-ledger-title');
+      if (!ledger || !title) return;
+      const cites = (lastAskThread && Array.isArray(lastAskThread.citations))
+        ? lastAskThread.citations.filter(c => c && c.doc_id) : [];
+      if (!cites.length) {
+        title.classList.add('hidden');
+        ledger.replaceChildren();
+        return;
+      }
+      title.classList.remove('hidden');
+      const maxScore = Math.max(...cites.map(c => Number(c.last_score) || 0), 0);
+      const fmt = v => (v === null || v === undefined) ? '—'
+        : (typeof v === 'number' ? v.toFixed(3) : escapeHtml(v));
+      ledger.innerHTML = cites.map(c => {
+        const score = Number(c.last_score);
+        const hasScore = Number.isFinite(score);
+        const pct = hasScore && maxScore > 0 ? (score / maxScore * 100).toFixed(1) : 0;
+        const short = c.doc_id.length > 36 ? c.doc_id.substring(0, 34) + '…' : c.doc_id;
+        return `<div class="group">
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${escapeHtml(c.doc_id)}">${escapeHtml(short)}</span>
+            <span class="text-xs font-mono ml-2 shrink-0" style="color:var(--score-value)">${hasScore ? score.toFixed(4) : '—'}</span>
+          </div>
+          <div class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+            <div class="score-bar h-full rounded-full" style="width:${pct}%;background:linear-gradient(90deg,var(--score-grad-start),var(--score-grad-end));opacity:.7"></div>
+          </div>
+          <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-400">
+            <span title="${escapeHtml(t('dashboard.scoreAuthority'))}" class="text-blue-400">A ${fmt(c.authority)}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function syncAskThread(thread) {
+      lastAskThread = thread && typeof thread === 'object' ? thread : emptyAskThreadSummary();
+      renderAskThreadStrip();
+      renderCitationsLedger();
+      // Se il ledger ha voci ma non ci sono score di questo turno, mostra comunque la card.
+      const card = document.getElementById('scores-card');
+      const cites = lastAskThread.citations || [];
+      if (card && cites.length && (!lastTurnScores || !lastTurnScores.length)) {
+        card.classList.remove('hidden');
+      }
+    }
+
+    async function loadAskThread() {
+      try {
+        const res = await fetch('/api/ask/thread');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        syncAskThread(data.thread || emptyAskThreadSummary());
+      } catch (_) {
+        // Soft-fail: dashboard usable even if thread API is down (tests/offline).
+        syncAskThread(emptyAskThreadSummary());
+      }
+    }
+
+    async function resetAskThread() {
+      if (!window.confirm(t('dashboard.threadResetConfirm'))) return;
+      try {
+        const res = await fetch('/api/ask/thread', { method: 'DELETE' });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(apiErrorMessage(err.detail, `HTTP ${res.status}`));
+        }
+        const data = await res.json();
+        syncAskThread(data.thread || emptyAskThreadSummary());
+        if (typeof toast === 'function') toast(t('dashboard.threadReset'), 'success');
+      } catch (e) {
+        if (typeof toast === 'function') toast(e.message, 'warning');
+        else console.error(e);
+      }
+    }
+
     /* ──────────── SCORES RENDERER ──────────── */
     function renderScores(scores) {
       const card = document.getElementById('scores-card');
       const list = document.getElementById('scores-list');
-      if (!scores || scores.length === 0) { card.classList.add('hidden'); return; }
+      // lastAskThread/lastTurnScores vivono nello scope pagina; i harness Node che
+      // estraggono solo questa funzione non li definiscono — typeof evita ReferenceError.
+      if (typeof lastTurnScores !== 'undefined') lastTurnScores = scores || [];
+      const thread = (typeof lastAskThread !== 'undefined') ? lastAskThread : null;
+      const hasScores = scores && scores.length > 0;
+      const hasLedger = thread && Array.isArray(thread.citations)
+        && thread.citations.some(c => c && c.doc_id);
+
+      if (!hasScores && !hasLedger) {
+        card.classList.add('hidden');
+        list.innerHTML = '';
+        if (typeof renderCitationsLedger === 'function') renderCitationsLedger();
+        return;
+      }
 
       list.innerHTML = '';
-      const maxScore = Math.max(...scores.map(s => s.score));
-      const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : escapeHtml(v));
-      scores.forEach(s => {
-        const pct = maxScore > 0 ? (s.score / maxScore * 100).toFixed(1) : 0;
-        const short = (s.doc_id || '—').length > 36
-          ? (s.doc_id || '—').substring(0, 34) + '…'
-          : (s.doc_id || '—');
-        // doc_id proviene dai documenti indicizzati (il nome file è scelto
-        // dall'utente in fase di approvazione da /intake): va sempre escapato.
-        list.insertAdjacentHTML('beforeend', `
-          <div class="group">
-            <div class="flex justify-between items-center mb-1">
-              <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${escapeHtml(s.doc_id)}">${escapeHtml(short)}</span>
-              <span class="text-xs font-mono ml-2 shrink-0" style="color:var(--score-value)">${s.score.toFixed(4)}</span>
+      if (hasScores) {
+        const maxScore = Math.max(...scores.map(s => s.score));
+        const fmt = v => (v === null || v === undefined) ? '—' : (typeof v === 'number' ? v.toFixed(3) : escapeHtml(v));
+        scores.forEach(s => {
+          const pct = maxScore > 0 ? (s.score / maxScore * 100).toFixed(1) : 0;
+          const short = (s.doc_id || '—').length > 36
+            ? (s.doc_id || '—').substring(0, 34) + '…'
+            : (s.doc_id || '—');
+          // doc_id proviene dai documenti indicizzati (il nome file è scelto
+          // dall'utente in fase di approvazione da /intake): va sempre escapato.
+          list.insertAdjacentHTML('beforeend', `
+            <div class="group">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-slate-300 truncate max-w-[220px]" title="${escapeHtml(s.doc_id)}">${escapeHtml(short)}</span>
+                <span class="text-xs font-mono ml-2 shrink-0" style="color:var(--score-value)">${s.score.toFixed(4)}</span>
+              </div>
+              <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                <div class="score-bar h-full rounded-full" style="width:${pct}%;background:linear-gradient(90deg,var(--score-grad-start),var(--score-grad-end))"></div>
+              </div>
+              <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-400">
+                <span title="${escapeHtml(t('dashboard.scoreDense'))}">D ${fmt(s.dense_score)}</span>
+                <span title="${escapeHtml(t('dashboard.scoreSparse'))}">S ${fmt(s.sparse_score)}</span>
+                <span title="${escapeHtml(t('dashboard.scoreColbert'))}">CB ${fmt(s.colbert_score)}</span>
+                <span title="${escapeHtml(t('dashboard.scoreAuthority'))}" class="text-blue-400">A ${fmt(s.authority)}</span>
+              </div>
             </div>
-            <div class="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div class="score-bar h-full rounded-full" style="width:${pct}%;background:linear-gradient(90deg,var(--score-grad-start),var(--score-grad-end))"></div>
-            </div>
-            <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-mono text-slate-400">
-              <span title="${escapeHtml(t('dashboard.scoreDense'))}">D ${fmt(s.dense_score)}</span>
-              <span title="${escapeHtml(t('dashboard.scoreSparse'))}">S ${fmt(s.sparse_score)}</span>
-              <span title="${escapeHtml(t('dashboard.scoreColbert'))}">CB ${fmt(s.colbert_score)}</span>
-              <span title="${escapeHtml(t('dashboard.scoreAuthority'))}" class="text-blue-400">A ${fmt(s.authority)}</span>
-            </div>
-          </div>
-        `);
-      });
+          `);
+        });
+      }
+      if (typeof renderCitationsLedger === 'function') renderCitationsLedger();
       card.classList.remove('hidden');
     }
 
@@ -1067,6 +1222,10 @@
 
       /* ── SCORES ── */
       renderScores(data.qdrant_scores);
+
+      /* ── THREAD (VC-3): sync strip + ledger from server summary when present ── */
+      if (data.thread) syncAskThread(data.thread);
+
       setStatus('success');
     }
 
@@ -1092,7 +1251,8 @@
         const res = await fetch('/ask', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question, top_k: topK, bfs_depth: bfsDep, stream: true }),
+          // use_thread:true (default server-side too): continue the project short thread.
+          body: JSON.stringify({ question, top_k: topK, bfs_depth: bfsDep, stream: true, use_thread: true }),
         });
 
         if (!res.ok) {
@@ -1201,6 +1361,10 @@
           }
         }
       }
+      if (lastAskThread) {
+        renderAskThreadStrip();
+        renderCitationsLedger();
+      }
       if (lastContextText === null) {
         document.getElementById('raw-context-box').textContent = t('dashboard.noQueryYet');
         document.getElementById('context-chars').textContent = '';
@@ -1245,6 +1409,7 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const h = await res.json();
         const snap = h.snapshot || {}, ev = h.eval || {}, dep = h.dependencies || {};
+        lastIndexVersion = snap.version || null;
         const nf = n => (typeof n === 'number' ? n.toLocaleString(uiLocale()) : '—');
         const trend = {
           up: t('dashboard.trendUp'),
@@ -1263,6 +1428,8 @@
           row('Qdrant', dep.qdrant ? t('common.reachable') : t('common.unreachable'), null, dep.qdrant ? 'success' : 'danger'),
           row('Ollama', dep.ollama ? t('common.reachable') : t('common.unreachable'), null, dep.ollama ? 'success' : 'danger'),
         );
+        // Index version may have moved (reindex): refresh stale banner on the thread strip.
+        if (lastAskThread) renderAskThreadStrip();
       } catch (e) {
         const item = document.createElement('div');
         item.className = 'col-span-2 text-slate-400';
@@ -1271,7 +1438,9 @@
       }
     }
     window.loadProjectStatus = loadProjectStatus;  // la shell lo richiama dopo un reindex
+    window.loadAskThread = loadAskThread;          // stesso hook: progetto / reindex
     loadProjectStatus();
+    loadAskThread();
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
@@ -1291,4 +1460,5 @@
       },
       switchTab: el => switchTab(el.dataset.arg),
       loadProjectStatus: () => loadProjectStatus(),
+      resetAskThread: () => resetAskThread(),
     });
