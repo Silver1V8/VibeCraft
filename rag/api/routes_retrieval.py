@@ -29,7 +29,8 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import ask_cache, graph_ops, llm, retrieval, router as question_router
+from core import ask_cache, ask_thread, graph_ops, llm, retrieval, router as question_router
+from core.ask_thread import AskThreadStorageError
 from core.projects import ProjectError, _unlinked
 from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
@@ -758,6 +759,46 @@ class _AskStreamingResponse(StreamingResponse):
                     await close()
             finally:
                 self._runtime.release()
+
+
+def _thread_http_payload(project, thread: dict) -> dict:
+    """Shape shared by GET/DELETE /api/ask/thread (and a guide for WP4 clients)."""
+    return {
+        "project_id": project.id,
+        "thread": ask_thread.thread_summary(thread),
+    }
+
+
+def _map_thread_storage_error(exc: AskThreadStorageError) -> HTTPException:
+    return HTTPException(
+        status_code=503,
+        detail={
+            "code": "project_storage_error",
+            "message": str(exc) or "Archiviazione ask-thread non disponibile.",
+        },
+    )
+
+
+@router.get("/api/ask/thread")
+async def get_ask_thread(request: Request):
+    """Return the short per-project /ask thread (empty when missing/corrupt)."""
+    project = get_project(request)
+    try:
+        thread = await run_in_threadpool(ask_thread.load_thread, project)
+    except AskThreadStorageError as exc:
+        raise _map_thread_storage_error(exc) from exc
+    return _thread_http_payload(project, thread)
+
+
+@router.delete("/api/ask/thread", dependencies=[Depends(require_not_cross_site_request)])
+async def delete_ask_thread(request: Request):
+    """Reset the project thread (idempotent: empty thread when already clear)."""
+    project = get_project(request)
+    try:
+        thread = await run_in_threadpool(ask_thread.reset_thread, project)
+    except AskThreadStorageError as exc:
+        raise _map_thread_storage_error(exc) from exc
+    return _thread_http_payload(project, thread)
 
 
 @router.post("/ask", dependencies=[Depends(require_not_cross_site_request)])

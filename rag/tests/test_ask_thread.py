@@ -1,15 +1,20 @@
-"""WP1: unit tests for core.ask_thread storage (schema, caps, merge, fingerprint).
+"""WP1 storage + WP2 HTTP API tests for the short per-project /ask thread.
 
-HTTP routes /ask wiring are out of scope here — covered by later WPs.
+WP3 /ask wiring and WP4 UI are out of scope here.
 """
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
+from api import deps, routes_retrieval
 from core import ask_thread as at
+from core.ask_thread import AskThreadStorageError
 from core.projects import ProjectContext, ProjectRegistry
 
 
@@ -337,3 +342,176 @@ def test_thread_summary_shape():
     assert summary["citations"][0]["doc_id"] == "d.md"
     assert summary["turns"][0]["question"] == "Q?"
     assert "answer_excerpt" not in summary["turns"][0]
+
+
+# ---------------------------------------------------------------------------
+# WP2 — GET/DELETE /api/ask/thread
+# ---------------------------------------------------------------------------
+def _thread_api_client(tmp_path, monkeypatch):
+    """Minimal app: retrieval router only; project registry under tmp_path."""
+    registry = ProjectRegistry(tmp_path / "projects", bootstrap_legacy=False)
+    monkeypatch.setattr(deps, "project_registry", lambda: registry, raising=False)
+    app = FastAPI()
+    app.include_router(routes_retrieval.router)
+    client = TestClient(app, client=("127.0.0.1", 54321))
+    return client, registry
+
+
+def test_api_get_empty_thread_when_missing(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    headers = {"X-VibeCraft-Project": project.id}
+    resp = client.get("/api/ask/thread", headers=headers)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["project_id"] == project.id
+    thread = body["thread"]
+    assert thread["turn_count"] == 0
+    assert thread["turns"] == []
+    assert thread["citations"] == []
+    assert thread["fingerprint"] == ""
+    assert thread["max_turns"] == at.DEFAULT_MAX_TURNS
+    assert isinstance(thread["updated_at"], str) and thread["updated_at"]
+
+
+def test_api_get_returns_saved_thread(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    thread = at.empty_thread(project.id)
+    at.append_turn(
+        thread,
+        at.build_turn(question="Vincoli sulla privacy?", turn_id="t-aaaaaaaa",
+                      status="success", index_version="v1"),
+        citations=[{"doc_id": "privacy.md", "last_score": 0.9}],
+    )
+    at.save_thread(project, thread)
+    resp = client.get("/api/ask/thread", headers={"X-VibeCraft-Project": project.id})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["project_id"] == project.id
+    assert body["thread"]["turn_count"] == 1
+    assert body["thread"]["turns"][0]["question"] == "Vincoli sulla privacy?"
+    assert body["thread"]["turns"][0]["turn_id"] == "t-aaaaaaaa"
+    assert "answer_excerpt" not in body["thread"]["turns"][0]
+    assert body["thread"]["citations"][0]["doc_id"] == "privacy.md"
+    assert body["thread"]["fingerprint"].startswith("1:t-aaaaaaaa:")
+
+
+def test_api_get_corrupt_file_returns_empty_thread(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    path = at.thread_path(project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("{not-json", encoding="utf-8")
+    resp = client.get("/api/ask/thread", headers={"X-VibeCraft-Project": project.id})
+    assert resp.status_code == 200
+    assert resp.json()["thread"]["turn_count"] == 0
+    assert resp.json()["thread"]["turns"] == []
+
+
+def test_api_delete_resets_thread_idempotently(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    headers = {"X-VibeCraft-Project": project.id}
+    thread = at.empty_thread(project.id)
+    at.append_turn(thread, at.build_turn(question="Q1", turn_id="t-11111111"))
+    at.save_thread(project, thread)
+    assert at.load_thread(project)["turns"]
+
+    first = client.delete("/api/ask/thread", headers=headers)
+    assert first.status_code == 200, first.text
+    assert first.json()["thread"]["turn_count"] == 0
+    assert first.json()["thread"]["turns"] == []
+    assert first.json()["thread"]["citations"] == []
+    assert first.json()["thread"]["fingerprint"] == ""
+    assert at.load_thread(project)["turns"] == []
+
+    second = client.delete("/api/ask/thread", headers=headers)
+    assert second.status_code == 200
+    assert second.json()["thread"]["turn_count"] == 0
+    assert client.get("/api/ask/thread", headers=headers).json()["thread"]["turn_count"] == 0
+
+
+def test_api_thread_project_isolation(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    a, b = registry.create("Alpha"), registry.create("Beta")
+    ta = at.empty_thread(a.id)
+    at.append_turn(ta, at.build_turn(question="only-alpha", turn_id="t-aaaaaaaa"))
+    at.save_thread(a, ta)
+
+    got_a = client.get("/api/ask/thread", headers={"X-VibeCraft-Project": a.id}).json()
+    got_b = client.get("/api/ask/thread", headers={"X-VibeCraft-Project": b.id}).json()
+    assert got_a["project_id"] == a.id
+    assert got_a["thread"]["turns"][0]["question"] == "only-alpha"
+    assert got_b["project_id"] == b.id
+    assert got_b["thread"]["turn_count"] == 0
+    assert got_b["thread"]["turns"] == []
+
+    # Reset A must not create/alter B's thread content.
+    reset_a = client.delete("/api/ask/thread", headers={"X-VibeCraft-Project": a.id})
+    assert reset_a.status_code == 200
+    assert reset_a.json()["thread"]["turn_count"] == 0
+    assert client.get("/api/ask/thread", headers={"X-VibeCraft-Project": b.id}).json()[
+        "thread"
+    ]["turn_count"] == 0
+    # Seed B after A's reset and confirm A stays empty.
+    tb = at.empty_thread(b.id)
+    at.append_turn(tb, at.build_turn(question="only-beta", turn_id="t-bbbbbbbb"))
+    at.save_thread(b, tb)
+    assert client.get("/api/ask/thread", headers={"X-VibeCraft-Project": a.id}).json()[
+        "thread"
+    ]["turn_count"] == 0
+    assert client.get("/api/ask/thread", headers={"X-VibeCraft-Project": b.id}).json()[
+        "thread"
+    ]["turns"][0]["question"] == "only-beta"
+
+
+def test_api_thread_requires_project_header(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    registry.create("Acme")
+    for method in ("get", "delete"):
+        resp = getattr(client, method)("/api/ask/thread")
+        assert resp.status_code == 409, resp.text
+        assert resp.json()["detail"]["code"] == "project_required"
+
+
+def test_api_thread_storage_error_maps_to_503(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    headers = {"X-VibeCraft-Project": project.id}
+    err = AskThreadStorageError("Archiviazione ask-thread non disponibile.")
+
+    with patch.object(routes_retrieval.ask_thread, "load_thread", side_effect=err):
+        resp = client.get("/api/ask/thread", headers=headers)
+    assert resp.status_code == 503
+    assert resp.json()["detail"]["code"] == "project_storage_error"
+
+    with patch.object(routes_retrieval.ask_thread, "reset_thread", side_effect=err):
+        resp = client.delete("/api/ask/thread", headers=headers)
+    assert resp.status_code == 503
+    assert resp.json()["detail"]["code"] == "project_storage_error"
+
+
+def test_api_delete_rejects_cross_site_without_key(tmp_path, monkeypatch):
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    monkeypatch.setattr(deps, "API_KEY", None)
+    resp = client.delete(
+        "/api/ask/thread",
+        headers={"X-VibeCraft-Project": project.id, "Sec-Fetch-Site": "cross-site"},
+    )
+    assert resp.status_code == 403
+    assert "cross-site" in resp.json()["detail"]
+
+
+def test_api_get_allows_cross_site_read(tmp_path, monkeypatch):
+    """GET is read-only: anti-cross-site must not block legitimate embedding/nav."""
+    client, registry = _thread_api_client(tmp_path, monkeypatch)
+    project = registry.create("Acme")
+    monkeypatch.setattr(deps, "API_KEY", None)
+    resp = client.get(
+        "/api/ask/thread",
+        headers={"X-VibeCraft-Project": project.id, "Sec-Fetch-Site": "cross-site"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["thread"]["turn_count"] == 0
