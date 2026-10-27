@@ -144,8 +144,10 @@ To create/import and for Docker details: [istruzioni principali](../README.md#pr
 
 In-app launch available for Claude SDK and local Ollama. Codex/Cursor integrated
 are disabled with `native_read_isolation_unverified`; export prompt and MCP
-external remain available. The first version does not include deletion,
-rename/move, search among projects, ACL for project or different embeddings.
+external remain available. Supported: deletion (destroy for managed roots;
+unregister for external roots), display-name rename only (id and path stay fixed), and
+project-list filter by name or id (`?q=`). Still out of scope: id move/migration,
+cross-project corpus search, per-project ACL, or different embeddings.
 
 Indexing, retrieval, pipeline, and import are exposed by FastAPI.
 Entrypoint: `server.py`, `index.py`, `mcp_server.py`; architectural decisions in
