@@ -777,6 +777,9 @@ _ANTI_XSITE_ROUTES = [
     (routes_pipeline.router, "POST", "/api/pipeline/drift/check/stream"),
     (routes_pipeline.router, "POST", "/api/pipeline/validate"),
     (routes_retrieval.router, "POST", "/ask"),
+    # VC-3 WP2: reset del filo /ask — DELETE bodyless mutante (non CORS-simple, ma
+    # stessa dependency degli altri mutanti; vedi SECURITY_SURFACE.md §2A).
+    (routes_retrieval.router, "DELETE", "/api/ask/thread"),
     # Intake & Import (S0-S6): 9 POST, tutti mutanti o LLM. Tre di questi sono
     # STRUTTURALMENTE raggiungibili cross-site anche senza preflight — `docs` ha un body
     # multipart (content-type "simple", nessun preflight) e `refine`/`browse-path` non
@@ -856,19 +859,33 @@ def test_every_post_route_is_classified():
     """Il verso che mancava: ogni POST registrato deve stare nella matrice O fra le
     esclusioni motivate. È il test che avrebbe fatto fallire l'ingresso dei 9 POST di
     intake senza una riga corrispondente in SECURITY_SURFACE.md — la matrice non può
-    restare indietro rispetto al codice senza che la suite lo dica."""
+    restare indietro rispetto al codice senza che la suite lo dica.
+
+    Le righe non-POST in `_ANTI_XSITE_ROUTES` (es. DELETE `/api/ask/thread`) sono
+    verificate a parte: devono esistere sui router, ma non entrano nel confronto POST."""
     classified = {(m, p) for _, m, p in _ANTI_XSITE_ROUTES + _ANTI_XSITE_EXCLUDED}
-    registered = {
+    classified_post = {(m, p) for m, p in classified if m == "POST"}
+    registered_post = {
         ("POST", route.path)
         for router in _ALL_ROUTERS for route in router.routes
         if "POST" in getattr(route, "methods", set())
     }
-    assert registered - classified == set(), (
+    assert registered_post - classified_post == set(), (
         "POST non classificati: aggiungili a _ANTI_XSITE_ROUTES (con la dependency) o a "
         "_ANTI_XSITE_EXCLUDED (con la motivazione), e aggiorna SECURITY_SURFACE.md §1-§2."
     )
     # E nessuna riga fantasma: una route rimossa dal codice non deve restare in matrice.
-    assert classified - registered == set()
+    assert classified_post - registered_post == set()
+    registered_all = {
+        (method, route.path)
+        for router in _ALL_ROUTERS for route in router.routes
+        for method in (getattr(route, "methods", None) or set()) - {"HEAD"}
+    }
+    classified_other = {(m, p) for m, p in classified if m != "POST"}
+    assert classified_other <= registered_all, (
+        "righe non-POST in _ANTI_XSITE_ROUTES assenti dai router: "
+        f"{sorted(classified_other - registered_all)}"
+    )
 
 
 # --- Wiring HTTP reale su tutte le route della matrice ---
