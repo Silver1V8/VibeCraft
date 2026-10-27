@@ -73,6 +73,7 @@
             <svg class="workspace-icon" aria-hidden="true"><use href="#icon-search"/></svg>
             <label class="workspace-sr-only" for="project-search" data-i18n="workspace.searchLabel">Cerca un progetto</label>
             <input id="project-search" type="search" placeholder="Cerca un progetto…" data-i18n-placeholder="workspace.searchPlaceholder" data-input="filterProjects" autocomplete="off" />
+            <p id="project-search-hint" class="project-search-hint" data-i18n="workspace.searchHintId">Cerca per nome o id</p>
           </div>
           <div id="project-list" class="project-list"></div>
           <p id="project-list-empty" class="project-list-empty" role="status" data-i18n="workspace.loadingProjects">Caricamento progetti…</p>
@@ -97,12 +98,18 @@
     </div>
   </main>
   <template id="project-card-template">
-    <button type="button" class="project-card" data-click="openRecentProject">
-      <span class="project-card-icon"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg></span>
-      <span class="project-card-copy"><strong class="project-card-name"></strong><span class="project-card-path"></span><span class="project-card-meta"></span></span>
-      <span class="project-index-status project-card-status"></span>
-      <svg class="workspace-icon project-card-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
-    </button>
+    <div class="project-card">
+      <button type="button" class="project-card-main" data-click="openRecentProject">
+        <span class="project-card-icon"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg></span>
+        <span class="project-card-copy"><strong class="project-card-name"></strong><span class="project-card-path"></span><span class="project-card-meta"></span></span>
+        <span class="project-index-status project-card-status"></span>
+        <svg class="workspace-icon project-card-arrow" aria-hidden="true"><use href="#icon-chevron"/></svg>
+      </button>
+      <div class="project-card-actions">
+        <button type="button" class="btn btn-secondary project-card-action" data-click="renameProject" data-i18n="workspace.rename">Rinomina</button>
+        <button type="button" class="btn btn-danger project-card-action" data-click="deleteProject" data-i18n="workspace.delete">Elimina</button>
+      </div>
+    </div>
   </template>
   <dialog id="project-dialog" class="confirm-dialog" aria-labelledby="project-dialog-title">
     <form id="project-form">
@@ -115,6 +122,32 @@
       <div class="confirm-actions">
         <button type="button" class="btn btn-secondary" data-click="cancelProject" data-i18n="workspace.cancel">Annulla</button>
         <button id="project-submit" type="submit" class="btn btn-primary" data-i18n="workspace.create">Crea</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="project-rename-dialog" class="confirm-dialog" aria-labelledby="project-rename-title">
+    <form id="project-rename-form">
+      <h2 id="project-rename-title" class="confirm-title" data-i18n="workspace.renameTitle">Rinomina progetto</h2>
+      <label id="project-rename-label" for="project-rename-input" data-i18n="workspace.dialogNewLabel">Nome del progetto</label>
+      <input id="project-rename-input" required autocomplete="off" />
+      <p id="project-rename-error" role="alert"></p>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-secondary" data-click="cancelRenameProject" data-i18n="workspace.cancel">Annulla</button>
+        <button id="project-rename-submit" type="submit" class="btn btn-primary" data-i18n="workspace.renameSave">Salva</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="project-delete-dialog" class="confirm-dialog is-danger" aria-labelledby="project-delete-title">
+    <form id="project-delete-form">
+      <h2 id="project-delete-title" class="confirm-title" data-i18n="workspace.deleteTitle">Elimina progetto</h2>
+      <p id="project-delete-body" class="confirm-message"></p>
+      <label id="project-delete-confirm-label" for="project-delete-confirm" data-i18n="workspace.deleteConfirmLabel">Digita il nome o l’id del progetto per confermare</label>
+      <input id="project-delete-confirm" required autocomplete="off" />
+      <p id="project-delete-hint" class="project-delete-hint" data-i18n="workspace.deleteConfirmHint">Conferma digitando «{name}» o l’id «{id}».</p>
+      <p id="project-delete-error" role="alert"></p>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-secondary" data-click="cancelDeleteProject" data-i18n="workspace.cancel">Annulla</button>
+        <button id="project-delete-submit" type="submit" class="btn btn-danger" data-i18n="workspace.deleteConfirmAction" disabled>Elimina definitivamente</button>
       </div>
     </form>
   </dialog>
