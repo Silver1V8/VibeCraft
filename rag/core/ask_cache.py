@@ -124,6 +124,16 @@ class AskCache:
         with self._lock:
             self._entries.clear()
 
+    def drop_project(self, project_id: str) -> int:
+        """Remove every entry keyed by ``project_id`` (first tuple element). Returns count."""
+        if not isinstance(project_id, str) or not project_id:
+            return 0
+        with self._lock:
+            doomed = [key for key in self._entries if key and key[0] == project_id]
+            for key in doomed:
+                del self._entries[key]
+            return len(doomed)
+
     def __len__(self) -> int:
         with self._lock:
             return len(self._entries)

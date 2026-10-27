@@ -303,6 +303,23 @@ def test_size_zero_disattiva_la_cache():
     assert len(cache) == 0
 
 
+def test_drop_project_removes_only_matching_keys():
+    cache = ask_cache.AskCache(max_size=8)
+    keep = ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id="keep")
+    drop_a = ask_cache.make_key("v1", "hybrid", 5, 2, "q1", project_id="gone")
+    drop_b = ask_cache.make_key("v1", "hybrid", 5, 2, "q2", project_id="gone",
+                                thread_fingerprint="1:t:abc")
+    cache.set(keep, {"answer": "K"})
+    cache.set(drop_a, {"answer": "A"})
+    cache.set(drop_b, {"answer": "B"})
+    assert cache.drop_project("gone") == 2
+    assert cache.get(keep) == {"answer": "K"}
+    assert cache.get(drop_a) is None
+    assert cache.get(drop_b) is None
+    assert cache.drop_project("gone") == 0
+    assert cache.drop_project("") == 0
+
+
 def test_max_size_from_env(monkeypatch):
     monkeypatch.delenv("VIBECRAFT_ASK_CACHE_SIZE", raising=False)
     assert ask_cache.max_size_from_env() == ask_cache.DEFAULT_ASK_CACHE_SIZE

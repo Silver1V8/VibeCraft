@@ -3,9 +3,11 @@ from copy import deepcopy
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 import json
+import logging
 import math
 from pathlib import Path
 import re
+import shutil
 import unicodedata
 
 import yaml
@@ -13,6 +15,8 @@ import yaml
 from core import config as installation
 from core.artifacts import _atomic_write_json, _atomic_write_text
 from core.writer_lock import WriterLockBusyError, writer_lock
+
+logger = logging.getLogger(__name__)
 
 
 class ProjectError(RuntimeError):
@@ -64,6 +68,41 @@ class ProjectContext:
     collection_name: str
     settings: dict
     legacy: bool = False
+
+
+@dataclass(frozen=True)
+class ProjectDeleteResult:
+    """Outcome of unregister/destroy: registry row is always gone on success."""
+    id: str
+    name: str
+    mode: str
+    managed: bool
+    cleanup: dict
+
+
+_DELETE_MODES = frozenset({"destroy", "unregister"})
+
+
+def is_managed_project_root(root: Path, projects_dir: Path) -> bool:
+    """True when `root` is a real directory strictly under the managed projects dir."""
+    root = Path(root).resolve()
+    base = Path(projects_dir).resolve()
+    return root != base and root.is_relative_to(base)
+
+
+def assert_project_not_busy(project: ProjectContext) -> None:
+    """Raise `project_busy` if the per-project writer lock is held (soft preflight).
+
+    Callers (HTTP DELETE) may wrap this with ReindexManager checks via `busy_check`.
+    """
+    try:
+        with writer_lock(project=project, timeout_seconds=0):
+            return
+    except WriterLockBusyError as exc:
+        raise ProjectError("Project is busy", status_code=409, code="project_busy") from exc
+    except (OSError, ValueError) as exc:
+        # Missing/unreadable lock path: treat as idle; destroy cleanup is best-effort.
+        logger.warning("Project busy check skipped for %s: %s", project.id, exc)
 
 
 def legacy_project_context() -> ProjectContext:
@@ -484,6 +523,90 @@ class ProjectRegistry:
                 self._write(records)
                 return self._context(records[index])
             raise ProjectError("Project not found", status_code=404, code="project_not_found")
+
+    def _managed_root(self, root: Path) -> bool:
+        return is_managed_project_root(root, self.projects_dir)
+
+    def _delete_target(self, record: dict) -> ProjectContext:
+        """Build a context from the registry row without requiring a healthy manifest."""
+        root = _unlinked(Path(record["root"]))
+        paths = [root / part for part in ("code", "docs", "changes", "database", "database/staging")]
+        return ProjectContext(
+            record["id"], record["name"], root, *paths, "vibecraft_" + record["id"], {}, False,
+        )
+
+    def _cleanup_filesystem(self, root: Path) -> str:
+        try:
+            root = _unlinked(root)
+            if not self._managed_root(root):
+                logger.error("Refusing filesystem cleanup outside managed dir: %s", root)
+                return "error"
+            if root.exists():
+                shutil.rmtree(root)
+            return "ok"
+        except (OSError, ProjectError) as exc:
+            logger.warning("Project filesystem cleanup failed for %s: %s", root, exc)
+            return "error"
+
+    def _cleanup_qdrant(self, collection_name: str, qdrant) -> str:
+        if qdrant is None:
+            return "skipped"
+        try:
+            from core.qdrant_versions import drop_project_qdrant_namespaces
+            report = drop_project_qdrant_namespaces(qdrant, base=collection_name)
+            return "error" if report.get("errors") else "ok"
+        except Exception as exc:
+            logger.warning("Project Qdrant cleanup failed for %s: %s", collection_name, exc)
+            return "error"
+
+    def unregister(self, project_id: str, *, busy_check=None) -> ProjectDeleteResult:
+        """Remove the registry row only; leave host files and Qdrant namespaces intact."""
+        return self.delete(project_id, mode="unregister", busy_check=busy_check)
+
+    def delete(self, project_id: str, *, mode: str | None = None, busy_check=None,
+               qdrant=None) -> ProjectDeleteResult:
+        """Unregister, optionally destroying managed tree + Qdrant namespaces.
+
+        Policy: under the registry lock, busy-check then remove the row first so the
+        project disappears from list/get. Filesystem and Qdrant cleanup run best-effort
+        outside the lock afterward (destroy mode only). Failed cleanup is reported in
+        ``cleanup`` flags — the registry row is never restored.
+        """
+        self._require_writer()
+        project_id = validate_project_id(project_id)
+        if mode is not None and mode not in _DELETE_MODES:
+            raise ProjectError("Invalid project delete mode", status_code=422,
+                               code="project_delete_mode")
+        with self._lock():
+            records = self._read()
+            if any(record["legacy"] for record in records):
+                raise _migration_required()
+            for index, record in enumerate(records):
+                if record["id"] != project_id:
+                    continue
+                project = self._delete_target(record)
+                managed = self._managed_root(project.root)
+                resolved = mode or ("destroy" if managed else "unregister")
+                if resolved == "destroy" and not managed:
+                    raise ProjectError("Destroy refused for external project root",
+                                       status_code=422, code="project_delete_mode")
+                if busy_check is not None:
+                    busy_check(project)
+                else:
+                    assert_project_not_busy(project)
+                del records[index]
+                self._write(records)
+                break
+            else:
+                raise ProjectError("Project not found", status_code=404, code="project_not_found")
+
+        cleanup = {"filesystem": "skipped", "qdrant": "skipped"}
+        if resolved == "destroy":
+            cleanup["filesystem"] = self._cleanup_filesystem(project.root)
+            cleanup["qdrant"] = self._cleanup_qdrant(project.collection_name, qdrant)
+        return ProjectDeleteResult(
+            project.id, project.name, resolved, managed, cleanup,
+        )
 
     def register(self, root: Path) -> ProjectContext:
         self._require_writer()
