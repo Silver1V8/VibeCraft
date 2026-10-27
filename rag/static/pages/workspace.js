@@ -229,6 +229,7 @@ async function updateProjectIndex() {
             page.frame.contentWindow.loadSemanticMap?.();
             page.frame.contentWindow.loadNodeList?.();
             page.frame.contentWindow.loadProjectStatus?.();
+            page.frame.contentWindow.loadAskThread?.();
           }
         }
       }

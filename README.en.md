@@ -18,7 +18,7 @@ Answers are anchored to the retrieved sources; citations, partial results, and o
 | you need a **verifiable** answer, with the source and the weight that made it win | you need a fast conversational assistant |
 | data must not leave the machine | an external service is fine |
 
-The system makes documents findable; it does not improve them. If they are poorly written, the answers will be too. It does not remember the previous conversation, does not query multiple projects together, and has no per-user permissions: it is meant to run locally or on a controlled network.
+The system makes documents findable; it does not improve them. If they are poorly written, the answers will be too. On `/ask` it keeps a short per-project thread with accumulated citations (not a general chatbot); it does not query multiple projects together and has no per-user permissions: it is meant to run locally or on a controlled network.
 
 Two guides, generated from source on 18 October 2026. In the console they open as they are; on GitHub the link shows the file.
 
