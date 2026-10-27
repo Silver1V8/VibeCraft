@@ -874,6 +874,25 @@ def _publish_snapshot(project: ProjectContext | None, snapshot: IndexSnapshot) -
     # Eviction drops references only: in-flight requests still own their version lease.
 
 
+def evict_project(project_id: str, *, ask_cache=None) -> None:
+    """Drop in-process runtime for a deleted project (snapshots, states, ask cache).
+
+    Best-effort for this worker only; other processes evict on next miss/404.
+    Pass ``ask_cache`` (or the app's AskCache) to also clear keyed /ask entries.
+    """
+    if not isinstance(project_id, str) or not project_id:
+        return
+    with _reload_lock:
+        _snapshots.pop(project_id, None)
+        _project_states.pop(project_id, None)
+        if project_id == "legacy":
+            state["snapshot"] = None
+    if ask_cache is not None:
+        drop = getattr(ask_cache, "drop_project", None)
+        if callable(drop):
+            drop(project_id)
+
+
 def require_snapshot(project: ProjectContext) -> IndexSnapshot:
     # ponytail: serialize disk loads; per-project locks if load contention becomes material.
     with _reload_lock:

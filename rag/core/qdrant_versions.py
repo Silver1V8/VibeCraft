@@ -292,6 +292,53 @@ def list_qdrant_collections(qdrant: QdrantClient, *, base: str = COLLECTION_NAME
     return sorted(n for n in names if parse_qdrant_collection_version(n, base=base, project=project) is not None)
 
 
+def drop_project_qdrant_namespaces(qdrant: QdrantClient, *, base: str = COLLECTION_NAME,
+                                   project: ProjectContext | None = None) -> dict:
+    """Delete the project alias `base` and every physical collection owned by it.
+
+    Prefix-scoped only: removes `base` (alias and optional legacy physical collection)
+    plus `base__*` versioned collections. Never touches other projects' namespaces —
+    project ids forbid `_`, so `vibecraft_foo__` cannot match `vibecraft_foobar__*`.
+
+    Best-effort: individual failures are collected in ``errors`` and do not stop the
+    rest of the cleanup. Returns ``{"removed": [...], "errors": [...]}``.
+    """
+    base = project.collection_name if project is not None else base
+    if not isinstance(base, str) or not base or base != base.strip() or "/" in base or "\\" in base:
+        raise ValueError("Invalid Qdrant project base name")
+    removed: list[str] = []
+    errors: list[str] = []
+    try:
+        if _read_alias_target(qdrant, base) is not None:
+            qdrant.update_collection_aliases(change_aliases_operations=[
+                DeleteAliasOperation(delete_alias=DeleteAlias(alias_name=base)),
+            ])
+    except Exception as exc:
+        logger.warning("Failed to delete Qdrant alias %s: %s", base, exc)
+        errors.append(f"alias:{base}")
+    try:
+        versioned = list_qdrant_collections(qdrant, base=base, project=project)
+    except Exception as exc:
+        logger.warning("Failed to list Qdrant collections for %s: %s", base, exc)
+        errors.append(f"list:{base}")
+        versioned = []
+    for name in versioned:
+        try:
+            qdrant.delete_collection(name)
+            removed.append(name)
+        except Exception as exc:
+            logger.warning("Failed to delete Qdrant collection %s: %s", name, exc)
+            errors.append(name)
+    try:
+        if _qdrant_collection_exists(qdrant, base):
+            qdrant.delete_collection(base)
+            removed.append(base)
+    except Exception as exc:
+        logger.warning("Failed to delete Qdrant base collection %s: %s", base, exc)
+        errors.append(base)
+    return {"removed": removed, "errors": errors}
+
+
 def _referenced_qdrant_collections(project: ProjectContext | None = None) -> set[str]:
     """Collection fisiche ancora referenziate da un manifest di versione SOPRAVVISSUTA
     su disco (database/versions/<v>/index_manifest.json -> campo qdrant_collection).

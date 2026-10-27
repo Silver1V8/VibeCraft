@@ -75,6 +75,26 @@ def test_ask_cache_project_key():
     assert cache.get(b) is None
 
 
+def test_evict_project_clears_runtime_and_ask_cache(projects):
+    a, b, _ = projects
+    indexed(a, "A")
+    indexed(b, "B")
+    deps.require_snapshot(a)
+    deps.require_snapshot(b)
+    assert a.id in deps._snapshots
+    deps.project_runtime(a)["reload_error"] = "stale"
+    assert a.id in deps._project_states
+    cache = ask_cache.AskCache()
+    cache.set(ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id=a.id), {"answer": "A"})
+    cache.set(ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id=b.id), {"answer": "B"})
+    deps.evict_project(a.id, ask_cache=cache)
+    assert a.id not in deps._snapshots
+    assert a.id not in deps._project_states
+    assert b.id in deps._snapshots
+    assert cache.get(ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id=a.id)) is None
+    assert cache.get(ask_cache.make_key("v1", "hybrid", 5, 2, "q", project_id=b.id)) == {"answer": "B"}
+
+
 def test_initial_project_gate_reads_its_own_golden(projects):
     from dataclasses import replace
     from core import eval_gate
