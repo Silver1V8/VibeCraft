@@ -113,12 +113,15 @@ def test_astensione_viene_cachata_come_lo_stesso_esito(ask_env, monkeypatch):
     """Stessa domanda, stesso indice: la seconda richiesta non richiama l'LLM e
     l'esito cachato resta "abstained", non silenziosamente "success"."""
     client = ask_env(risposta_llm=f"{MARCATORE}\nNiente in questo corpus.")
-    prima = client.post("/ask", json={"question": "domanda?"}).json()
+    # use_thread=false: altrimenti l'append del primo turno cambia il fingerprint e
+    # la seconda richiesta sarebbe un miss (VC-3).
+    isolated = {"question": "domanda?", "use_thread": False}
+    prima = client.post("/ask", json=isolated).json()
     assert prima["status"] == "abstained" and prima["cached"] is False
 
     # Se la cache non intercettasse, questa risposta diversa rivelerebbe la mancata cache.
     llm.register_provider("fake", lambda model, prompt, timeout: "RISPOSTA DIVERSA")
-    seconda = client.post("/ask", json={"question": "domanda?"}).json()
+    seconda = client.post("/ask", json=isolated).json()
     assert seconda["status"] == "abstained" and seconda["cached"] is True
     assert seconda["answer"] == "Niente in questo corpus."
 

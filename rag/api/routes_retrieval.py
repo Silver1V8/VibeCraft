@@ -29,7 +29,8 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import ask_cache, graph_ops, llm, retrieval, router as question_router
+from core import ask_cache, ask_thread, graph_ops, llm, retrieval, router as question_router
+from core.ask_thread import AskThreadStorageError
 from core.projects import ProjectError, _unlinked
 from core.config import (
     CODE_CONTEXT_MAX_SNIPPETS,
@@ -90,6 +91,79 @@ def _cache_set(app, key: ask_cache.AskCacheKey, payload: dict) -> None:
         logger.warning("Cache /ask non aggiornata (%s: %s).", type(exc).__name__, exc)
 
 
+def _load_ask_thread(project, query: AskQuery):
+    """Optionally reset, then load the project ask thread when `use_thread`.
+
+    `reset_thread` is honored even with `use_thread=false` (explicit clear, same idea as
+    DELETE /api/ask/thread). Storage faults → 503.
+    """
+    try:
+        if query.reset_thread:
+            ask_thread.reset_thread(project)
+        if not query.use_thread:
+            return None
+        return ask_thread.load_thread(project)
+    except AskThreadStorageError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+def _persist_ask_turn(
+    project,
+    query: AskQuery,
+    thread: dict | None,
+    payload: dict,
+    *,
+    index_version,
+    retrieval_strategy: str,
+) -> dict:
+    """Append this terminal outcome to the project thread and attach `thread` summary.
+
+    Policy (VC-3 WP3): append all non-5xx terminal outcomes (success, abstained,
+    graph_answer, no_results, no_graph_nodes). Persistence faults are logged and do not
+    discard the answer already computed — the in-memory summary is still attached.
+    Cached payloads are not mutated in-place: callers pass a shallow copy when needed.
+    """
+    if not query.use_thread:
+        return payload
+    working = thread if isinstance(thread, dict) else ask_thread.empty_thread(project.id)
+    status = str(payload.get("status") or "success")
+    answer_text = payload.get("answer") or ""
+    if not answer_text and status == "graph_answer":
+        # Compact structural payload for the excerpt (full graph_result stays in the response).
+        try:
+            answer_text = json.dumps(payload.get("graph_result") or {}, ensure_ascii=False)
+        except (TypeError, ValueError):
+            answer_text = ""
+    scores = payload.get("qdrant_scores") or []
+    citation_ids = list(dict.fromkeys(
+        str(r.get("doc_id")) for r in scores
+        if isinstance(r, dict) and r.get("doc_id")
+    ))
+    turn = ask_thread.build_turn(
+        question=query.question,
+        answer_excerpt=answer_text,
+        status=status,
+        index_version=index_version,
+        request_id=payload.get("request_id"),
+        retrieval_strategy=retrieval_strategy,
+        citation_ids=citation_ids,
+    )
+    citations = ask_thread.citations_from_qdrant_scores(scores)
+    ask_thread.append_turn(working, turn, citations)
+    try:
+        saved = ask_thread.save_thread(project, working)
+    except AskThreadStorageError as exc:
+        logger.warning(
+            "ask thread non persistito (%s: %s): risposta restituita comunque.",
+            type(exc).__name__, exc,
+        )
+        saved = working
+    summary = ask_thread.thread_summary(
+        saved, current_index_version=str(index_version) if index_version is not None else None,
+    )
+    return {**payload, "thread": summary}
+
+
 # R27 — il marcatore va letto anche quando il modello lo FORMATTA: `**[ASTENSIONE]**` usciva
 # con status "success" (caso 05 run 2 di eval/golden_attribution.yaml, testo archiviato).
 # Gli ornamenti ammessi sono MISURATI sulle 24 risposte archiviate di qwen3.5:9b: backtick
@@ -135,6 +209,20 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             raise HTTPException(503, detail="Collection dello snapshot non disponibile.")
         collection = project.collection_name
 
+    # 0-pre. Filo breve per-progetto (VC-3): reset opzionale + load. Il fingerprint entra
+    #     nella cache key solo se il filo è non vuoto; use_thread=false ⇒ percorso storico.
+    active_thread = _load_ask_thread(project, query)
+    thread_fingerprint = (
+        ask_thread.fingerprint(active_thread) if query.use_thread and active_thread else ""
+    )
+    thread_block = (
+        ask_thread.format_thread_block(
+            active_thread,
+            current_index_version=str(index_version) if index_version is not None else None,
+        )
+        if query.use_thread and active_thread else ""
+    )
+
     # 0. Router deterministico M2: le domande STRUTTURALI (enumerazioni, relazioni,
     #    impatto, adiacenza — i casi B>A del report M1) sono risposte direttamente da
     #    graph_query, senza retrieval né chiamata LLM. graph_query è CPU-bound sul
@@ -175,7 +263,10 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
                 "total_ms": latency_total_ms,
             },
         }
-        return payload
+        return _persist_ask_turn(
+            project, query, active_thread, payload,
+            index_version=index_version, retrieval_strategy=retrieval_strategy,
+        )
 
     # 0b. Cache semantica del ramo "hybrid": a parità di (index_version, strategia, top_k,
     #     bfs_depth, domanda normalizzata) retrieval e sintesi rifarebbero lo stesso lavoro,
@@ -184,9 +275,12 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     #     no_results/no_graph_nodes non vengono memorizzati (vedi sotto: si cacha solo il
     #     payload "success"). L'invalidazione è nella chiave: index_version cambia a ogni
     #     reindex/rollback e le voci vecchie non sono più consultate (core.ask_cache).
+    #     Filo (VC-3): fingerprint del thread attivo quando non vuoto ⇒ miss dopo append/reset.
     cache_key = ask_cache.make_key(
-        index_version, retrieval_strategy, query.top_k, query.bfs_depth, query.question, project_id=project.id,
+        index_version, retrieval_strategy, query.top_k, query.bfs_depth, query.question,
+        project_id=project.id,
         project_settings=project.settings,
+        thread_fingerprint=thread_fingerprint,
     )
     cached = _cache_get(request.app, cache_key)
     if cached is not None:
@@ -205,8 +299,10 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         # request_id, latenze ed elaboration_seconds sono di QUESTA richiesta (quelli
         # cachati appartengono alla richiesta che ha popolato la voce e sarebbero
         # fuorvianti); il resto del payload è servito tal quale, senza mutare la voce.
+        # Tolto eventuale `thread` cachato: il filo è dello stato ATTUALE (append sotto).
+        cached_body = {k: v for k, v in cached.items() if k != "thread"}
         payload = {
-            **cached,
+            **cached_body,
             "cached": True,
             "request_id": request_id,
             "elaboration_seconds": 0.0,
@@ -219,7 +315,10 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         })
         if payload.get("answer"):
             await _emit(emit, {"type": "delta", "text": payload["answer"]})
-        return payload
+        return _persist_ask_turn(
+            project, query, active_thread, payload,
+            index_version=index_version, retrieval_strategy=retrieval_strategy,
+        )
 
     stream_resolved = llm.resolve_stream("ask") if emit is not None else None
     await _emit(emit, {
@@ -265,14 +364,18 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
 
     # Nessun documento E nessun codice pertinente: non c'è nulla su cui rispondere.
     if not search_results and not code_hits:
-        return {
-            "status": "no_results",
-            "answer": "Nessun documento rilevante trovato nel knowledge base.",
-            "graph_context": {},
-            "qdrant_scores": [],
-            "request_id": request_id,
-            "index_version": index_version, "project_id": project.id,
-        }
+        return _persist_ask_turn(
+            project, query, active_thread,
+            {
+                "status": "no_results",
+                "answer": "Nessun documento rilevante trovato nel knowledge base.",
+                "graph_context": {},
+                "qdrant_scores": [],
+                "request_id": request_id,
+                "index_version": index_version, "project_id": project.id,
+            },
+            index_version=index_version, retrieval_strategy=retrieval_strategy,
+        )
 
     # 3. Nodi seed nel grafo dai risultati (documenti padre dei chunk, deduplicati
     #    preservando l'ordine di rilevanza).
@@ -281,17 +384,21 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     # Senza seed il grafo non è espandibile; si prosegue lo stesso SE la ricerca sul codice
     # ha trovato qualcosa (domanda puramente implementativa: la risposta viene dal codice).
     if not seed_nodes and not code_hits:
-        return {
-            "status": "no_graph_nodes",
-            "answer": "Documenti trovati in Qdrant ma non presenti nel grafo.",
-            "graph_context": {},
-            "qdrant_scores": [
-                {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
-                for r in search_results
-            ],
-            "request_id": request_id,
-            "index_version": index_version, "project_id": project.id,
-        }
+        return _persist_ask_turn(
+            project, query, active_thread,
+            {
+                "status": "no_graph_nodes",
+                "answer": "Documenti trovati in Qdrant ma non presenti nel grafo.",
+                "graph_context": {},
+                "qdrant_scores": [
+                    {**r, "score": r["colbert_score"] if r["colbert_score"] is not None else r["dense_score"]}
+                    for r in search_results
+                ],
+                "request_id": request_id,
+                "index_version": index_version, "project_id": project.id,
+            },
+            index_version=index_version, retrieval_strategy=retrieval_strategy,
+        )
 
     # Precedenze effettivamente in gioco fra i documenti recuperati (S4): stesse coppie che
     # hanno riordinato il ranking dentro hybrid_search, rilette qui per dichiararle nel prompt
@@ -588,6 +695,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     prompt = retrieval.build_ask_prompt(
         f"PROJECT_ID: {project.id}\n{context}", query.question, precedences=precedenze,
         authority_classes=retrieval.authority_scale(fonti_nel_contesto),
+        thread_block=thread_block or None,
     )
     runtime = ask_runtime_for_app(request.app)
     try:
@@ -687,8 +795,12 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     # (no_results/no_graph_nodes, che tornano prima) non entrano mai in cache. Un'astensione
     # ("abstained") CI entra: è la stessa domanda sullo stesso indice, quindi la stessa
     # risposta — anche quando la risposta è "il contesto non basta".
+    # Il campo `thread` è dello stato post-append: non entra in cache (stripped on hit).
     _cache_set(request.app, cache_key, payload)
-    return payload
+    return _persist_ask_turn(
+        project, query, active_thread, payload,
+        index_version=index_version, retrieval_strategy=retrieval_strategy,
+    )
 
 
 def _stream_error(exc: Exception) -> dict:

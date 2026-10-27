@@ -710,9 +710,11 @@ def test_errore_dopo_delta_e_terminale_e_non_entra_in_cache(ask_app):
 
 def test_stream_completato_popola_cache_e_hit_non_richiama_provider(ask_app):
     app, calls = ask_app
+    # use_thread=false: append del filo cambierebbe il fingerprint e annullerebbe l'hit.
+    payload = {"question": "cache", "stream": True, "use_thread": False}
     with TestClient(app, client=("127.0.0.1", 54321)) as client:
-        first = client.post("/ask", json={"question": "cache", "stream": True})
-        second = client.post("/ask", json={"question": "cache", "stream": True})
+        first = client.post("/ask", json=payload)
+        second = client.post("/ask", json=payload)
 
     assert first.status_code == second.status_code == 200
     events = [json.loads(line) for line in second.text.splitlines()]
