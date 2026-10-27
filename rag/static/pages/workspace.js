@@ -9,6 +9,8 @@ let currentProject = selectedProjectId();
 let projects = [];
 let projectReadOnly = true;
 let projectDialogMode = 'new';
+let renameTargetId = '';
+let deleteTargetId = '';
 const projectIndexJobs = new Set();
 const projectIndexRepairs = new Set();
 const RECENT_PROJECTS_STORAGE = 'vibecraft-recent-projects';
@@ -76,16 +78,48 @@ function setIndexBadge(element, project) {
   element.dataset.state = checking ? 'checking'
     : project?.index_status === 'ready' && project.stale ? 'stale' : project?.index_status || '';
 }
+function projectMatchesFilter(project, filter) {
+  if (!filter) return true;
+  return project.name.toLocaleLowerCase().includes(filter)
+    || String(project.id).toLocaleLowerCase().includes(filter);
+}
+/* Radici gestite condividono lo stesso genitore (PROJECTS_DIR); le esterne no.
+   Senza flag `managed` in list, il genitore più frequente tra root/id allineati
+   è la stima usata solo per il testo del dialogo — la DELETE omette `mode`. */
+function managedProjectsDirGuess() {
+  const counts = new Map();
+  for (const project of projects) {
+    if (!project.root) continue;
+    const parts = String(project.root).split(/[\\/]+/).filter(Boolean);
+    if (parts.at(-1) !== project.id || parts.length < 2) continue;
+    const parent = parts.slice(0, -1).join('/');
+    counts.set(parent, (counts.get(parent) || 0) + 1);
+  }
+  let best = '', bestCount = 0;
+  for (const [parent, count] of counts) {
+    if (count > bestCount) { best = parent; bestCount = count; }
+  }
+  return bestCount > 0 ? best : '';
+}
+function projectLooksManaged(project) {
+  if (!project.root) return true;
+  const parts = String(project.root).split(/[\\/]+/).filter(Boolean);
+  if (parts.at(-1) !== project.id) return false;
+  const managedDir = managedProjectsDirGuess();
+  if (!managedDir) return true;
+  return parts.slice(0, -1).join('/') === managedDir;
+}
 function renderProjectList() {
   const filter = document.getElementById('project-search').value.trim().toLocaleLowerCase();
   const opened = new Map(recentProjects.map(item => [item.id, item.openedAt]));
-  const matching = [...projects].filter(project => project.name.toLocaleLowerCase().includes(filter))
+  const matching = [...projects].filter(project => projectMatchesFilter(project, filter))
     .sort((a, b) => (opened.get(b.id) || 0) - (opened.get(a.id) || 0));
   const list = document.getElementById('project-list');
   list.replaceChildren();
   for (const project of matching) {
     const card = document.getElementById('project-card-template').content.firstElementChild.cloneNode(true);
-    card.dataset.arg = project.id;
+    const open = card.querySelector('.project-card-main');
+    open.dataset.arg = project.id;
     card.querySelector('.project-card-name').textContent = project.name;
     const path = card.querySelector('.project-card-path');
     // Le ultime due cartelle ("…/projects/SGD-FE") bastano a riconoscerlo; il percorso
@@ -103,6 +137,12 @@ function renderProjectList() {
       lastOpened && t('workspace.openedAt', { when: when(lastOpened) }),
     ].filter(Boolean).join(' · ');
     setIndexBadge(card.querySelector('.project-card-status'), project);
+    const actions = card.querySelector('.project-card-actions');
+    actions.hidden = projectReadOnly;
+    for (const button of card.querySelectorAll('.project-card-action')) {
+      button.dataset.arg = project.id;
+      button.textContent = t(button.dataset.click === 'renameProject' ? 'workspace.rename' : 'workspace.delete');
+    }
     list.appendChild(card);
   }
   document.getElementById('project-count').textContent = t(
@@ -455,6 +495,160 @@ async function browseExistingProject() {
   } catch (error) { document.getElementById('project-error').textContent = error.message; }
   finally { button.disabled = false; document.getElementById('project-input').focus(); }
 }
+function showRenameProjectDialog(id) {
+  if (projectReadOnly) return;
+  const project = projects.find(item => item.id === id);
+  if (!project) return;
+  renameTargetId = id;
+  document.getElementById('project-rename-title').textContent = t('workspace.renameTitle');
+  document.getElementById('project-rename-label').textContent = t('workspace.dialogNewLabel');
+  document.getElementById('project-rename-submit').textContent = t('workspace.renameSave');
+  document.getElementById('project-rename-input').value = project.name;
+  document.getElementById('project-rename-error').textContent = '';
+  document.getElementById('project-rename-dialog').showModal();
+  const input = document.getElementById('project-rename-input');
+  input.focus();
+  input.select();
+}
+function refreshRenameProjectDialog() {
+  const dialog = document.getElementById('project-rename-dialog');
+  if (!dialog.open) return;
+  document.getElementById('project-rename-title').textContent = t('workspace.renameTitle');
+  document.getElementById('project-rename-label').textContent = t('workspace.dialogNewLabel');
+  document.getElementById('project-rename-submit').textContent = t('workspace.renameSave');
+}
+async function submitRenameProject(event) {
+  event.preventDefault();
+  if (projectReadOnly || !renameTargetId) return;
+  const name = document.getElementById('project-rename-input').value.trim();
+  if (!name) { document.getElementById('project-rename-input').focus(); return; }
+  const submit = document.getElementById('project-rename-submit');
+  submit.disabled = true;
+  document.getElementById('project-rename-error').textContent = '';
+  try {
+    const response = await fetch('/api/projects/' + encodeURIComponent(renameTargetId), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name }),
+    });
+    const project = await response.json();
+    if (!response.ok) throw new Error(projectError(project, response));
+    const index = projects.findIndex(item => item.id === project.id);
+    if (index >= 0) projects[index] = { ...projects[index], ...project };
+    else projects.push(project);
+    renderProjects();
+    document.getElementById('project-rename-dialog').close();
+  } catch (error) {
+    document.getElementById('project-rename-error').textContent = t('workspace.renameFailed', {
+      message: error.message || '',
+    });
+  } finally { submit.disabled = false; }
+}
+function deleteConfirmMatches(project, value) {
+  const token = value.trim();
+  if (!token || !project) return false;
+  return token === project.id || token.toLocaleLowerCase() === project.name.toLocaleLowerCase();
+}
+function syncDeleteConfirmState() {
+  const project = projects.find(item => item.id === deleteTargetId);
+  const input = document.getElementById('project-delete-confirm');
+  document.getElementById('project-delete-submit').disabled = !deleteConfirmMatches(project, input.value);
+}
+function showDeleteProjectDialog(id) {
+  if (projectReadOnly) return;
+  const project = projects.find(item => item.id === id);
+  if (!project) return;
+  if (project.index_status === 'indexing' || projectIndexJobs.has(project.id)) {
+    toast(t('workspace.deleteBusy'), 'warning');
+    return;
+  }
+  deleteTargetId = id;
+  const managed = projectLooksManaged(project);
+  fillDeleteProjectDialog(project, managed);
+  document.getElementById('project-delete-confirm').value = '';
+  document.getElementById('project-delete-error').textContent = '';
+  syncDeleteConfirmState();
+  document.getElementById('project-delete-dialog').showModal();
+  document.getElementById('project-delete-confirm').focus();
+}
+function fillDeleteProjectDialog(project, managed = projectLooksManaged(project)) {
+  document.getElementById('project-delete-title').textContent = t('workspace.deleteTitle');
+  document.getElementById('project-delete-body').textContent = t(
+    managed ? 'workspace.deleteBodyDestroy' : 'workspace.deleteBodyUnregister',
+  );
+  document.getElementById('project-delete-confirm-label').textContent = t('workspace.deleteConfirmLabel');
+  document.getElementById('project-delete-hint').textContent = t('workspace.deleteConfirmHint', {
+    name: project.name, id: project.id,
+  });
+  document.getElementById('project-delete-submit').textContent = t('workspace.deleteConfirmAction');
+}
+function refreshDeleteProjectDialog() {
+  const dialog = document.getElementById('project-delete-dialog');
+  if (!dialog.open) return;
+  const project = projects.find(item => item.id === deleteTargetId);
+  if (!project) { dialog.close(); return; }
+  fillDeleteProjectDialog(project);
+}
+function forgetDeletedProject(id) {
+  projects = projects.filter(item => item.id !== id);
+  recentProjects = recentProjects.filter(item => item.id !== id);
+  try { localStorage.setItem(RECENT_PROJECTS_STORAGE, JSON.stringify(recentProjects)); } catch (_) { /* storico facoltativo */ }
+  for (const [key, page] of [...workspacePages.entries()]) {
+    if (page.project !== id) continue;
+    page.frame?.remove();
+    workspacePages.delete(key);
+  }
+  workspaceProjects.delete(id);
+  projectIndexJobs.delete(id);
+  projectIndexRepairs.delete(id);
+}
+async function submitDeleteProject(event) {
+  event.preventDefault();
+  if (projectReadOnly || !deleteTargetId) return;
+  const project = projects.find(item => item.id === deleteTargetId);
+  if (!project) return;
+  const confirm = document.getElementById('project-delete-confirm').value;
+  if (!deleteConfirmMatches(project, confirm)) {
+    syncDeleteConfirmState();
+    document.getElementById('project-delete-confirm').focus();
+    return;
+  }
+  const submit = document.getElementById('project-delete-submit');
+  submit.disabled = true;
+  document.getElementById('project-delete-error').textContent = '';
+  const deletedId = project.id;
+  const wasCurrent = currentProject === deletedId || new URL(location.href).searchParams.get('project') === deletedId;
+  try {
+    const params = new URLSearchParams({ confirm: confirm.trim() });
+    const response = await fetch('/api/projects/' + encodeURIComponent(deletedId) + '?' + params, { method: 'DELETE' });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok && response.status !== 207) {
+      const code = data.detail?.code;
+      if (code === 'project_busy') throw new Error(t('workspace.deleteBusy'));
+      throw new Error(projectError(data, response));
+    }
+    forgetDeletedProject(deletedId);
+    document.getElementById('project-delete-dialog').close();
+    if (wasCurrent) {
+      currentProject = '';
+      try { sessionStorage.removeItem(PROJECT_STORAGE); } catch (_) { /* tab privata */ }
+      renderProjects();
+      showProjectWelcome(true);
+    } else {
+      renderProjects();
+    }
+    if (response.status === 207 || data.code === 'project_cleanup_partial') {
+      toast(t('workspace.deletePartialCleanup'), 'warning');
+    }
+  } catch (error) {
+    const message = error.message || '';
+    document.getElementById('project-delete-error').textContent = message === t('workspace.deleteBusy')
+      ? message
+      : t('workspace.deleteFailed', { message });
+    syncDeleteConfirmState();
+  } finally {
+    if (document.getElementById('project-delete-dialog').open) syncDeleteConfirmState();
+    else submit.disabled = false;
+  }
+}
 async function initializeWorkspace() {
   const welcome = isProjectWelcome();
   setWelcomeView(welcome);
@@ -501,6 +695,8 @@ window.onLangChange = () => {
   renderProjects();
   renderServiceStatus();
   refreshOpenProjectDialog();
+  refreshRenameProjectDialog();
+  refreshDeleteProjectDialog();
   if (isProjectWelcome()) document.title = t('workspace.docTitle');
   for (const page of workspacePages.values()) {
     if (!page.frame) continue;
@@ -519,9 +715,16 @@ registerActions({
   selectProject: el => { const url = new URL(location.href); url.searchParams.set('project', el.value); return navigateWorkspace(url.href); },
   newProject: () => showProjectDialog('new'), openProject: () => showProjectDialog('open'),
   cancelProject: () => document.getElementById('project-dialog').close(), browseExistingProject,
+  renameProject: el => showRenameProjectDialog(el.dataset.arg),
+  cancelRenameProject: () => document.getElementById('project-rename-dialog').close(),
+  deleteProject: el => showDeleteProjectDialog(el.dataset.arg),
+  cancelDeleteProject: () => document.getElementById('project-delete-dialog').close(),
   updateProjectIndex,
 });
 document.getElementById('project-form').addEventListener('submit', submitProject);
+document.getElementById('project-rename-form').addEventListener('submit', submitRenameProject);
+document.getElementById('project-delete-form').addEventListener('submit', submitDeleteProject);
+document.getElementById('project-delete-confirm').addEventListener('input', syncDeleteConfirmState);
 document.getElementById('workspace-nav').addEventListener('click', event => {
   const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
   // Ctrl/Cmd/Maiusc e il tasto centrale restano al browser: nuova scheda o finestra.

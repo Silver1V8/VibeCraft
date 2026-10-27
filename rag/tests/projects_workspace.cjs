@@ -250,7 +250,7 @@ async function browserChecks() {
     assert.equal(await page.locator('#workspace-pages iframe').count(), 1);
     assert.equal(await page.locator('iframe').evaluate(frame => frame.contentWindow.workspaceIsBusy()), true);
     assert.equal(await page.locator('#project-list img').count(), 0);
-    await page.locator(`#project-list button[data-arg="${A}"]`).click();
+    await page.locator(`#project-list button.project-card-main[data-arg="${A}"]`).click();
     assert.equal(await frameA.locator('#question-input').inputValue(), 'A question');
     await page.locator('#project-select').selectOption(B);
     const frameB = page.frameLocator(`iframe[data-project-id="${B}"][data-workspace-page="/"]`);
@@ -298,7 +298,7 @@ async function browserChecks() {
     await other.locator('#project-welcome').waitFor();
     assert.equal(new URL(other.url()).searchParams.has('project'), false);
     assert.equal(await other.locator('iframe').count(), 0);
-    await other.locator(`#project-list button[data-arg="${B}"]`).click();
+    await other.locator(`#project-list button.project-card-main[data-arg="${B}"]`).click();
     await other.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, B);
     const chooser = await context.newPage();
     await chooser.emulateMedia({ reducedMotion: 'no-preference' });
@@ -329,11 +329,11 @@ async function browserChecks() {
     await chooser.locator('#theme-switcher').selectOption('matrix');
     await rain.waitFor({ state: 'visible' });
     assert.equal(await rainChanges(), true, 'Explicit Rain on must override reduced motion');
-    assert.equal(await chooser.locator('#project-list button').count(), 3);
+    assert.equal(await chooser.locator('#project-list .project-card').count(), 3);
     assert.equal(await chooser.locator('#project-list img').count(), 0, 'Project names must remain text on the welcome screen');
     await chooser.locator('#project-search').fill('nessun risultato');
     await chooser.locator('#project-list-empty').filter({ hasText: 'Nessun progetto' }).waitFor();
-    assert.equal(await chooser.locator('#project-list button').count(), 0);
+    assert.equal(await chooser.locator('#project-list .project-card').count(), 0);
     assert.equal(await chooser.locator('iframe').count(), 0);
     await chooser.close();
     await page.locator('#project-select').selectOption(B);
@@ -400,7 +400,7 @@ async function browserChecks() {
       const preview = await visual.newPage();
       preview.on('pageerror', error => errors.push(error.message));
       await preview.goto(base);
-      await preview.locator('#project-list button').first().waitFor();
+      await preview.locator('#project-list button.project-card-main').first().waitFor();
       for (const theme of ['classic', 'matrix']) {
         await preview.locator('#theme-switcher').selectOption(theme);
         // Il CSS reduced-motion conserva transizioni di 0.01ms: attendere il paint
@@ -423,7 +423,7 @@ async function browserChecks() {
       assert.equal(await preview.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile welcome must not overflow');
       await preview.screenshot({ path: path.join(output, 'welcome-mobile.png') });
       await preview.setViewportSize({ width: 1280, height: 900 });
-      await preview.locator(`#project-list button[data-arg="${A}"]`).click();
+      await preview.locator(`#project-list button.project-card-main[data-arg="${A}"]`).click();
       await preview.frameLocator('iframe').locator('#question-input').waitFor();
       await preview.evaluate(() => setUiTheme('classic'));
       assert.equal(await preview.locator('#workspace-theme').isVisible(), true, 'The theme control lives in the workspace shell');
