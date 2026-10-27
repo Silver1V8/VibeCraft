@@ -144,8 +144,10 @@ Per creare/importare e per i dettagli Docker: [istruzioni principali](../README.
 
 Avvio in-app disponibile per Claude SDK e Ollama locale. Codex/Cursor integrati
 sono disabilitati con `native_read_isolation_unverified`; prompt export e MCP
-esterno rimangono disponibili. La prima versione non include eliminazione,
-rinomina/spostamento, ricerca fra progetti, ACL per progetto o embedding differenti.
+esterno rimangono disponibili. Sono supportati eliminazione (destroy sulle root gestite;
+unregister sulle root esterne), rinomina del solo nome visualizzato (id e percorso fissi) e
+filtro dell'elenco progetti per nome o id (`?q=`). Restano fuori: spostamento/migrazione
+dell'id, ricerca cross-project sul corpus, ACL per progetto o embedding differenti.
 
 Indicizzazione, retrieval, pipeline e importazione sono esposti da FastAPI.
 Entrypoint: `server.py`, `index.py`, `mcp_server.py`; decisioni architetturali in

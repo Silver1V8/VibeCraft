@@ -92,8 +92,12 @@ puoi scegliere «Ripristina bozza locale» dopo il caricamento dei file server:
 il recupero non li sovrascrive. Finché non ripristini o scarti la bozza, chat ed editor
 restano in sola lettura; il tipo di sviluppo resta selezionabile e il ripristino lo
 sostituisce solo se la bozza ne aveva uno. L'ultimo salvataggio è visibile; le bozze restano
-nel browser e non sono sincronizzate fra dispositivi. Non sono previsti delete, rename, ricerca
-fra progetti o ACL per progetto.
+nel browser e non sono sincronizzate fra dispositivi. Dalla console si possono rinominare
+(solo il nome visualizzato: id, cartella e namespace Qdrant restano invariati), eliminare
+(destroy per root gestite sotto `VIBECRAFT_PROJECTS_DIR`; unregister per root esterne, senza
+cancellare i file host) e filtrare l'elenco progetti per nome o id (`GET /api/projects?q=`).
+Non sono previsti ricerca cross-project sul corpus (ogni domanda resta in un solo progetto)
+né ACL per progetto.
 
 Da `rag/`: `uv run python index.py --project <id> --index-status` seleziona il progetto
 anche per full/delta/integrity/rollback; senza flag usa soltanto `legacy`.
