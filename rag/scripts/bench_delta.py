@@ -493,6 +493,10 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         from api.deps import reload_index_state, state as server_state
         from core.indexing import check_index_integrity
         from qdrant_client import QdrantClient
+        bench_project = None
+        if paths.get("project_id"):
+            from core.projects import ProjectRegistry
+            bench_project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
         qdrant = QdrantClient(url=QDRANT_URL, timeout=300)
         server = uvicorn.Server(uvicorn.Config(
             server_module.app, host=HOST, port=int(SERVER_PORT), log_level="warning"))
@@ -507,7 +511,8 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         validate_job(verification, mode, [], 0)
         payload["baseline_verification_job"] = verification
         _join_writer()
-        payload["baseline_integrity"] = check_index_integrity(emit=lambda *_: None)
+        payload["baseline_integrity"] = check_index_integrity(
+            emit=lambda *_: None, project=bench_project)
         if not payload["baseline_integrity"]["ok"]:
             raise RuntimeError("baseline integrity failed")
         _join_writer()
@@ -575,7 +580,8 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
                     sample["empty_results_rate"] = sample["empty_results_count"] / len(sample["queries"]) if sample["queries"] else None
                     if not sample["queries"] or any(q.get("error") or q.get("status") != 200 for q in sample["queries"]):
                         raise ValueError("concurrent query failed")
-                    sample["integrity"] = check_index_integrity(emit=lambda *_: None)
+                    sample["integrity"] = check_index_integrity(
+                        emit=lambda *_: None, project=bench_project)
                     if not sample["integrity"]["ok"]:
                         raise ValueError("sample index integrity failed")
                     sample["valid"] = True
@@ -596,12 +602,13 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
                         # must never be invalidated by deleting the lock file.
                         server_state["snapshot"] = None
                         _restore_files(paths, original, qdrant, snapshot)
-                        reload_index_state()
+                        reload_index_state(project=bench_project)
                         restored = (_fingerprint(files) == payload["corpus"] and
                                     _database_fingerprint(paths["database"]) == baseline and
                                     (paths["database"] / "CURRENT").read_bytes().hex() == payload["baseline_current"] and
                                     _point_digest(qdrant, paths["collection"]) == payload["baseline_points"] and
-                                    check_index_integrity(emit=lambda *_: None)["ok"])
+                                    check_index_integrity(
+                                        emit=lambda *_: None, project=bench_project)["ok"])
                         sample["restore_verified"] = restored
                     except Exception as exc:
                         sample["valid"] = False
