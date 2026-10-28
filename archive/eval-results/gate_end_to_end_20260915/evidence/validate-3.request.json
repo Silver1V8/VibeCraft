@@ -1,6 +1,0 @@
-{
-  "path": "/api/pipeline/validate",
-  "body": {
-    "feature": "gate-probe-posti"
-  }
-}

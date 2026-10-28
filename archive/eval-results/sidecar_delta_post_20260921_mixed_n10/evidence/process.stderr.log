@@ -1,697 +1,0 @@
-2026-09-21 13:23:57,807 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:23:57,823 INFO api.deps: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 8355.44it/s]
-2026-09-21 13:23:59,956 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:23:59,960 INFO api.deps: Connessione a Qdrant (server mode): http://127.0.0.1:16333 ...
-2026-09-21 13:23:59,986 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:23:59,996 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:23:59,999 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:23:59,999 INFO api.deps: Stato alias Qdrant (riconciliazione): aligned (expected=sidecar_0628_mixed_n10_post, actual=sidecar_0628_mixed_n10_post, repaired=False)
-2026-09-21 13:24:00,014 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,028 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,029 INFO api.deps: Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...
-2026-09-21 13:24:00,036 INFO api.deps: Grafo caricato: 15 nodi, 10 archi.
-2026-09-21 13:24:00,036 INFO api.deps: Multivettori ColBERT caricati: 5 chunk. Chunk sidecar: 5 sezioni. Simboli codice: 5.
-2026-09-21 13:24:00,036 INFO api.deps: Caricamento descrizioni regole dai file spec...
-2026-09-21 13:24:00,037 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:00,038 INFO api.deps: Server pronto.
-2026-09-21 13:24:00,175 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-2026-09-21 13:24:00,213 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,217 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,220 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,261 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,262 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,278 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,403 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:00,524 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots?wait=true "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1446.81it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.63it/s]
-2026-09-21 13:24:00,997 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:01,003 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4284.27it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.55it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4438.42it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.49it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.47it/s]
-2026-09-21 13:24:01,449 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:01,453 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:01,492 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6710.89it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.46it/s]
-2026-09-21 13:24:01,716 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:01,720 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5607.36it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.04it/s]
-2026-09-21 13:24:02,124 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,136 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,139 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,162 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,182 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,182 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,440 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,472 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:02,497 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,536 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,543 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,558 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,591 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,594 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:02,607 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4848.91it/s]
-2026-09-21 13:24:02,676 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 4 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 13:24:02,676 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5379.80it/s]
-2026-09-21 13:24:04,855 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:04,867 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:04,872 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:04,876 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:04,908 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:04,909 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 1 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:04,910 INFO core.indexing: 
-Vettorializzazione incrementale di 1 chunk (da 1 documenti)...
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.14it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.14it/s]
-2026-09-21 13:24:04,998 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:05,002 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5607.36it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.14it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.13it/s]
-2026-09-21 13:24:05,527 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:05,528 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 1 chunk upsertati.
-2026-09-21 13:24:05,602 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112405
-2026-09-21 13:24:05,603 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:05,603 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112405.
-2026-09-21 13:24:05,603 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:05,900 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 13:24:06,120 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:06,122 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4524.60it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.56it/s]
-2026-09-21 13:24:06,356 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,360 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,419 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,422 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,450 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,478 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,480 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,483 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,707 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,739 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:06,765 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,796 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,810 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,830 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,835 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,857 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:06,857 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6442.86it/s]
-2026-09-21 13:24:06,976 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 5 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~5 -0.
-2026-09-21 13:24:06,976 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5843.98it/s]
-2026-09-21 13:24:09,138 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:09,171 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:09,175 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.80it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.80it/s]
-2026-09-21 13:24:09,194 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:09,198 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:09,200 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:09,212 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:09,212 INFO core.indexing: 🗑️  Rimossi i chunk di 5 documenti (modificati/cancellati): 5 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:09,214 INFO core.indexing: 
-Vettorializzazione incrementale di 5 chunk (da 5 documenti)...
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3079.52it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.99it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.98it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6132.02it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.11it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.10it/s]
-2026-09-21 13:24:10,027 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:10,048 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5236.33it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.38it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.37it/s]
-2026-09-21 13:24:10,595 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:10,596 INFO core.indexing: ➕ (Ri)indicizzati 5 documenti → 5 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3631.43it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.14it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.13it/s]
-2026-09-21 13:24:10,870 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:10,876 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6678.83it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.34it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.33it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5349.88it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.63it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.61it/s]
-2026-09-21 13:24:11,730 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:11,734 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5714.31it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 13:24:12,077 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 5 modificati → 5 simboli (ri)estratti.
-2026-09-21 13:24:12,078 INFO core.indexing: 🔗 Code-link ricalcolati per 5 simboli toccati → 5 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.10it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.10it/s]
-2026-09-21 13:24:12,169 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112412
-2026-09-21 13:24:12,170 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:12,170 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112412.
-2026-09-21 13:24:12,170 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:12,471 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 13:24:12,657 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:12,658 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5577.53it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.15it/s]
-2026-09-21 13:24:12,869 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,874 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,910 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,913 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,920 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,947 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,950 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:12,963 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,188 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,218 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:13,248 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,279 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,283 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,288 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,324 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,325 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,328 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5793.24it/s]
-2026-09-21 13:24:13,432 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.91it/s]
-2026-09-21 13:24:13,615 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:13,619 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6689.48it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.35it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.34it/s]
-2026-09-21 13:24:14,059 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,059 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,063 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,090 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,106 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,109 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,319 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,350 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:14,387 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,449 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,451 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,458 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,481 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,484 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,501 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:14,557 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 4 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 13:24:14,557 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5584.96it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5554.24it/s]
-2026-09-21 13:24:16,653 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:16,661 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:16,664 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:16,669 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:16,683 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:16,683 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 1 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:16,684 INFO core.indexing: 
-Vettorializzazione incrementale di 1 chunk (da 1 documenti)...
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.54it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.53it/s]
-2026-09-21 13:24:16,773 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:16,778 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4788.02it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.65it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.63it/s]
-2026-09-21 13:24:17,262 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:17,262 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 1 chunk upsertati.
-2026-09-21 13:24:17,323 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112417
-2026-09-21 13:24:17,323 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:17,323 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112417.
-2026-09-21 13:24:17,323 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:17,630 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 13:24:17,809 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:17,810 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5722.11it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.44it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.43it/s]
-2026-09-21 13:24:18,052 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,057 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,102 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,106 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,111 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,136 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,136 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,152 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,390 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,422 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:18,434 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,473 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,480 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,483 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,505 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,508 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,514 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:18,591 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 5 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~5 -0.
-2026-09-21 13:24:18,591 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6636.56it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5153.55it/s]
-2026-09-21 13:24:20,672 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:20,681 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:20,684 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:20,702 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:20,717 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:20,718 INFO core.indexing: 🗑️  Rimossi i chunk di 5 documenti (modificati/cancellati): 5 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:20,719 INFO core.indexing: 
-Vettorializzazione incrementale di 5 chunk (da 5 documenti)...
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.69it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.69it/s]
-2026-09-21 13:24:20,789 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:20,809 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3189.58it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.86it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.85it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5907.47it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.53it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.51it/s]
-2026-09-21 13:24:21,630 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:21,653 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3495.25it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.81it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.80it/s]
-2026-09-21 13:24:22,120 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:22,121 INFO core.indexing: ➕ (Ri)indicizzati 5 documenti → 5 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3266.59it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.40it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.40it/s]
-2026-09-21 13:24:22,606 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:22,610 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6442.86it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.02it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.01it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6195.43it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.88it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.87it/s]
-2026-09-21 13:24:23,529 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:23,533 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:23,587 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 5 modificati → 5 simboli (ri)estratti.
-2026-09-21 13:24:23,588 INFO core.indexing: 🔗 Code-link ricalcolati per 5 simboli toccati → 5 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 13:24:23,650 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112423
-2026-09-21 13:24:23,650 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:23,650 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112423.
-2026-09-21 13:24:23,650 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:24,121 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 13:24:24,135 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:24,138 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6864.65it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.09it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.07it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6307.22it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.80it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.79it/s]
-2026-09-21 13:24:24,744 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,747 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,786 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,792 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,794 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,840 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,840 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:24,855 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,088 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,120 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:25,154 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,185 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,194 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,200 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,230 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,247 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,247 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,332 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5825.42it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.67it/s]
-2026-09-21 13:24:25,560 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,564 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 7121.06it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.79it/s]
-2026-09-21 13:24:25,969 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,983 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:25,998 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,029 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,042 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,046 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,279 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,320 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:26,356 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,390 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,418 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,419 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,449 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,464 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:26,467 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6345.39it/s]
-2026-09-21 13:24:26,560 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 4 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 13:24:26,560 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6082.67it/s]
-2026-09-21 13:24:28,637 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:28,668 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:28,683 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:28,686 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:28,700 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:28,701 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 1 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:28,702 INFO core.indexing: 
-Vettorializzazione incrementale di 1 chunk (da 1 documenti)...
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.91it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.90it/s]
-2026-09-21 13:24:28,717 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:28,721 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5159.05it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.57it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.56it/s]
-2026-09-21 13:24:29,289 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:29,290 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 1 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6307.22it/s]
-2026-09-21 13:24:29,362 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112429
-2026-09-21 13:24:29,363 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:29,363 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112429.
-2026-09-21 13:24:29,363 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:29,843 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.54it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.53it/s]
-2026-09-21 13:24:30,048 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,053 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,154 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,156 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,182 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,185 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,199 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,203 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,456 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,488 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:30,501 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,533 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,541 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,559 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,590 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,594 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:30,607 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4854.52it/s]
-2026-09-21 13:24:30,688 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 5 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~5 -0.
-2026-09-21 13:24:30,688 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5560.36it/s]
-2026-09-21 13:24:32,748 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:32,756 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:32,761 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:32,778 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:32,792 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:32,793 INFO core.indexing: 🗑️  Rimossi i chunk di 5 documenti (modificati/cancellati): 5 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:32,794 INFO core.indexing: 
-Vettorializzazione incrementale di 5 chunk (da 5 documenti)...
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.90it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.90it/s]
-2026-09-21 13:24:32,845 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:32,849 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5849.80it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.33it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.32it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5497.12it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.75it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.74it/s]
-2026-09-21 13:24:33,683 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:33,686 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6114.15it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.30it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.29it/s]
-2026-09-21 13:24:34,156 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:34,157 INFO core.indexing: ➕ (Ri)indicizzati 5 documenti → 5 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6168.09it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.76it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.74it/s]
-2026-09-21 13:24:34,606 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:34,611 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6307.22it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.45it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.44it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5660.33it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.50it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.47it/s]
-2026-09-21 13:24:35,440 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:35,457 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:35,586 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 5 modificati → 5 simboli (ri)estratti.
-2026-09-21 13:24:35,587 INFO core.indexing: 🔗 Code-link ricalcolati per 5 simboli toccati → 5 IMPLEMENTS; 0 entità orfane potate.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6345.39it/s]
-2026-09-21 13:24:35,654 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112435
-2026-09-21 13:24:35,654 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:35,654 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112435.
-2026-09-21 13:24:35,654 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:36,138 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.87it/s]
-2026-09-21 13:24:36,463 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,464 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,479 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,505 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,512 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,531 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,747 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,780 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:36,793 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,840 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,843 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,858 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,871 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,886 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,901 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:36,984 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5269.23it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.19it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.18it/s]
-2026-09-21 13:24:37,237 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,262 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6678.83it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.83it/s]
-2026-09-21 13:24:37,667 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,684 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,699 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,719 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,727 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,746 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,963 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:37,994 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:38,031 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:38,076 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:38,090 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:38,105 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:38,129 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:38,137 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:38,152 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5282.50it/s]
-2026-09-21 13:24:38,244 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 4 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 13:24:38,244 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5772.62it/s]
-2026-09-21 13:24:40,298 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:40,327 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:40,340 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:40,356 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:40,384 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:40,384 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 1 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:40,385 INFO core.indexing: 
-Vettorializzazione incrementale di 1 chunk (da 1 documenti)...
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.34it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.34it/s]
-2026-09-21 13:24:40,411 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:40,417 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5555.37it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.30it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.29it/s]
-2026-09-21 13:24:40,932 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:40,933 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 1 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6523.02it/s]
-2026-09-21 13:24:41,006 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112440
-2026-09-21 13:24:41,006 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:41,006 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112440.
-2026-09-21 13:24:41,006 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:41,521 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.93it/s]
-2026-09-21 13:24:41,687 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,691 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,818 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,826 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,829 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,851 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,854 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:41,871 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,114 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,150 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:42,163 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,202 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,215 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,218 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,248 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,260 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:42,263 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5577.53it/s]
-2026-09-21 13:24:42,369 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 5 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~5 -0.
-2026-09-21 13:24:42,369 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5943.52it/s]
-2026-09-21 13:24:44,400 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:44,435 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:44,438 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:44,466 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.88it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.87it/s]
-2026-09-21 13:24:44,511 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:44,511 INFO core.indexing: 🗑️  Rimossi i chunk di 5 documenti (modificati/cancellati): 5 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:44,512 INFO core.indexing: 
-Vettorializzazione incrementale di 5 chunk (da 5 documenti)...
-2026-09-21 13:24:44,519 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:44,542 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5370.43it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.08it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.06it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5849.80it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.19it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.18it/s]
-2026-09-21 13:24:45,375 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:45,379 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4165.15it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.50it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.48it/s]
-2026-09-21 13:24:45,871 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:45,872 INFO core.indexing: ➕ (Ri)indicizzati 5 documenti → 5 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6355.01it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.45it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.43it/s]
-2026-09-21 13:24:46,204 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:46,209 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5152.71it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.74it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.73it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5184.55it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.42it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.41it/s]
-2026-09-21 13:24:47,052 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:47,056 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4760.84it/s]
-2026-09-21 13:24:47,283 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 5 modificati → 5 simboli (ri)estratti.
-2026-09-21 13:24:47,284 INFO core.indexing: 🔗 Code-link ricalcolati per 5 simboli toccati → 5 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 13:24:47,363 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112447
-2026-09-21 13:24:47,363 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:47,363 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112447.
-2026-09-21 13:24:47,363 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 13:24:47,846 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.48it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3862.16it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.06it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.05it/s]
-2026-09-21 13:24:48,372 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,376 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,415 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,422 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,432 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,454 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,457 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,465 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,693 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,725 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:48,748 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,780 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,787 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,792 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,813 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:48,840 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5622.39it/s]
-2026-09-21 13:24:48,931 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.70it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.69it/s]
-2026-09-21 13:24:49,120 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,138 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5084.00it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.13it/s]
-2026-09-21 13:24:49,554 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,561 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,565 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,585 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,589 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,605 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,798 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,828 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:49,859 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,899 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,903 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,907 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,935 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,949 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:49,964 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6472.69it/s]
-2026-09-21 13:24:50,056 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 4 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 13:24:50,056 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5641.95it/s]
-2026-09-21 13:24:52,121 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:52,133 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:52,156 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:52,171 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:52,188 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:52,189 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 1 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:52,190 INFO core.indexing: 
-Vettorializzazione incrementale di 1 chunk (da 1 documenti)...
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.45it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.45it/s]
-2026-09-21 13:24:52,236 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:52,242 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5562.74it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.70it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.69it/s]
-2026-09-21 13:24:52,758 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:52,758 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 1 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4476.31it/s]
-2026-09-21 13:24:52,825 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112452
-2026-09-21 13:24:52,825 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:52,825 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112452.
-2026-09-21 13:24:52,825 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:53,322 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.06it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.05it/s]
-2026-09-21 13:24:53,514 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,529 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,637 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,653 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,671 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,700 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,700 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,704 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,943 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:53,975 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:54,015 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:24:54,059 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:24:54,074 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:54,074 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:54,104 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:24:54,121 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:54,136 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4373.62it/s]
-2026-09-21 13:24:54,247 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 5 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~5 -0.
-2026-09-21 13:24:54,247 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5211.04it/s]
-2026-09-21 13:24:56,293 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 13:24:56,304 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:24:56,308 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:56,312 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:24:56,326 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:56,327 INFO core.indexing: 🗑️  Rimossi i chunk di 5 documenti (modificati/cancellati): 5 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 13:24:56,329 INFO core.indexing: 
-Vettorializzazione incrementale di 5 chunk (da 5 documenti)...
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.39it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.39it/s]
-2026-09-21 13:24:56,468 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:56,473 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5857.97it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.27it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.26it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5691.05it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.40it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.39it/s]
-2026-09-21 13:24:57,286 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:57,291 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4549.14it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.80it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.79it/s]
-2026-09-21 13:24:57,722 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:24:57,723 INFO core.indexing: ➕ (Ri)indicizzati 5 documenti → 5 chunk upsertati.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5526.09it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.10it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.08it/s]
-2026-09-21 13:24:58,141 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:58,145 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5599.87it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.97it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.96it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6213.78it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.82it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.81it/s]
-2026-09-21 13:24:59,012 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:59,017 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:24:59,113 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 5 modificati → 5 simboli (ri)estratti.
-2026-09-21 13:24:59,114 INFO core.indexing: 🔗 Code-link ricalcolati per 5 simboli toccati → 5 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 13:24:59,176 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T112459
-2026-09-21 13:24:59,176 INFO core.indexing: 🧾 Manifest aggiornato: 5 chunk, 15 nodi, 10 archi.
-2026-09-21 13:24:59,176 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T112459.
-2026-09-21 13:24:59,176 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 13:24:59,503 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 13:24:59,679 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:24:59,684 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6743.25it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.60it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6657.63it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.20it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.19it/s]
-2026-09-21 13:25:00,298 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,312 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/query "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,360 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,362 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,365 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,391 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,395 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,401 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,631 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,664 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 13:25:00,700 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,746 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_mixed_n10_post/points/count "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,749 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,764 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,771 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,774 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,778 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 13:25:00,995 INFO api.deps: Shutdown: rilascio risorse.
