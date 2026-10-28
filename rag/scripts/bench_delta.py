@@ -311,6 +311,15 @@ def _point_digest(qdrant, collection: str) -> dict:
     return {"count": len(entries), "sha256": _sha(json.dumps(entries, sort_keys=True, separators=(",", ":")).encode())}
 
 
+def _physical_collection(qdrant, name: str) -> str:
+    """Risolve un alias Qdrant al nome fisico (blue/green). Snapshot create/recover
+    usano la directory della collection fisica, non dell'alias."""
+    for alias in qdrant.get_aliases().aliases:
+        if alias.alias_name == name:
+            return alias.collection_name
+    return name
+
+
 def _backup_database(paths: dict) -> dict:
     backup = paths["output"] / "baseline-database"
     _safe(backup, RESULTS)
@@ -359,11 +368,17 @@ def _restore_files(paths: dict, original: dict[Path, bytes], qdrant, snapshot) -
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
-        recovered = qdrant.recover_snapshot(collection_name=paths["collection"],
-                          location=f"file:///qdrant/snapshots/{paths['collection']}/{snapshot.name}",
-                          priority="snapshot", wait=True)
+        physical = paths.get("qdrant_physical") or _physical_collection(qdrant, paths["collection"])
+        recovered = qdrant.recover_snapshot(
+            collection_name=physical,
+            location=f"file:///qdrant/snapshots/{physical}/{snapshot.name}",
+            priority="snapshot", wait=True)
         if recovered is False:
             raise RuntimeError("Qdrant snapshot recovery rejected")
+        # Dopo un delta COW l'alias punta alla candidata nuova: ripunta al padre
+        # ripristinato così scroll/digest via alias rivedono la baseline.
+        from core.qdrant_versions import _swap_alias
+        _swap_alias(qdrant, paths["collection"], physical)
 
 
 def _query_spec(mode: str, index: int) -> tuple[str, str]:
@@ -544,10 +559,13 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         payload["baseline_database"] = baseline
         payload["baseline_points"] = _point_digest(qdrant, paths["collection"])
         payload["baseline_current"] = (paths["database"] / "CURRENT").read_bytes().hex()
-        snapshot = qdrant.create_snapshot(collection_name=paths["collection"], wait=True)
+        physical = _physical_collection(qdrant, paths["collection"])
+        paths["qdrant_physical"] = physical
+        snapshot = qdrant.create_snapshot(collection_name=physical, wait=True)
         if snapshot is None or not snapshot.name or Path(snapshot.name).name != snapshot.name:
             raise RuntimeError("Qdrant snapshot unavailable")
         payload["qdrant_snapshot"] = snapshot.name
+        payload["qdrant_physical_collection"] = physical
         _event(payload, "baseline_frozen")
         payload["baseline_queries"] = []
         for i, query in enumerate(QUERIES):
