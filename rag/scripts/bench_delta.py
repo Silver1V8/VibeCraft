@@ -229,8 +229,13 @@ def _event(payload: dict, name: str, **fields) -> None:
 
 def _http(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
     data = json.dumps(body).encode() if body is not None else None
-    req = Request(URL + path, data=data, method=method,
-                  headers={"Content-Type": "application/json"} if data else {})
+    headers = {}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    # Layout ordinario: senza header il server risolve solo id "legacy".
+    if _ACTIVE_PROJECT_ID:
+        headers["X-VibeCraft-Project"] = _ACTIVE_PROJECT_ID
+    req = Request(URL + path, data=data, method=method, headers=headers)
     with urlopen(req, timeout=30) as response:
         return response.status, json.loads(response.read())
 
