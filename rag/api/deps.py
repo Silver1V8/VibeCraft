@@ -5,6 +5,7 @@ api/index_runtime.py e api/pages.py. Questo modulo resta il *seam* di
 monkeypatch dei test e il punto di import stabile (re-export).
 """
 import asyncio
+import hmac as hmac
 import logging
 import os
 import threading
