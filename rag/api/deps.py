@@ -11,7 +11,8 @@ import os
 import queue
 import re
 import threading
-from collections import OrderedDict
+import time
+from collections import OrderedDict, defaultdict, deque
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -464,6 +465,64 @@ state: dict = {
 # ---------------------------------------------------------------------------
 EMBED_CONCURRENCY = int(os.environ.get("VIBECRAFT_EMBED_CONCURRENCY", "2"))
 embed_semaphore = asyncio.Semaphore(EMBED_CONCURRENCY)
+
+# Rate-limit delle GET CPU-pesanti (/api/retrieve, /api/code/search, /api/graph/semantic-map).
+# Il semaforo embed limita la concorrenza; questo limita la FREQUENZA per IP client.
+# Default: EMBED_CONCURRENCY * 15 richieste nella finestra (con 2 → 30/60s). Fail-closed 429.
+# Debito chiuso: SECURITY_SURFACE.md §4 #4 (quick win R3, 2026-10-28).
+_CPU_GET_RATE_DEFAULT = max(EMBED_CONCURRENCY * 15, 15)
+CPU_GET_RATE_LIMIT = int(os.environ.get("VIBECRAFT_CPU_GET_RATE_LIMIT", str(_CPU_GET_RATE_DEFAULT)))
+CPU_GET_RATE_WINDOW_SECONDS = float(os.environ.get("VIBECRAFT_CPU_GET_WINDOW_SECONDS", "60"))
+
+
+class CpuGetRateLimiter:
+    """Finestra scorrevole per-IP: ammette fino a `limit` hit in `window` secondi."""
+
+    def __init__(self, *, limit: int, window_seconds: float):
+        if limit <= 0 or not math.isfinite(window_seconds) or window_seconds <= 0:
+            raise ValueError("limit e window_seconds devono essere positivi")
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self._hits: dict[str, deque[float]] = defaultdict(deque)
+        self._lock = threading.Lock()
+
+    def admit(self, client_key: str) -> float | None:
+        """None se ammesso; altrimenti secondi da suggerire in Retry-After."""
+        now = time.monotonic()
+        with self._lock:
+            q = self._hits[client_key]
+            cutoff = now - self.window_seconds
+            while q and q[0] <= cutoff:
+                q.popleft()
+            if len(q) >= self.limit:
+                return max(1.0, self.window_seconds - (now - q[0]))
+            q.append(now)
+            return None
+
+
+def _cpu_get_rate_limiter() -> CpuGetRateLimiter:
+    try:
+        return CpuGetRateLimiter(
+            limit=CPU_GET_RATE_LIMIT, window_seconds=CPU_GET_RATE_WINDOW_SECONDS,
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"Configurazione rate-limit GET CPU non valida: {exc}") from exc
+
+
+cpu_get_rate_limiter = _cpu_get_rate_limiter()
+
+
+async def require_cpu_get_rate_limit(request: Request) -> None:
+    """429 se l'IP client supera il tetto di frequenza sulle GET CPU-pesanti."""
+    client_key = request.client.host if request.client else "unknown"
+    retry_after = cpu_get_rate_limiter.admit(client_key)
+    if retry_after is None:
+        return
+    raise HTTPException(
+        status_code=429,
+        detail="Troppe richieste CPU (retrieve / code search / semantic-map).",
+        headers={"Retry-After": str(int(math.ceil(retry_after)))},
+    )
 
 
 class AskRuntime:

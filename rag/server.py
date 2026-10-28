@@ -34,7 +34,28 @@ from api import routes_graph, routes_health, routes_pages, routes_retrieval, rou
 if ROLE != "reader":
     from api import routes_intake, routes_pipeline, routes_reindex
 
-app = FastAPI(title="VibeCraft Graph-RAG Console", lifespan=lifespan)
+# OpenAPI/Swagger: aperti sul bind locale (threat model localhost). Su bind non-loopback
+# restano spenti (info-disclosure dello schema — SECURITY_SURFACE.md §4 #5). Override:
+# VIBECRAFT_DISABLE_OPENAPI=1 spegne anche in locale; VIBECRAFT_ENABLE_OPENAPI=1 riapre
+# anche dietro proxy/LAN per debug esplicito.
+def _openapi_enabled() -> bool:
+    force = os.environ.get("VIBECRAFT_ENABLE_OPENAPI", "").strip().lower() in {"1", "true", "yes"}
+    disable = os.environ.get("VIBECRAFT_DISABLE_OPENAPI", "").strip().lower() in {"1", "true", "yes"}
+    if force:
+        return True
+    if disable:
+        return False
+    return SERVER_BIND_IS_LOCAL
+
+
+_OPENAPI_ON = _openapi_enabled()
+app = FastAPI(
+    title="VibeCraft Graph-RAG Console",
+    lifespan=lifespan,
+    docs_url="/docs" if _OPENAPI_ON else None,
+    redoc_url="/redoc" if _OPENAPI_ON else None,
+    openapi_url="/openapi.json" if _OPENAPI_ON else None,
+)
 
 # Header Host validato PRIMA di ogni route (statici compresi): chiude il DNS rebinding, che
 # altrimenti renderebbe same-origin una pagina ostile risolta su 127.0.0.1 e le farebbe

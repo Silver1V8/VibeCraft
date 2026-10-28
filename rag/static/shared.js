@@ -87,6 +87,116 @@ function renderMarkdown(text) {
   return out.join('');
 }
 
+/* ──────────── Markdown intake (tabelle Excel + renderer ordinario) ────────────
+   Unificato qui da intake.js (quick win R7, 2026-10-28): escapeHtml/inlineMd restano
+   la base; excelText decodifica solo gli escape del serializzatore Excel, poi
+   ri-escapa tutto. mdToHtml è il path usato dall'anteprima Intake. */
+function excelText(text) {
+  const decoded = String(text).replace(/\\([!-\/:-@\[-`{-~])|&#(\d+);|<br>/g, (m, punct, code) =>
+    punct !== undefined ? punct
+      : code !== undefined ? (Number(code) <= 0x10FFFF ? String.fromCodePoint(Number(code)) : m)
+      : '\n');
+  return escapeHtml(decoded).replace(/\n/g, '<br>');
+}
+
+function mdToHtml(md, excel = false) {
+  const lines = String(md).replace(/\r\n/g, '\n').split('\n');
+  const renderText = excel ? excelText : inlineMd;
+  let html = '', inCode = false, codeBuf = [], inList = false, inTable = false;
+  const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
+  const closeTable = () => { if (inTable) { html += '</tbody></table>'; inTable = false; } };
+  for (const raw of lines) {
+    if (excel && raw.startsWith('|') && raw.endsWith('|')) {
+      if (/^[| :\-]+$/.test(raw)) continue;
+      const cells = raw.slice(1, -1).split(/(?<!\\)\|/).map(c => renderText(c.trim()));
+      if (!inTable) {
+        html += '<table><thead><tr>' + cells.map(c => `<th scope="col">${c}</th>`).join('') + '</tr></thead><tbody>';
+        inTable = true;
+      } else {
+        html += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+      }
+      continue;
+    }
+    closeTable();
+    if (raw.trim().startsWith('```')) {
+      if (!inCode) { closeList(); inCode = true; codeBuf = []; }
+      else { html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`; inCode = false; }
+      continue;
+    }
+    if (inCode) { codeBuf.push(raw); continue; }
+    let m = /^(#{1,6})\s+(.*)$/.exec(raw);
+    if (m) { closeList(); const lvl = m[1].length; html += `<h${lvl}>${renderText(m[2])}</h${lvl}>`; continue; }
+    if (/^\s*[-*]\s+/.test(raw)) {
+      if (!inList) { html += '<ul>'; inList = true; }
+      html += `<li>${renderText(raw.replace(/^\s*[-*]\s+/, ''))}</li>`;
+      continue;
+    }
+    closeList();
+    if (raw.trim() === '') continue;
+    html += `<p>${renderText(raw)}</p>`;
+  }
+  closeList();
+  closeTable();
+  if (inCode) html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`;
+  return html;
+}
+
+/* ──────────── NDJSON stream helpers ────────────
+   Unificati da dashboard.js (parser /ask) e pipeline.js (drift/archive).
+   parseNdjsonStream: linee JSON generiche. createAskStreamParser: contratto /ask
+   (meta/delta/result/error + terminale obbligatorio). Marker per i test Node. */
+async function parseNdjsonStream(res, onEvent) {
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) { if (line.trim()) onEvent(JSON.parse(line)); }
+  }
+  if (buffer.trim()) onEvent(JSON.parse(buffer));
+}
+
+/* ASK_STREAM_PARSER_START */
+function createAskStreamParser(onEvent, msg) {
+  const askMsg = typeof msg === 'function' ? msg : (key, fallback) => fallback;
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let terminal = false;
+
+  function parseLine(line) {
+    if (!line.trim()) return;
+    if (terminal) throw new Error(askMsg('dashboard.streamAfterTerminal', 'Dati ricevuti dopo l’evento terminale.'));
+    const event = JSON.parse(line);
+    if (!event || !['meta', 'delta', 'result', 'error'].includes(event.type)) {
+      throw new Error(askMsg('dashboard.streamInvalidEvent', 'Evento streaming /ask non valido.'));
+    }
+    onEvent(event);
+    if (event.type === 'result' || event.type === 'error') terminal = true;
+  }
+
+  return {
+    push(chunk, done) {
+      buffer += decoder.decode(chunk, { stream: !done });
+      let newline;
+      while ((newline = buffer.indexOf('\n')) !== -1) {
+        parseLine(buffer.slice(0, newline));
+        buffer = buffer.slice(newline + 1);
+      }
+      if (done) {
+        parseLine(buffer);
+        buffer = '';
+        if (!terminal) throw new Error(askMsg('dashboard.streamNoTerminal', 'Stream /ask terminato senza evento terminale.'));
+      }
+      return terminal;
+    },
+  };
+}
+/* ASK_STREAM_PARSER_END */
+
 function apiErrorMessage(detail, fallback) {
   return (typeof detail === 'string' ? detail : detail?.message) || fallback;
 }

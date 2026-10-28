@@ -62,8 +62,8 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 - **Route registrate sui router: 72** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
-  - `routes_pipeline.py` → 25
-  - `routes_reindex.py` → 6
+  - `routes_pipeline.py` → 23
+  - `routes_reindex.py` → 8
   - `routes_retrieval.py` → 5
   - `routes_graph.py` → 5
   - `routes_health.py` → 4
@@ -89,8 +89,9 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
   (`PATCH /api/projects/{project_id}`). Nessun POST/DELETE/PATCH mutante non
   classificato (asserito dalla suite).
 - Fuori dai router, montati sull'app in [`server.py`](server.py): 3 route esplicite per
-  `shared.css`/`shared.js`/`pages/*.js`, 1 mount statico (`/static`) e 3 route di default di FastAPI
-  (`/docs`, `/redoc`, `/openapi.json`) + `/docs/oauth2-redirect`. Sono elencate
+  `shared.css`/`shared.js`/`pages/*.js`, 1 mount statico (`/static`) e, **solo su bind
+  loopback** (o con `VIBECRAFT_ENABLE_OPENAPI=1`), fino a 4 route OpenAPI di FastAPI
+  (`/docs`, `/redoc`, `/openapi.json`, `/docs/oauth2-redirect`). Sono elencate
   nell'**Appendice A** (non conteggiate nelle 72 perché non registrate sui router), ma
   hanno rilievo di sicurezza e vanno lette.
 
@@ -306,8 +307,8 @@ oltre a `require_api_key` del router.
 | 17 | POST | `/api/pipeline/drift/check/stream` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | **anti-x-site** |
 | 18 | POST | `/api/pipeline/archive/stream` | require_api_key | JSON Pydantic | No (preflight) | come #16 (archive + full rebuild in coda) | **Alto** | **anti-x-site** |
 | 19 | POST | `/api/pipeline/validate` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM + retrieval e persiste il record di validazione | Basso (Medio DoS) | **anti-x-site** |
-| 20 | GET | `/api/index/status` | require_api_key | assente | Sì | read-only (drift indicizzazione) | Basso | nessuna |
-| 21 | GET | `/api/index/integrity` | require_api_key | assente | Sì | read-only (interroga Qdrant in lettura) | Basso | nessuna |
+| 20 | GET | `/api/index/status` | require_api_key | assente | Sì | read-only (drift indicizzazione; route su `routes_reindex.py`, non pipeline) | Basso | nessuna |
+| 21 | GET | `/api/index/integrity` | require_api_key | assente | Sì | read-only (interroga Qdrant in lettura; route su `routes_reindex.py`, non pipeline) | Basso | nessuna |
 | 22 | POST | `/api/pipeline/canvas/dry-run` | require_api_key | JSON Pydantic | No (preflight) | read-only (retrieval/embedding, nessuna scrittura; misura la dimensione dei documenti governati solo dentro `docs/` del progetto, doc_id fuori ⇒ 0) | Basso (Medio DoS) | nessuna (esclusa §2C) |
 | 23 | GET | `/api/pipeline/agent-context` | require_api_key | query | Sì | read-only (retrieval) | Basso | nessuna |
 | 24 | GET | `/api/pipeline/export` | require_api_key | query | Sì | read-only | Basso | nessuna |
@@ -320,12 +321,12 @@ oltre a `require_api_key` del router.
 | 31 | GET | `/api/index/versions` | require_api_key | assente | Sì | read-only (lista versioni) | Basso | nessuna |
 | 32 | POST | `/api/index/rollback` | require_api_key | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **muove CURRENT-alias** + Qdrant alias (default: versione precedente) | **Alto** | **anti-x-site** |
 | 33 | POST | `/ask` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (RAG completo, no mutazione) | Basso (Medio DoS) | **anti-x-site** |
-| 34 | GET | `/api/retrieve` | require_api_key | query | Sì | read-only (retrieval/embedding) | Basso (Medio DoS) | nessuna (opz.) |
-| 35 | GET | `/api/code/search` | require_api_key | query | Sì | read-only (embedding della query + prodotto matriciale in memoria; nessun LLM, nessun Qdrant) | Basso (Medio DoS-CPU) | nessuna (opz.) |
+| 34 | GET | `/api/retrieve` | require_api_key | query | Sì | read-only (retrieval/embedding) | Basso (Medio DoS) | **rate-limit CPU** (`require_cpu_get_rate_limit`) |
+| 35 | GET | `/api/code/search` | require_api_key | query | Sì | read-only (embedding della query + prodotto matriciale in memoria; nessun LLM, nessun Qdrant) | Basso (Medio DoS-CPU) | **rate-limit CPU** (`require_cpu_get_rate_limit`) |
 | 36 | GET | `/api/canvas-quality` | require_api_key | query | Sì | read-only | Basso | nessuna |
 | 37 | GET | `/api/graph/all` | require_api_key | assente | Sì | read-only (grafo intero) | Basso | nessuna |
 | 38 | GET | `/api/graph/impact` | require_api_key | query | Sì | read-only (BFS) | Basso | nessuna |
-| 39 | GET | `/api/graph/semantic-map` | require_api_key | assente | Sì | read-only (SVD/PCA, CPU) | Basso (Medio DoS) | nessuna (opz.) |
+| 39 | GET | `/api/graph/semantic-map` | require_api_key | assente | Sì | read-only (SVD/PCA, CPU) | Basso (Medio DoS) | **rate-limit CPU** (`require_cpu_get_rate_limit`) |
 | 40 | GET | `/api/graph/query` | require_api_key | query | Sì | read-only (query deterministica grafo) | Basso | nessuna |
 | 41 | GET | `/api/health` | require_api_key | assente | Sì | read-only (ping Qdrant/Ollama) | Basso | nessuna |
 | 42 | GET | `/api/eval/history` | require_api_key | query | Sì | read-only (storico recall) | Basso | nessuna |
@@ -437,7 +438,7 @@ dependency è a costo nullo e non rompe la UI same-origin.
 | POST `/api/pipeline/agent/run` (8) | **Già `require_api_key_strict`** — protezione *più forte* dell'anti-cross-site (chiave sempre richiesta, anche da localhost). Aggiungere Sec-Fetch-Site è ridondante e **non va indebolito** sostituendo lo strict. Asserito da `_STRICT_ROUTES` e da `test_excluded_route_does_not_declare_anti_cross_site_dependency`. |
 | POST `/api/pipeline/open-points/decision` (59) | Chiave obbligatoria anche da localhost; stesso confine strict di agent/run. Non esposta ai tool agente. Provenienza dichiarata, `origin_verified: false`, nessuna identità personale certificata. |
 | POST `/api/pipeline/canvas/dry-run` (22) | POST ma **read-only** (retrieval/embedding, nessuna scrittura, nessun LLM di generazione) e body Pydantic obbligatorio → non consegnabile. Solo rischio DoS-CPU. |
-| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58, 60) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) restano un rischio DoS-CPU **accettato** (§4 #4). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. Le GET 44, 45 e 55 (journal di intake) **non** passano più da `ensure_staging_dirs`: fino alla revisione del 2026-09-28 quella funzione creava `staging/docs\|projects\|rejected` e faceva `touch` di `intake.jsonl` anche su una semplice lettura, materializzando `staging/` da un GET su un'istanza dove nessuno aveva ancora caricato nulla — corretto con `core.intake.staging_paths_readonly` (stessi percorsi, nessuna creazione; `_journal_state` gestisce già un journal assente come stato vuoto), usato ora da `list_staged`, `get_preview` e `project_brief.applied_imports`. Le scritture (`stage_document`, `approve`, `reject`, refine, import) restano su `ensure_staging_dirs` e continuano a creare le cartelle. |
+| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58, 60) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) hanno **rate-limit per-IP** (`require_cpu_get_rate_limit`, allineato a `VIBECRAFT_EMBED_CONCURRENCY`; §4 #4 chiuso). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. Le GET 44, 45 e 55 (journal di intake) **non** passano più da `ensure_staging_dirs`: fino alla revisione del 2026-09-28 quella funzione creava `staging/docs\|projects\|rejected` e faceva `touch` di `intake.jsonl` anche su una semplice lettura, materializzando `staging/` da un GET su un'istanza dove nessuno aveva ancora caricato nulla — corretto con `core.intake.staging_paths_readonly` (stessi percorsi, nessuna creazione; `_journal_state` gestisce già un journal assente come stato vuoto), usato ora da `list_staged`, `get_preview` e `project_brief.applied_imports`. Le scritture (`stage_document`, `approve`, `reject`, refine, import) restano su `ensure_staging_dirs` e continuano a creare le cartelle. |
 | Pagine HTML (1-6) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. Eccezione documentata: `/pipeline` (2) inietta la API key per i soli client locali → §4 #6. |
 
 **Sintesi ambito:** **22 POST protetti** su 25 (13 mutanti §2A + 9 LLM/filesystem §2B)
@@ -489,10 +490,10 @@ mentre il ramo "come oggi" dia il 422 — la business logic non viene mai esegui
 | # | Rischio residuo | Mitigazione / accettazione |
 |--:|-----------------|----------------------------|
 | 1 | **Browser legacy senza `Sec-Fetch-Site`.** Un browser che non emette Fetch Metadata manda la richiesta senza header → ricade nel path "come oggi" → la guardia non scatta e una POST cross-site passa. | **Accettato.** Fetch Metadata è supportato da tutti gli evergreen dal ~2019 (Chrome 76+, Firefox 90+, Edge, Safari 16.4+); la popolazione residua è trascurabile per uno strumento su localhost. *Rafforzamento opzionale:* combinare con un controllo `Origin`/`Referer` (rifiuta Origin presente e diverso da self) come secondo segnale. |
-| 2 | **Reverse proxy che fa apparire locale il client.** Dietro un proxy che termina la connessione, `request.client.host` diventa `127.0.0.1` (il proxy) → il bypass localhost di `require_api_key` si applica a **tutti** i client esterni. | **Mitigazione documentata (deploy).** Non esporre dietro proxy senza (a) impostare `VIBECRAFT_API_KEY` **e** (b) far onorare `X-Forwarded-For` a uvicorn (`--forwarded-allow-ips`, `ProxyHeadersMiddleware`). Sec-Fetch-Site **continua** a proteggere il vettore browser-CSRF anche via proxy. Il residuo è l'**accesso di rete autenticato**, compito di API-key + bind 127.0.0.1. |
+| 2 | **Reverse proxy che fa apparire locale il client.** Dietro un proxy che termina la connessione, `request.client.host` diventa `127.0.0.1` (il proxy) → il bypass localhost di `require_api_key` si applica a **tutti** i client esterni. | **Mitigazione documentata + checklist in `scripts/doctor.py`.** Non esporre dietro proxy senza (a) impostare `VIBECRAFT_API_KEY` **e** (b) far onorare `X-Forwarded-For` a uvicorn (`--forwarded-allow-ips`, `ProxyHeadersMiddleware`). Sec-Fetch-Site **continua** a proteggere il vettore browser-CSRF anche via proxy. Il residuo è l'**accesso di rete autenticato**, compito di API-key + bind 127.0.0.1. Doctor emette un avviso se `VIBECRAFT_HOST` non è loopback e manca la chiave o non è dichiarata consapevolezza del proxy. |
 | 3 | **Client cross-site non-browser** (curl/script sulla LAN se il bind supera localhost). Non inviano `Sec-Fetch-Site` → la guardia non li ferma. | **Accettato per design.** Sec-Fetch-Site difende il vettore CSRF-da-browser, non l'accesso programmatico. La barriera per quest'ultimo resta `VIBECRAFT_API_KEY` + bind `127.0.0.1` (fail-closed già presente in `server.py`). |
-| 4 | **DoS-CPU/costo sulle GET read-only** (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39): un trigger cross-site di massa consuma embedding/SVD senza mutare stato. | **Accettato.** I POST-LLM sono ora tutti coperti (§2B), quindi il grosso è chiuso. Per le GET CPU un rate-limit resta **debito annotato**: `/api/code/search` ha già tetti di risposta (`k ≤ 25`) ma non di frequenza. |
-| 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Accettato in locale**; in caso di esposizione, disabilitare (`FastAPI(docs_url=None, redoc_url=None, openapi_url=None)`) o proteggerli. Info-disclosure, non mutazione. |
+| 4 | **DoS-CPU/costo sulle GET read-only** (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39): un trigger cross-site di massa consuma embedding/SVD senza mutare stato. | **Chiuso (2026-10-28).** `require_cpu_get_rate_limit` (finestra scorrevole per-IP, default `VIBECRAFT_EMBED_CONCURRENCY * 15` / 60 s; override `VIBECRAFT_CPU_GET_RATE_LIMIT` / `VIBECRAFT_CPU_GET_WINDOW_SECONDS`) risponde **429** + `Retry-After`. Restano i tetti di risposta (`k ≤ 25` su code/search). |
+| 5 | **`/docs`, `/redoc`, `/openapi.json` non autenticati** (Appendice A). Espongono l'intero schema delle route a chiunque raggiunga il server. | **Chiuso su bind non-loopback (2026-10-28).** Con `VIBECRAFT_HOST` fuori dal loopback le tre route (e `/docs/oauth2-redirect`) non vengono montate. In locale restano aperte (threat model localhost). Override: `VIBECRAFT_DISABLE_OPENAPI=1` spegne anche in locale; `VIBECRAFT_ENABLE_OPENAPI=1` riapre dietro proxy per debug. |
 | 6 | **`GET /pipeline` (2) inietta `VIBECRAFT_API_KEY` nell'HTML** in un `<meta name="vibecraft-agent-api-key">` con escape HTML (non più uno `<script>` inline, vietato dalla CSP — Fatto 11), che `shared.js` copia in `window.__VIBECRAFT_AGENT_API_KEY__`, su una route senza auth. | **Accettato, per costruzione.** L'iniezione avviene **solo** per client locali (`_is_local_request`, stessa condizione del bypass di `require_api_key`) e la Same-Origin Policy impedisce a una pagina di un'altra origine di **leggere** il body della risposta: può solo navigarci o fare fetch opachi. Se il server è esposto oltre localhost l'iniezione si disattiva da sola, quindi la chiave non raggiunge mai un client remoto. La SOP da sola **non** bastava: il DNS rebinding rende same-origin una pagina ostile risolta su `127.0.0.1` — chiuso dalla validazione di `Host` (Fatto 9), che rifiuta con 400 ogni nome non ammesso prima che la pagina venga servita. Residuo **ridimensionato**: (a) codice ostile eseguito *nella propria pagina* — fuori dal modello di minaccia; (b) un host aggiunto a `VIBECRAFT_ALLOWED_HOSTS` il cui DNS sia controllato da terzi riapre il vettore per quel nome — la lista va limitata a nomi che si controllano. |
 | 7 | **`POST /api/intake/project/browse-path` (52) apre un dialogo nativo sul desktop del server** ed è **consegnabile bodyless**. Senza guardie, una pagina ostile farebbe comparire un selettore di cartelle sulla macchina che ospita il server e occuperebbe un thread del pool finché non viene chiuso. | **Chiuso su entrambi gli assi.** Browser di terzi: anti-cross-site (403 prima dell'handler). Bind aperto: `require_local_bind` **spegne** la route (403 per chiunque, API key inclusa) — era il debito annotato dalla revisione precedente, ora implementato, perché con server e utente su macchine diverse la funzione non è "più rischiosa", è priva di senso. Residuo **accettato**: con bind locale, un client sulla stessa macchina può innescarla — ma su quella macchina il dialogo è appunto la funzione richiesta. |
 | 8 | **`POST /api/intake/project/plan` (53) enumera un path arbitrario del filesystem del server** e ne restituisce i file classificati: è info-disclosure per un chiamante che raggiunge l'endpoint. | **Chiuso su entrambi gli assi.** Le validazioni di `core.project_import` (path assoluto, esistente, directory, mai dentro il repo né lo staging) riducono l'abuso ma **non** limitano *quale* directory sia scansionabile: il contenimento vero è che il chiamante deve essere sulla macchina stessa. Anti-cross-site copre il browser di terzi; `require_local_bind` spegne la route se il bind supera il loopback, quando l'enumerazione diventerebbe remota. Residuo **accettato** con bind locale: chi chiama da quella macchina ha già accesso al filesystem. |
@@ -585,19 +586,19 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 | GET | `/static/shared.js` | nessuna | read-only (asset) | Idem. |
 | GET | `/static/pages/{name}` | nessuna | read-only (asset) | Idem, per gli script delle pagine (erano inline nei template, spostati per la CSP — Fatto 11). Solo i file presenti in `static/pages/` al boot, altrimenti 404. |
 | GET | `/static/*` | nessuna | read-only (asset statici) | `app.mount(StaticFiles)`; vendor pinnati, cache di default del browser. |
-| GET | `/openapi.json` | nessuna | read-only (schema) | Default FastAPI. Rivela tutte le route → vedi rischio #5. |
-| GET | `/docs` | nessuna | read-only (Swagger UI) | Default FastAPI. |
-| GET | `/redoc` | nessuna | read-only (ReDoc) | Default FastAPI. |
-| GET | `/docs/oauth2-redirect` | nessuna | read-only | Default FastAPI (inerte, nessun OAuth configurato). |
+| GET | `/openapi.json` | nessuna | read-only (schema) | Montata solo su bind locale (o `VIBECRAFT_ENABLE_OPENAPI=1`). Rivela tutte le route → vedi rischio #5. |
+| GET | `/docs` | nessuna | read-only (Swagger UI) | Come `/openapi.json`. |
+| GET | `/redoc` | nessuna | read-only (ReDoc) | Come `/openapi.json`. |
+| GET | `/docs/oauth2-redirect` | nessuna | read-only | Come `/openapi.json` (inerte, nessun OAuth configurato). |
 
 ---
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 72** (6 pages · 25 pipeline · 6 reindex ·
+- **Conteggio route registrate sui router: 72** (6 pages · 23 pipeline · 8 reindex ·
   5 retrieval · 5 graph · 4 health · 15 intake · 6 projects) — **coincide** con le 72 righe della
-  tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + 4 route di default
-  FastAPI (Appendice A).
+  tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + fino a 4 route OpenAPI
+  FastAPI (Appendice A; assenti se bind non-loopback / `VIBECRAFT_DISABLE_OPENAPI`).
 - **POST: 28** — **25 protetti** da `require_not_cross_site_request`, 3 esclusi con
   motivazione (`agent/run` e `open-points/decision` già strict, `canvas/dry-run` read-only).
   **DELETE mutanti protetti: 2** (`/api/ask/thread`, `/api/projects/{project_id}`).
@@ -627,5 +628,6 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   azioni che scrivono. CSP completa (Fatto 11): `script-src 'self'` senza
   `unsafe-inline`/`unsafe-eval`, nessuno script né handler inline nei template; residuo
   `style-src 'unsafe-inline'` per gli stili inline di librerie grafiche e template.
-- **Debiti annotati:** rate-limit sulle GET CPU-pesanti (§4 #4); `/docs`/`/openapi.json`
-  da chiudere in caso di esposizione (§4 #5).
+- **Debiti annotati:** `style-src 'unsafe-inline'` (CSP, Fatto 11); Codex/Cursor agentic
+  disabilitati finché l'isolamento scrittura non è verificato (§5). §4 #4 (rate-limit GET
+  CPU) e §4 #5 (OpenAPI su bind esposto) chiusi il 2026-10-28.

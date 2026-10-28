@@ -1098,45 +1098,10 @@
         </div>`;
     }
 
-    /* ASK_STREAM_PARSER_START */
-    /* Messaggi con fallback IT: i test estraggono questo blocco in Node senza i18n.js. */
+    /* Parser NDJSON /ask: createAskStreamParser in /static/shared.js (R7). */
     function askStreamMsg(key, fallback) {
       return (typeof t === 'function') ? t(key) : fallback;
     }
-    function createAskStreamParser(onEvent) {
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let terminal = false;
-
-      function parseLine(line) {
-        if (!line.trim()) return;
-        if (terminal) throw new Error(askStreamMsg('dashboard.streamAfterTerminal', 'Dati ricevuti dopo l’evento terminale.'));
-        const event = JSON.parse(line);
-        if (!event || !['meta', 'delta', 'result', 'error'].includes(event.type)) {
-          throw new Error(askStreamMsg('dashboard.streamInvalidEvent', 'Evento streaming /ask non valido.'));
-        }
-        onEvent(event);
-        if (event.type === 'result' || event.type === 'error') terminal = true;
-      }
-
-      return {
-        push(chunk, done) {
-          buffer += decoder.decode(chunk, { stream: !done });
-          let newline;
-          while ((newline = buffer.indexOf('\n')) !== -1) {
-            parseLine(buffer.slice(0, newline));
-            buffer = buffer.slice(newline + 1);
-          }
-          if (done) {
-            parseLine(buffer);
-            buffer = '';
-            if (!terminal) throw new Error(askStreamMsg('dashboard.streamNoTerminal', 'Stream /ask terminato senza evento terminale.'));
-          }
-          return terminal;
-        },
-      };
-    }
-    /* ASK_STREAM_PARSER_END */
 
     /* Risposta dal grafo (router deterministico, status "graph_answer"): non ha un campo
        `answer` testuale e finiva in "(nessuna risposta)". Forme da core.graph_ops.graph_query. */
@@ -1275,7 +1240,7 @@
           } else if (event.type === 'error') {
             throw new Error(apiErrorMessage(event.detail, t('dashboard.streamError')));
           }
-        });
+        }, askStreamMsg);
 
         try {
           while (true) {

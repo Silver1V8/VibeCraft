@@ -109,3 +109,31 @@ def test_libreoffice_reale_se_disponibile(monkeypatch):
     doctor.controlla_libreoffice()
     livello, dettaglio = _ultimo()
     assert livello == "ok", dettaglio
+
+
+def _ultimo_titolo(titolo: str):
+    livello, t, dettaglio = doctor.esiti[-1]
+    assert t == titolo
+    return livello, dettaglio
+
+
+def test_proxy_deploy_ok_su_loopback(monkeypatch):
+    monkeypatch.setattr(doctor, "esiti", [])
+    monkeypatch.setattr(doctor, "SERVER_BIND_IS_LOCAL", True)
+    monkeypatch.setattr(doctor, "SERVER_HOST", "127.0.0.1")
+    doctor.controlla_proxy_deploy()
+    livello, dettaglio = _ultimo_titolo("Bind / proxy")
+    assert livello == "ok" and "loopback" in dettaglio
+
+
+def test_proxy_deploy_avvisa_senza_api_key_su_bind_aperto(monkeypatch):
+    monkeypatch.setattr(doctor, "esiti", [])
+    monkeypatch.setattr(doctor, "SERVER_BIND_IS_LOCAL", False)
+    monkeypatch.setattr(doctor, "SERVER_HOST", "0.0.0.0")
+    monkeypatch.delenv("VIBECRAFT_API_KEY", raising=False)
+    monkeypatch.delenv("FORWARDED_ALLOW_IPS", raising=False)
+    monkeypatch.delenv("UVICORN_FORWARDED_ALLOW_IPS", raising=False)
+    doctor.controlla_proxy_deploy()
+    livello, dettaglio = _ultimo_titolo("Bind / proxy")
+    assert livello == "avviso"
+    assert "VIBECRAFT_API_KEY" in dettaglio and "forwarded-allow-ips" in dettaglio

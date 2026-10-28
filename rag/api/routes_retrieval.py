@@ -24,6 +24,7 @@ from api.deps import (
     embed_in_threadpool,
     qdrant_collection_for_version,
     require_api_key,
+    require_cpu_get_rate_limit,
     require_not_cross_site_request,
     run_in_threadpool_until_complete,
     state,
@@ -938,7 +939,7 @@ async def ask_rag(request: Request, query: AskQuery):
         runtime.release()
 
 
-@router.get("/api/retrieve")
+@router.get("/api/retrieve", dependencies=[Depends(require_cpu_get_rate_limit)])
 async def api_retrieve(
     request: Request,
     q: str = Query(min_length=1, max_length=4000),
@@ -1049,7 +1050,7 @@ def _files_digest(hits: list[dict]) -> list[dict]:
     return sorted(per_file.values(), key=lambda e: e["best_score"], reverse=True)
 
 
-@router.get("/api/code/search")
+@router.get("/api/code/search", dependencies=[Depends(require_cpu_get_rate_limit)])
 async def api_code_search(
     request: Request,
     q: str = Query(min_length=1, max_length=2000),
