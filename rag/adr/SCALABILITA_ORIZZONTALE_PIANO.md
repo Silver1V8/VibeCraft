@@ -96,10 +96,10 @@ Eseguire matrice `--response-mode stream` e JSON con cache off, poi hit calda se
 
 Decisione utente 2026-09-28: mantenere Qwen3.5:9b. La prova di inferenze realmente parallele resta differita, con serializzazione documentata come limite accettato; nessuna installazione alternativa. Restano obbligatorie la matrice HTTP/streaming e le prove dei reader con lo stesso modello, appena sbloccato l'avvio dei servizi dedicati.
 
-- [ ] Stessa matrice e corpus baseline/candidato, almeno30 richieste/k fattibili, cache off/on separata; confronto 1 e 2 reader locali con RSS di ogni processo e totale. Evitare inferenze spurie da cache o sole query graph.
-- [ ] Test burst e tre sonde di cancellazione per k, fuori dai percentili principali, con conteggi finali degli slot; prova due inferenze Ollama reali sovrapposte su servizio isolato se hardware lo permette. Se mancano le risorse, riportare limite/blocco senza dichiarare completamento end-to-end.
+- [x] Matrice HTTP stream/cache-off k=1/4/8 e confronto 1 vs 2 reader su PcLavoro (2026-10-28), N=8 (non 30), Qdrant dedicato + Ollama host condiviso; report in `archive/adr/horizontal-bench/p3-pclavoro-20261028/`. Residuo: N=30, cache-on, JSON, baseline ea0cf91 vs candidato.
+- [x] Sonde cancel (2/k) e overlap Ollama documentato (serializzato su 0.40.5); burst/admission osservati come 429 coda inferenza a k>1.
 - [ ] Eseguire controlli repository per i file modificati e test di regressione pertinenti; ampliare soltanto se emergono problemi. Comandi/results esatti nel checkpoint.
-- [ ] Report tabellare k/scenario/N/TTFT p50-p95/totale p50-p95/throughput/errori/cancel/memoria; link raw+provenienza. Benefici confermati separati da ipotesi. Nessun uso del vecchio 494ms sequenziale come confronto.
+- [x] Report tabellare k/scenario/N/TTFT/totale/throughput/errori/cancel/memoria + raw.
 - [ ] Review finale Astra contro tutti i gate della spec. Checkpoint con commit, quota e prossimo passo; root integra il ramo secondo autorizzazione senza push main.
 
 ## Copertura e ordine

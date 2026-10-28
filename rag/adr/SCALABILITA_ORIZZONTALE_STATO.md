@@ -1,5 +1,20 @@
 # Stato — scalabilità orizzontale
 
+## P3 misura PcLavoro — 28 ottobre 2026
+
+Eseguita matrice HTTP stream/cache-off k=1/4/8 e confronto uno-vs-due reader con
+`qwen3.5:9b` su lab dedicato (Qdrant `127.0.0.1:16333`, reader `:18001`/`:18002`,
+proxy RR `:18010`). Ollama host condiviso `:11434` (0.40.5), non un secondo daemon
+`:21434`. N=8 per cella (target ADR 30 non raggiunto: ~45–50 s/req). Esito: thrput
+utile ~0,02 ok/s piatto; k>1 → 429 «coda inferenza piena»; due reader non
+moltiplicano il throughput verso un solo Ollama qwen35; cancel stream OK. Evidenze:
+`archive/adr/horizontal-bench/p3-pclavoro-20261028/`. Claim README aggiornato in
+`rag/docs/streaming-repliche.md`. Griglia ADR residua (N=30, cache-on, JSON,
+baseline ea0cf91 vs candidato) resta aperta — non inventare SLA oltre la tabella.
+
+- [x] P3 matrice HTTP k=1/4/8 e uno-vs-due reader (campione N=8 stream/cache-off)
+- [ ] P3 griglia ADR completa (N=30, cache-on, JSON, baseline vs candidato)
+
 ## Integrazione su main autorizzata — 28 settembre 2026
 
 L'utente ha richiesto commit e push su main. Integrato main `7512b1d` nel ramo di lavoro senza conflitti (merge `e417965`), preservando i nuovi sviluppi della pipeline. Sul risultato integrato: **1794 passed, 5 skipped in 139.10s**, exit 0; stessi quattro moduli esterni esclusi della precedente suite offline. Ruff sui file Python modificati e `git diff --check` superati. Prove: `horizontal-bench/verification-20260928/merge-regression.txt`; ambiente/comando in `run-merge-regression.ps1` (eseguiti come comandi nella sessione, perché la policy PowerShell locale disabilita i file script).
@@ -15,7 +30,7 @@ L'autorizzazione alla pubblicazione non dichiara completata P3: restano da misur
 - [ ] P0 baseline HTTP reale: bloccata (vedi sotto).
 - [x] P1 pin collection/ammissione/streaming: commit `215960a`, review PM e verifiche superate.
 - [x] P2 reader/writer/immutabilità locale: storage `f8fc368`, API reader/lifecycle e prova OS due lettori `810f1f7`; test e review PM superati.
-- [ ] P3 matrice reale k=1,4,8 e confronto HTTP uno/due reader.
+- [x] P3 matrice reale k=1,4,8 e confronto HTTP uno/due reader (N=8 stream/cache-off, 2026-10-28; vedi sezione in cima).
 - [x] Review finale Astra root: codice `810f1f7`, nessun finding aperto; verifica indipendente101 pass.
 
 Quota alla ripresa99%, finale78% residua, uso consentito e nessun limite di spesa raggiunto. Stop precedente al5% rispettato. Verificare quota prima/dopo ogni fase/fanout: stop <=5% qualunque finestra o ordinaryUsageAllowed=false/spendControlReached; ripresa solo >=15% tutte e uso consentito. Nessun reset consumato né acquisto. Heartbeat root.

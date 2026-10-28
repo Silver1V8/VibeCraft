@@ -1,0 +1,45 @@
+{
+  "ollama_model": "qwen3.5:9b",
+  "nvidia_smi": "unavailable (driver not loaded / NVML failed)",
+  "git_commit": "66954f9f377d77e68f9433bb6c51d10abe0ccb90",
+  "date": "2026-10-28T11:57:11.1505951+01:00",
+  "index_version": "v20261028T105428",
+  "project_id": "legacy",
+  "ollama_note": "Shared host Ollama (not dedicated :21434) to avoid second GPU/Vulkan resident copy; qwen3.5:9b already loaded",
+  "proxy": {
+    "port": 18010,
+    "pid": 15076,
+    "backends": [
+      "18001",
+      "18002"
+    ]
+  },
+  "role": "reader",
+  "readers": [
+    {
+      "port": 18001,
+      "pid": 9936,
+      "name": "reader-a"
+    },
+    {
+      "port": 18002,
+      "pid": 14664,
+      "name": "reader-b"
+    }
+  ],
+  "sample_size_note": "N=8 per k (below ADR target 30): ~45-50s/req; full 30x3x2 stream cells would exceed ~2h wall",
+  "engine_pid": 18556,
+  "index_mode": "immutable",
+  "qdrant_url": "http://127.0.0.1:16333",
+  "host": "PcLavoro",
+  "ollama_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+  "ask_cache_size": 0,
+  "ollama_url": "http://127.0.0.1:11434",
+  "ollama_version": "ollama version is 0.40.5",
+  "requests_per_k": 8,
+  "adr_target_requests_per_k": 30,
+  "measured_scenarios": [
+    "one-reader-stream-cache-off",
+    "two-reader-rr-stream-cache-off"
+  ]
+}

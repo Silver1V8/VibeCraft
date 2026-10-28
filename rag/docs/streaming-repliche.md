@@ -92,16 +92,25 @@ controllo non equivale a una nuova scansione profonda di tutti i byte dei vettor
 
 ### Limiti verificati e envelope supportato
 
-**Envelope operativo dichiarato (P0–P2 software):** un writer designato + N reader
-locali sulla stessa macchina (`VIBECRAFT_INDEX_MODE=immutable`), senza claim di
-throughput, TTFT o capacità oltre i limiti configurabili sopra. La matrice HTTP
-reale k=1/4/8 e il confronto uno-vs-due reader con Qwen (**P3**) **non sono ancora
-eseguiti**; fino a quella misura le «repliche locali opt-in» restano software
-verificato in isolation, non un envelope di carico pubblicato.
+**Envelope operativo (software P0–P2 + misura P3 ridotta su PcLavoro, 28 ott 2026):**
+un writer designato + N reader locali (`VIBECRAFT_INDEX_MODE=immutable`) sullo stesso
+host, con Qdrant dedicato e Ollama host condiviso. Con `qwen3.5:9b` il throughput utile
+di `POST /ask` (stream, cache-off) resta **~0,02 completamenti/s** a k=1/4/8 e **non
+sale** passando da uno a due reader: il motore serializza qwen35 e la coda inferenza
+applicativa (`VIBECRAFT_GENERATION_MAX_ACTIVE`, default 2) rifiuta l'eccesso con 429.
+TTFT p50 a k=1 ≈ 45–47 s sul corpus lab; a k>1 la p50 sui soli successi cresce per
+accodamento. Cancel stream dopo il primo delta: verificato. Dettaglio tabellare, N=8
+(non i 30 dell'ADR), limiti e raw:
+[p3-pclavoro-20261028](../../archive/adr/horizontal-bench/p3-pclavoro-20261028/README.md).
 
-Con Ollama 0.34.4 e il modello locale qwen3.5:9b, il motore impone un solo slot per
-l'architettura qwen35: richieste HTTP sovrapposte non producono inferenze parallele.
-Le [prove reali](../../archive/adr/horizontal-bench/preflight-20260928/README.md) lo documentano.
+Non pubblicare claim di capacità oltre questi numeri; la griglia ADR completa (N=30,
+cache-on, JSON, baseline ea0cf91 vs candidato) **non** è stata rieseguita in questa
+misura.
+
+Con Ollama 0.34.4–0.40.5 e qwen3.5:9b il motore impone un solo slot per l'architettura
+qwen35: richieste HTTP sovrapposte non producono inferenze parallele. Preflight 0.34.4:
+[preflight-20260928](../../archive/adr/horizontal-bench/preflight-20260928/README.md);
+riprova overlap 0.40.5 nella cartella P3 sopra.
 
 Le repliche su host diversi richiedono un meccanismo verificato di distribuzione
 delle versioni e di conservazione delle collection ancora in uso. Le lease locali
