@@ -18,10 +18,13 @@ lì, non sul re-export."""
 from __future__ import annotations
 
 import sys
+import time  # noqa: F401  # seam: test_index_timings patcha index.time.perf_counter
 from types import ModuleType
 
 from FlagEmbedding import BGEM3FlagModel  # noqa: F401  # seam monkeypatch
 from qdrant_client import QdrantClient  # noqa: F401  # seam monkeypatch
+
+from core.colbert_store import ColbertStore, ColbertWriter  # noqa: F401
 
 # Moduli estratti in precedenza: i nomi restano importabili da core.indexing.
 from core.drift_check import check_drift  # noqa: F401
@@ -131,6 +134,8 @@ from .cow_delta import (  # noqa: F401
     plan_incremental_indexing,
 )
 from .integrity import (  # noqa: F401
+    _edge_set,
+    _node_type_set,
     check_graph_consistency,
     check_index_integrity,
     precedence_cycles,
