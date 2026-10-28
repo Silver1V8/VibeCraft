@@ -1,22 +1,79 @@
-Italiano | [English](README.en.md)
+<p align="center">
+  <img src="rag/static/vibecraft-logo.svg" width="880" alt="VibeCraft, Graph RAG locale">
+</p>
 
-> **Lingue della documentazione.** L'italiano è canonico in `README.md`; l'inglese è `README.en.md`. La preferenza lingua della console è separata (selettore IT/EN nell'interfaccia, chiave `localStorage` `vibecraft-lang`).
+<p align="center">
+  <em>Cita la norma che vale, non quella che somiglia di più.</em>
+</p>
 
-# VibeCraft
+<p align="center">
+  <a href="https://github.com/Silver1V8/VibeCraft/releases"><img src="https://img.shields.io/github/v/release/Silver1V8/VibeCraft?style=flat-square&labelColor=04140a&color=0f3d20&label=release" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licenza-Apache--2.0-0f3d20?style=flat-square&labelColor=04140a" alt="Licenza Apache-2.0"></a>
+  <img src="https://img.shields.io/badge/python-3.14-0f3d20?style=flat-square&labelColor=04140a" alt="Python 3.14">
+  <img src="https://img.shields.io/badge/100%25-locale-0f3d20?style=flat-square&labelColor=04140a" alt="100% locale">
+  <img src="https://img.shields.io/badge/Qdrant%20%C2%B7%20Ollama%20%C2%B7%20BGE--M3-0f3d20?style=flat-square&labelColor=04140a" alt="Qdrant, Ollama, BGE-M3">
+  <a href="https://github.com/Silver1V8/VibeCraft/pkgs/container/vibecraft"><img src="https://img.shields.io/badge/immagine-GHCR-0f3d20?style=flat-square&labelColor=04140a" alt="Immagine su GHCR"></a>
+</p>
 
-Una console **Graph-RAG per la governance documentale**: indicizza un corpus di documenti
-normativi e il codice che dovrebbe implementarli, e risponde a domande citando le fonti —
-pesando quanto ciascuna fonte è autorevole, non solo quanto somiglia alla domanda.
+<p align="center">
+  <img src="assets/readme/hero.it.svg" width="880" alt="RAG generico contro VibeCraft: il RAG generico cita la metodologia perché somiglia di più alla domanda; VibeCraft pesa l'autorità e cita la specifica che stabilisce la regola.">
+</p>
 
-La differenza rispetto a un RAG generico è questa: in un corpus di governance il documento
-che **spiega** una regola usa lo stesso vocabolario di quello che **la stabilisce**, ed è
-spesso più discorsivo, quindi vince il confronto semantico. VibeCraft tiene conto
-dell'autorità dichiarata dalle fonti, della precedenza dichiarata fra documenti in
-conflitto, e della fiducia nel cammino percorso sul grafo per arrivarci.
+<p align="center">
+  <strong>Casi avversariali giusti al primo posto: da 0 su 5 a 4 su 5.</strong><br>
+  <strong>recall@1 0,690 → 0,741 &middot; recall@10 0,983 → 1,000</strong><br>
+  <sub>Stesso sistema con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3), golden set di 58 casi, 7 settembre 2026 (S11). Fuori campione, a k=1: +0,038, positivo su 5 seed su 5. <a href="#i-numeri">Dettagli</a>.</sub>
+</p>
 
-Le risposte sono ancorate alle fonti recuperate; citazioni, risultati parziali e punti
-aperti restano da verificare. Il retrieval non garantisce che ogni informazione utile
-del corpus sia stata trovata.
+<p align="center">
+  <sub>Italiano &middot; <a href="README.en.md">English</a></sub>
+</p>
+
+---
+
+Lo conosci. È il documento di metodologia: scritto bene, discorsivo, pieno delle parole giuste. Spiega la regola meglio di chi l'ha stabilita. Ed è proprio per questo che un RAG qualunque cita lui al posto della norma.
+
+**VibeCraft sa chi comanda.** È una console Graph-RAG per la governance documentale: indicizza i documenti normativi e il codice che dovrebbe implementarli, e quando risponde pesa quanto è autorevole ogni fonte, quale prevale quando due si contraddicono e quanto ci si può fidare del cammino sul grafo che l'ha portata lì.
+
+Tutto gira in locale. I documenti non escono dalla macchina.
+
+## I numeri
+
+Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una fonte a bassa autorità (una nota di metodologia, un file storico senza classificazione) somiglia alla domanda più della norma che risponde. Ognuno è verificato eseguendo la query. Sono il test che un RAG generico sbaglia per costruzione.
+
+| Misura del 7 settembre 2026, 58 casi | recall@1 | recall@2 | recall@5 | recall@10 | avversariali al primo posto |
+|---|---|---|---|---|---|
+| Autorità quasi spenta (α 0,1) | 0,690 | 0,862 | 0,948 | 0,983 | **0 su 5** |
+| **Autorità calibrata (α 0,3), in produzione** | **0,741** | 0,862 | **0,966** | **1,000** | **4 su 5** |
+
+α non è stato scelto a intuito: griglia congiunta di 2.160 punti, 5-fold × 5 seed, con il vincitore confermato fuori campione. E a volte la misura ha detto di no: la moltiplicazione piena (α 1), quella che la norma prescriveva, costava 15 punti di recall@5. Si è emendata la norma, non i numeri. Storia completa in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) e nel blocco `authority:` di [rag_config.yaml](rag/rag_config.yaml).
+
+**Le risposte sono ancorate alle fonti, non garantite.** Citazioni, risultati parziali e punti aperti restano da verificare, e il retrieval non promette di aver trovato tutto ciò che il corpus contiene.
+
+## Come funziona
+
+<p align="center">
+  <img src="assets/readme/flow.it.svg" width="880" alt="Due flussi. /ask: domanda, retrieval ibrido, rerank ColBERT, moltiplicatore di autorità, grafo con fiducia sul cammino, risposta con fonti; le domande strutturali vanno direttamente al grafo. /pipeline: Explore, Canvas, Propose, Validate, Archive.">
+</p>
+
+- **Autorità dichiarata.** Ogni documento dichiara la sua classe e il suo peso nel frontmatter. Il peso entra nella formula del ranking, non solo nell'interfaccia. La freschezza non è autorità: una data recente non fa vincere nessuno.
+- **Precedenza.** Quando due documenti si contraddicono, vince quello che la dichiarazione di precedenza indica.
+- **Fiducia sul cammino.** Ogni arco del grafo ha una natura (strutturale, curata, inferita), e una fonte raggiunta per un cammino fragile pesa meno.
+- **Il grafo risponde da solo.** «Quali relazioni ha X», «cosa impatta se modifico Y»: risposte dal grafo, senza chiamare l'LLM.
+- **Dalla domanda alla modifica.** La pipeline porta un cambiamento dall'intervista alla specifica con scenari Gherkin. L'agente parte in modalità agentic solo dopo che il contratto corrente ha passato la validazione.
+
+## Cosa c'è dentro
+
+| | |
+|---|---|
+| **`/ask`** | retrieval ibrido (denso + lessicale + rerank ColBERT) ripesato per autorità, più il codice che implementa le sezioni recuperate |
+| **Pipeline** | Explore → Canvas → Propose → Validate → Archive, ancorata ai documenti normativi; il canvas impara dalle review archiviate |
+| **Intake & Import** | conversione locale con anteprima e review in staging: Docling per i PDF, Excel letto direttamente, MarkItDown, LibreOffice per DOC/PPT |
+| **Mappe** | mappa del grafo, Semantic Map e Impact Ripple sul corpus e sul codice indicizzato |
+| **Progetti** | progetti separati con cartelle, indici e namespace Qdrant propri |
+| **Agenti** | Claude Code e Ollama integrati; Codex e Cursor con export del prompt e MCP esterno |
+| **MCP** | server locale di sola lettura: retrieval, ricerca nel codice, interrogazione del grafo |
+| **Indice** | versioni blue/green, eval gate prima della promozione, rollback verificato, delta copy-on-write |
 
 ## Per chi è, e per chi no
 
@@ -26,622 +83,88 @@ del corpus sia stata trovata.
 | serve una risposta **verificabile**, con la fonte e il peso che l'ha fatta vincere | serve un assistente conversazionale rapido |
 | i dati non devono uscire dalla macchina | va bene un servizio esterno |
 
-Il sistema rende trovabili i documenti, non li migliora. Se sono scritti male, le risposte lo saranno. Su `/ask` tiene un filo breve per progetto con citazioni accumulate (non è un chatbot generico); non interroga più progetti insieme e non ha permessi per utente: nasce per girare in locale o su una rete controllata.
+Su `/ask` tiene un filo breve per progetto con le citazioni accumulate: non è un chatbot generico. Non interroga più progetti insieme e non ha permessi per utente. Nasce per girare in locale o su una rete controllata.
 
-Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono così come sono; su GitHub il link mostra il file.
+## Avvio rapido
 
-- [Percorso guidato](rag/static/manuale/percorso-guidato.html) — un caso reale dall'inizio alla fine, per chi deve decidere se adottarlo. In esecuzione: [`/static/manuale/percorso-guidato.html`](http://127.0.0.1:8000/static/manuale/percorso-guidato.html).
-- [Manuale utente](rag/static/manuale/manuale-utente.html) — i controlli, capitolo per capitolo. In esecuzione: [`/static/manuale/manuale-utente.html`](http://127.0.0.1:8000/static/manuale/manuale-utente.html).
-
-Versioni in inglese: [Guided walkthrough](rag/static/manuale/percorso-guidato.en.html), [User manual](rag/static/manuale/manuale-utente.en.html).
-
-`archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Dal 2026-10-28 (R6) il tip di `archive/eval-results/` tiene solo resoconti e puntatori (~4 MiB di testo); i blob pesanti (~108 MiB di json/jsonl/log) restano nella **history** — un commit che li toglie dal tip non alleggerisce da solo un clone completo. Per un clone leggero che non li scarica:
+Con Docker, dalla radice del repository:
 
 ```bash
-git clone --filter=blob:none --sparse https://github.com/Silver1V8/VibeCraft.git
+git clone https://github.com/Silver1V8/VibeCraft.git
 cd VibeCraft
-git sparse-checkout set '/*' '!archive/eval-results'
+
+# La chiave API è obbligatoria in Docker. Se .env esiste già, aggiungi solo la variabile.
+docker run --rm python:3.14-slim python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32))" > .env
+
+docker compose --profile cpu up -d qdrant ollama
+docker compose exec ollama ollama pull qwen3.5:9b      # 6,6 GB, una volta sola
+docker compose --profile cpu up -d
 ```
 
-(oppure `git sparse-checkout set --no-cone '/*' '!/archive'` per escludere tutta `archive/`; tieni [archive/README.md](archive/README.md) se ti serve il puntatore). Inventario e recupero: [archive/eval-results/HEAVY_REMOVED.md](archive/eval-results/HEAVY_REMOVED.md).
+Poi apri **http://127.0.0.1:8000**. La console chiede la chiave al primo accesso e la ricorda in quel browser.
 
-La guida operativa della console non sta più in un monolite: indice in [`rag/README.md`](rag/README.md), pagine in [`rag/docs/`](rag/docs/) (fuori dal corpus, come gli ADR). Italiano canonico; `rag/README.en.md` è un indice breve.
-
-**Stato documentato: `main`, 28 ottobre 2026.**
-Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
-dal 12. I manuali in console sono del 25. I numeri di un gate restano quelli del giorno
-in cui sono stati misurati. Lo stesso stato è in [`rag/README.md`](rag/README.md).
-
-## Cosa fa
-
-- **`/ask`** — retrieval ibrido (denso + lessicale + rerank ColBERT) con ri-ponderazione
-  per autorità, più il codice che implementa le sezioni recuperate. Le domande puramente
-  strutturali ("quali relazioni ha X", "cosa impatta se modifico Y") sono risposte
-  direttamente dal grafo, senza chiamare l'LLM.
-- **Pipeline Explore → Canvas → Propose → Validate → Archive** per portare una modifica
-  dall'intervista alla specifica, ancorata ai documenti normativi.
-- **Intake & Import** con conversione locale, anteprima e review in staging: Docling
-  per PDF, lettura diretta Excel, MarkItDown per i formati moderni e LibreOffice per DOC/PPT.
-- **Mappa del grafo, Semantic Map, Impact Ripple** sul corpus e sul codice indicizzato.
-- **Progetti separati** con creazione/apertura/selezione, cartelle e indici dedicati.
-- **Agenti in-app** con Claude Code e Ollama; agentic richiede un contratto
-  corrente validato nel progetto. Codex/Cursor restano disponibili via export
-  prompt e MCP esterno, con avvio integrato disabilitato.
-- **MCP locale di sola lettura** per retrieval, ricerca nel codice e interrogazione del grafo.
-- **Versionamento blue/green** dell'indice, eval-gate sui rebuild completi e rollback
-  con verifica della collection Qdrant di destinazione.
-- **ColBERT su disco**, in file NPY per documento con lettura dei soli chunk richiesti;
-  benchmark del delta reale con memoria misurata e risultati riproducibili.
-
-## Progetti separati
-
-L'apertura di `/` mostra la schermata iniziale con progetti recenti, ricerca,
-creazione e apertura di cartelle esistenti. **Progetti** nella barra torna alla
-selezione senza interrompere le operazioni attive. I link `?project=<id>` aprono
-direttamente il progetto; lo storico recente viene conservato nel browser.
-
-La console funziona anche senza progetti o indice. **Nuovo progetto** crea una root
-con `project.yaml`, `code/`, `docs/`, `changes/`, `database/` sotto
-`VIBECRAFT_PROJECTS_DIR` (percorso assoluto; default `<installazione>/projects`).
-Non avvia indicizzazione: importa codice/documenti da Intake e indicizza il progetto.
-**Apri progetto esistente** registra una root VibeCraft senza copiarla: con bind
-locale puoi scegliere una cartella host, con bind remoto soltanto una root senza
-symlink/junction strettamente sotto la directory progetti gestita. In Docker usa
-`/app/projects/<cartella>` e monta lì il progetto esistente; il selettore nativo è
-nascosto. Esempio di mount aggiuntivo Compose:
-`/percorso/host/progetto:/app/projects/esistente` (root con `project.yaml` valido).
-In console apri `/app/projects/esistente`; nell'IDE apri la cartella host originale.
-Il mount collega i percorsi: VibeCraft non copia il repository automaticamente.
-Il nome del progetto non costruisce percorsi.
-
-La selezione vale per scheda: `sessionStorage` e `?project=<id>` conservano il target;
-i job già avviati restano nel progetto originario. Due progetti possono mantenere
-pagine residenti; operazioni attive impediscono l'eviction. La pipeline salva
-localmente intervista, input e bozze per progetto e feature. Dopo refresh o chiusura
-puoi scegliere «Ripristina bozza locale» dopo il caricamento dei file server:
-il recupero non li sovrascrive. Finché non ripristini o scarti la bozza, chat ed editor
-restano in sola lettura; il tipo di sviluppo resta selezionabile e il ripristino lo
-sostituisce solo se la bozza ne aveva uno. L'ultimo salvataggio è visibile; le bozze restano
-nel browser e non sono sincronizzate fra dispositivi. Dalla console si possono rinominare
-(solo il nome visualizzato: id, cartella e namespace Qdrant restano invariati), eliminare
-(destroy per root gestite sotto `VIBECRAFT_PROJECTS_DIR`; unregister per root esterne, senza
-cancellare i file host) e filtrare l'elenco progetti per nome o id (`GET /api/projects?q=`).
-Non sono previsti ricerca cross-project sul corpus (ogni domanda resta in un solo progetto)
-né ACL per progetto.
-
-Da `rag/`: `uv run python index.py --project <id> --index-status` seleziona il progetto
-anche per full/delta/integrity/rollback; senza flag usa soltanto `legacy`.
-L'ID si trova nel parametro `?project=<id>` della console o in
-`GET /api/projects`. Le API del progetto ricevono `X-VibeCraft-Project: <id>`;
-senza header si usa esclusivamente il progetto registrato `legacy`.
-Per il MCP esterno imposta `VIBECRAFT_PROJECT_ID=<id>` nell'ambiente del processo,
-oltre alla normale configurazione di URL/chiave: il target resta fisso per sessione.
-
-Un unico Qdrant ospita namespace distinti: alias `vibecraft_<id>` e collection
-`vibecraft_<id>__<version>`. Cache, grafo, staging, job, gate e storico sono per
-progetto; il cambio selezione non cambia il target di un lavoro già avviato.
-
-Anche il progetto iniziale ha una root dedicata: `projects/legacy/`, con `code/`,
-`docs/`, `changes/` e `database/`. Al primo avvio writer VibeCraft copia e verifica in
-`projects/legacy/` la baseline, senza indicizzare o scaricare modelli: `docs/` e `code/`
-alla radice dell'installazione se contengono file, altrimenti la baseline versionata in
-`templates/docs/` e `templates/code/` (il caso di un clone locale pulito; l'immagine Docker
-la porta già in `/app/docs` e `/app/code`). I `template_*.md` di `templates/` non vengono copiati.
-Gli altri progetti nuovi nascono vuoti. Un registro già vuoto resta vuoto.
-Il nome `legacy` identifica il progetto iniziale: usa lo stesso runtime e indice degli altri.
-L'indice legge soltanto `docs/` e `code/` nella root del progetto selezionato.
-In PyCharm espandi `projects/legacy/` oppure `projects/<id>/`; la root attiva
-è anche nei metadati del progetto. Le cartelle alla radice dell'installazione sono solo la
-sorgente di quella copia iniziale.
-Il reader non inizializza il registry: un registry inizialmente assente restituisce
-`[]` e le richieste senza progetto `project_required`; dopo averlo osservato, la sua
-cancellazione/corruzione fallisce chiusa. Inizializza con writer prima del deploy reader; configura `VIBECRAFT_ROLE=reader`,
-`VIBECRAFT_INDEX_MODE=immutable` e chiave API obbligatoria.
-
-Compose mantiene `vibecraft_projects:/app/projects` separato da `vibecraft_index` e
-con permessi UID 10001; i mount storici docs/code/database servono come sorgenti di migrazione.
-I pesi sono condivisi (`vibecraft_models`, cache Docling nell'installazione,
-`ollama_models`), non copiati per progetto. Backup coerente: registry, manifest,
-code/docs/changes/database di ogni root (anche le root esterne registrate), volume
-legacy e `qdrant_storage` con le collection corrispondenti; salva anche i volumi
-modelli se vuoi evitare download. Ferma le scritture durante il backup.
-
-`/api/health/live` verifica soltanto il processo, anche senza progetti o con Qdrant
-indisponibile; richiede la normale autenticazione, inclusa la chiave in reader.
-Readiness e stato dell'indice sono separati in `/api/health` e nei metadati progetto.
-Modelli/client/snapshot sono caricati a richiesta: l'apertura della console non
-scarica pesi né ripara alias o esegue GC. La manutenzione è esplicita via lifecycle
-writer/CLI. Per progetti ordinari un delta non vuoto pubblica una versione
-copy-on-write: collection nuova con i punti invariati del padre e ri-embedding dei
-soli documenti e file di codice cambiati. Se il padre non è riusabile si ripiega sul
-full rebuild (motivo in `fallback_reason` del job); un delta noop non scrive nulla.
-
-Gli embedding dei job di reindex usano un acceleratore solo per la durata del job.
-Quale componente prende i pesi, e quando invece si dividono, è scritto una volta sola in
-[rag/README.md](rag/README.md#embedding-bge-m3-cpu-per-le-query-acceleratore-per-il-reindex).
-`/ask` resta sulla CPU del server.
-
-### Migrare un'installazione esistente
-
-Con dati storici, l'apertura restituisce `project_migration_required`: la migrazione
-è esplicita. Ferma server, reader e altri writer; mantieni le variabili che indicano
-il database e lo staging originali. Da `rag/`:
+Non servono documenti tuoi per provarlo: il progetto iniziale contiene già una [baseline di governance](templates/docs/README.md) da indicizzare.
 
 ```bash
-uv run --frozen python -m scripts.migrate_project_layout
+docker compose --profile cpu run --rm app-cpu python index.py   # scarica bge-m3, 4,3 GB
 ```
 
-La migrazione conserva ID `legacy`, originali e vecchie collection; copia e verifica
-documenti, codice, changes, staging, pipeline e golden set. Se esiste un indice,
-Qdrant e il modello embedding devono essere disponibili: viene ricostruita una candidata
-completa in `projects/legacy/database/`, con gate, integrità e alias verificati prima
-di pubblicare il registro. Il costo è quello di un full rebuild dell'intero corpus;
-serve spazio per la copia e il nuovo indice. Le validazioni storiche richiedono una nuova validazione.
-
-Il registro originale viene salvato byte per byte in `projects/projects.v1.backup.json`
-quando presente. Il checkpoint è `projects/.legacy-migration.json`: rilancia lo stesso
-comando dopo un'interruzione; se è rimasto un candidato promosso con alias incompleto,
-usa `--repair`. Hash cambiati o namespace estranei bloccano la ripresa e richiedono diagnosi.
-Dopo pubblicazione una ripetizione non ricostruisce. Per annullare offline, ripristina
-il registro salvato e usa il codice precedente, mantenendo i percorsi originali; non cancellare gli originali.
-Se il registro prima non esisteva, il ripristino richiede rimuovere soltanto quello nuovo a processi fermi.
-
-In Docker, dopo aver fermato il servizio app, usa
-`docker compose --profile cpu run --rm app-cpu python -m scripts.migrate_project_layout`.
-Mantieni i volumi storici e gli eventuali bind fino alla verifica; i dati attivi vivono
-poi in `vibecraft_projects:/app/projects`, incluso `/app/projects/legacy`.
-
-Codex/Cursor integrati rimangono disabilitati finché l'isolamento delle letture non
-è verificato; esportazione prompt e MCP esterno restano disponibili anche senza
-binario installato. SDK: Read sicuro e scansioni di directory sicure sono utilizzabili;
-scansioni di subtree con segreti/link e scansioni root con `.git` sono negate.
-Il runner locale applica pruning dei percorsi vietati.
-
-## Pipeline e agenti
-
-Da [`/pipeline`](http://127.0.0.1:8000/pipeline) si passa dall'intervista al Canvas,
-alla Spec con scenari Gherkin, alla validazione e all'archiviazione. Il **tipo di
-sviluppo** è una sottocartella di `code/` del progetto: la tendina elenca quelle esistenti
-e **Aggiungi** ne crea una nuova (nome a un solo componente, lettere, cifre, `-` e `_`).
-Il dry-run del Canvas mostra le sorgenti che verrebbero usate senza chiamare il modello.
-Propose e agente
-condividono un elenco di **punti aperti**: la loro descrizione è dichiarata dal modello,
-non verificata automaticamente nel merito.
-
-| Runner | Modalità | Accesso al contesto |
-|---|---|---|
-| Claude Code (`claude`) | suggest, oneshot, agentic | tre tool MCP locali |
-| Ollama (`local`) | suggest, oneshot, agentic | lettura e ricerca locali; scritture confinate in agentic |
-| Codex CLI (`codex`) | export prompt | integrato disabilitato: isolamento letture non verificato |
-| Cursor CLI (`cursor`) | export prompt | integrato disabilitato: isolamento letture non verificato |
-
-La console distingue runner installati, avvio disponibile ed esportazione del prompt.
-Claude Code e il relativo accesso al provider vanno predisposti sul server; `local`
-usa Ollama. Codex/Cursor offrono export prompt e MCP esterno, con esecuzione integrata
-disabilitata. Claude e i client esterni possono inviare il contesto al proprio provider.
-
-**Agentic parte solo con una validazione superata del contratto corrente**: Canvas,
-Spec e decisioni sono congelati nel record e ricontrollati dal server prima dell'avvio.
-Suggest e oneshot restano disponibili anche quando il gate blocca agentic.
-Canvas, Propose e contesto dell'agente distinguono i guasti di retrieval dai
-risultati vuoti: un guasto operativo restituisce un errore e non avvia la generazione.
-Accettare un punto aperto lo mantiene irrisolto; la chiave API condivisa non certifica
-l'identità di chi prende la decisione (`origin_verified: false`).
-
-Dettagli e limiti: [runner](rag/README.md#runner-dellagente-claude-ollama-codex-cursor)
-e [gate della pipeline](rag/adr/PIPELINE_GATE.md).
+GPU NVIDIA, Ollama sull'host, installazione nativa, immagine pronta su GHCR, aggiornamenti e migrazioni: **[INSTALL.md](INSTALL.md)**. Se qualcosa non parte, `uv run python scripts/doctor.py` da `rag/` controlla tutto e per ogni problema stampa il rimedio.
 
 ## Requisiti, senza indorare la pillola
 
-**Il setup predefinito scarica circa 11 GB per embedding e LLM.** I modelli Docling
-per l'importazione PDF richiedono spazio aggiuntivo:
-
 | | |
 |---|---|
-| `bge-m3` (embedding) | 4,3 GB, caricato alla prima operazione che lo richiede |
-| `qwen3.5:9b` (LLM locale) | 6,6 GB, via Ollama |
-| Spazio disco consigliato | ~20 GB |
-
-**Una GPU NVIDIA cambia molto le cose.** Misurato su una RTX 3070 Ti contro la CPU della
-stessa macchina:
-
-| | GPU | CPU |
-|---|---|---|
-| Embedding | 46 chunk/s | **1 chunk/s (45× più lento)** |
-| Indicizzazione completa (corpus di esempio, 612 elementi) | ~13 s | **~10 min** |
-
-Senza GPU il sistema **funziona**, ma reindicizzare diventa un'operazione da prendere con
-calma. Le singole domande restano usabili: l'embedding della query costa circa un secondo,
-dentro i ~30 s che l'LLM locale impiega comunque a rispondere.
-
-I prerequisiti dipendono da come lo installi:
-
-- **Via Docker** — Docker con Compose. Python e Qdrant sono nello stack; anche Ollama
-  nei profili `cpu` e `gpu`.
-- **Nativa** — **Python 3.14**, [uv](https://docs.astral.sh/uv/), **Docker** (per il solo
-  Qdrant) e **[Ollama](https://ollama.com)**. Il pin `requires-python >=3.14` non è perché
-  il codice usi feature post-3.12 (la suite passa anche su 3.12): su Windows un lock a
-  `>=3.12` biforca `onnxruntime` (1.20.1 vs 1.29.0) e gonfia il lockfile. Decisione
-  consapevole (S8 / [rag/adr/DISTRIBUTION.md](rag/adr/DISTRIBUTION.md)); uv scarica da sé
-  una CPython 3.14.
-
-## Avvio rapido — Docker (consigliato)
-
-Uno stack unico: applicazione, Qdrant e Ollama. I comandi seguenti usano il profilo
-`cpu`; le varianti sono indicate sotto. Eseguili dalla radice del repository.
-
-```bash
-git clone https://github.com/Silver1V8/VibeCraft.git
-cd VibeCraft
-
-# 0. Genera la API key. In Docker è obbligatoria: il browser non arriva al server
-#    come 127.0.0.1, quindi l'autenticazione non è aggirabile — e senza una chiave
-#    configurata SUL SERVER nessun valore potrebbe soddisfarla.
-#    compose legge questo file da solo; senza, si rifiuta di partire e ti dice perché.
-docker run --rm python:3.14-slim python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32))" > .env
-
-# 1. Servizi di supporto
-docker compose --profile cpu up -d qdrant ollama
-
-# 2. Il modello LLM (6,6 GB, una volta sola)
-docker compose exec ollama ollama pull qwen3.5:9b
-
-# 3. Avvia la console: funziona anche senza indice.
-docker compose --profile cpu up -d
-
-# 4. Facoltativo: indicizza la baseline inclusa nel progetto legacy.
-# La prima indicizzazione scarica bge-m3 (4,3 GB).
-docker compose --profile cpu run --rm app-cpu python index.py
-```
-
-Poi apri **http://127.0.0.1:8000**.
-
-Il passo 0 crea `.env`: se il file esiste già, conserva il contenuto e aggiungi solo
-`VIBECRAFT_API_KEY`, senza sovrascriverlo. Il comando usa Python in container, quindi
-non richiede Python installato sull'host.
-
-| Profilo | Servizi di supporto | Servizio applicazione |
-|---|---|---|
-| `cpu` | `qdrant ollama` | `app-cpu` |
-| `gpu` | `qdrant ollama-gpu` | `app-gpu` |
-| `host-ollama` | `qdrant` | `app-host-ollama` |
-
-Per **GPU**, sostituisci `cpu` con `gpu`, `ollama` con `ollama-gpu` nei nomi dei
-servizi e `app-cpu` con `app-gpu`. Il download diventa
-`docker compose exec ollama-gpu ollama pull qwen3.5:9b`.
-Serve NVIDIA Container Toolkit configurato per Docker.
-
-Per **Ollama sull'host**, usa `--profile host-ollama`, avvia solo `qdrant` al passo 1,
-esegui `ollama pull qwen3.5:9b` sull'host e indicizza con `app-host-ollama`.
-Ollama deve essere raggiungibile dal container tramite `host.docker.internal:11434`.
-
-**Indicizzazione e avvio sono indipendenti.** Dopo l'avvio puoi creare un
-progetto, importare da Intake e avviare l'indicizzazione dalla console.
-`run --rm` esegue la CLI in un container temporaneo con gli stessi volumi;
-per un progetto nuovo aggiungi `--project <id>`. La shell della console non
-richiede un indice; retrieval e generazione basata sul corpus lo richiedono.
-
-**Perché tre profili.** Docker su macOS non espone Metal: un modello da 9B dentro un
-container gira su CPU. Lì il percorso sensato è tenere **Ollama nativo** sull'host e usare
-`--profile host-ollama`, che avvia tutto il resto e punta al tuo Ollama.
-
-I pesi dei modelli **non stanno nell'immagine**: vivono in volumi, quindi si scaricano una
-volta sola e sopravvivono agli aggiornamenti.
-
-**La console chiede la chiave, una volta sola.** Al primo caricamento la console si accorge
-da sé che le richieste vengono respinte, chiede la `VIBECRAFT_API_KEY` — quella generata al
-passo 0 — e la conserva in questo browser. Non viene mai scritta nella pagina: la pagina è
-servita senza autenticazione, quindi metterla lì la regalerebbe a chiunque la raggiunga.
-
-Con l'installazione nativa non cambia nulla: da `127.0.0.1` non viene chiesto niente.
-
-> ⚠️ **Non puntare lo stack Docker a un Qdrant che usi già per un'installazione nativa.**
-> Le due installazioni hanno indici locali distinti, e ciascuna considera "orfane" le
-> collection dell'altra. Lo stack qui sopra usa un proprio Qdrant con un proprio volume,
-> quindi il problema non si pone: si pone solo se imposti `QDRANT_URL` a mano verso
-> un'istanza condivisa.
-
-## Avvio rapido — installazione nativa
-
-```bash
-git clone https://github.com/Silver1V8/VibeCraft.git
-cd VibeCraft
-
-# 1. Configurazione Compose: su un checkout nuovo crea .env con una chiave.
-#    Se .env esiste, aggiungi la variabile senza sovrascrivere il file.
-python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32))" > .env
-
-# 2. Qdrant (vector store), su 127.0.0.1:6333
-docker compose up -d qdrant
-
-# 3. Il modello LLM locale (6,6 GB — è il download più lungo)
-ollama pull qwen3.5:9b
-
-# 4. Dipendenze Python
-cd rag
-uv sync --frozen
-
-# 5. Avvia la console; crea/seleziona il progetto e importa da Intake.
-uv run python server.py       # oppure: scripts/run_server.sh
-
-# In un altro terminale, da rag/: baseline legacy facoltativa.
-uv run python index.py
-# Progetto creato nella console: uv run python index.py --project <id>
-```
-
-Poi apri **http://127.0.0.1:8000**.
-
-La chiave nel `.env` della radice serve all'interpolazione di Compose, anche avviando
-solo Qdrant. Il backend nativo legge invece `rag/.env.local`; da loopback non richiede
-la chiave.
-
-Se qualcosa non parte, **chiedi al preflight invece di indovinare**: verifica versione di
-Python, Qdrant, Ollama e il suo modello, spazio su disco, GPU, LibreOffice (DOC/PPT) e porta
-— e per ogni problema stampa il rimedio.
-
-```bash
-# Dalla directory rag/
-uv run python scripts/doctor.py
-```
-
-**Su quali macchine `uv sync` riesce.** `torch` è l'unica dipendenza sensibile alla
-piattaforma: dove esiste la build CUDA la si prende dall'indice ufficiale PyTorch, altrove
-da PyPI (`[tool.uv.sources]` in [rag/pyproject.toml](rag/pyproject.toml), con un marcatore
-di piattaforma). Verificato con `uv sync --frozen --dry-run --python-platform <p>`:
-
-| Piattaforma | `uv sync` | torch |
-|---|---|---|
-| Linux x86-64 | ✅ | `2.13.0+cu126` |
-| Linux ARM64 | ✅ | `2.13.0+cu126` |
-| Windows x86-64 | ✅ | `2.13.0+cu126` |
-| macOS Apple Silicon (macOS 14+) | ✅ | `2.13.0` (PyPI) |
-| macOS Intel | ❌ | PyTorch non pubblica più wheel x86-64 per macOS |
-| Windows ARM64 | ❌ | nessuna wheel `win_arm64` a monte |
-
-Le due righe rosse sono **limiti a monte, non di questo repository**: per quelle
-piattaforme PyTorch non pubblica alcuna wheel, e nessuna configurazione qui le crea. Il
-percorso disponibile lì è Docker (target `cpu`, multi-arch).
-
-Una macchina **senza GPU NVIDIA** su Linux o Windows x86-64 sincronizza normalmente: la
-build CUDA si installa e gira su CPU (`torch.cuda.is_available()` → `False`). Costa ~4 GB
-di download che non userà — se pesano, il target `cpu` del Dockerfile li evita.
-
-**Non serve procurarsi dei documenti per provarlo:** il repository include in
-`templates/docs/` una [baseline di governance cross-progetto](templates/docs/README.md),
-già pronta da indicizzare (vedi sopra come entra nel progetto iniziale).
-
-In un clone pubblico `templates/code/` contiene solo i segnaposto: il codice del progetto
-ospitante non viene distribuito. Un checkout locale può già contenerlo.
-Le funzioni che vivono sul codice (Semantic Map, Impact Ripple, il codice implementante
-dentro le risposte) restano quindi spente finché non importi codice nel progetto selezionato.
-
-## Immagine pronta
-
-Le release pubblicano un'immagine su GHCR, così non serve costruirla:
-
-```bash
-docker pull ghcr.io/silver1v8/vibecraft:latest
-```
-
-È il target **CPU**, `linux/amd64`, utilizzabile senza GPU. Chi ha una GPU NVIDIA — o gira
-su Apple Silicon — costruisce in locale, dove è veloce e nativo:
-
-```bash
-docker build --target gpu -t vibecraft:gpu .   # NVIDIA
-docker build --target cpu -t vibecraft:cpu .   # Apple Silicon, build arm64 nativa
-```
-
-## Aggiornare senza perdere l'indice
-
-Gli indici vivono nei dati persistenti: `<root-progetto>/database/` per tutti,
-incluso `projects/legacy/database/`. `rag/database/` è soltanto la sorgente storica. Compose conserva
-`vibecraft_projects`, `vibecraft_index` e `qdrant_storage`; aggiornare il
-codice non sposta i dati. Mantieni anche le root esterne e i loro mount.
-
-```bash
-# Docker — i volumi (indice, pesi dei modelli, Qdrant) sopravvivono
-git pull && docker compose --profile cpu build && docker compose --profile cpu up -d
-
-# Nativa
-git pull && cd rag && uv sync --frozen
-```
-
-Dopo l'aggiornamento, **chiedi al sistema se l'indice è ancora valido** invece di
-reindicizzare per abitudine:
-
-```bash
-# Dalla directory rag/
-uv run python index.py --index-status
-uv run python index.py --check-integrity
-```
-
-Tre casi, in ordine di costo:
-
-| Cosa è cambiato | Cosa serve |
-|---|---|
-| Sorgenti di qualsiasi progetto | `index.py --project <id> --incremental` — no-op se invariati; altrimenti delta copy-on-write (vedi sotto). Senza flag seleziona il `legacy` registrato |
-| Il **modello di embedding** (`rag_config.yaml`) | **Full rebuild** obbligatorio: i vettori vecchi non sono confrontabili con i nuovi. Il manifest registra il modello usato, quindi la differenza è rilevabile e non silenziosa |
-| Il **formato degli artefatti** | JSON, ColBERT in NPY per documento, dense/code in NPZ. Un ColBERT NPZ versionato richiede la migrazione sotto prima di un delta non vuoto; il vecchio layout piatto richiede una nuova build per passare a NPY. Gli indici solo pickle richiedono un rebuild |
-
-Per un indice **versionato** che usa ancora `colbert.npz`, dalla directory `rag/`:
-
-```bash
-uv run python index.py --check-integrity
-uv run python index.py --migrate-colbert-npy
-uv run python index.py --check-integrity
-```
-
-In Docker usa gli stessi argomenti con
-`docker compose --profile cpu run --rm app-cpu python index.py` dalla radice.
-La conversione verifica l'uguaglianza dei vettori senza ricalcolare gli embedding,
-pubblica una nuova versione e conserva Qdrant. Non ripara disallineamenti preesistenti:
-se il controllo segnala punti extra o mancanti, va prima diagnosticata la differenza.
-Gli indici già NPY non richiedono questa conversione.
-
-Per tornare a una versione conservata, dalla directory `rag/`:
-
-```bash
-uv run python index.py --rollback          # alla versione precedente
-# Per una versione precisa: uv run python index.py --rollback NOME_VERSIONE
-```
-
-Le versioni conservate sono 5 per default (`VIBECRAFT_INDEX_KEEP`).
-
-Il rollback viene rifiutato se la collection Qdrant di destinazione risulta assente.
-I vecchi indici storici con delta mutabili condividevano la collection della build
-di origine: il loro rollback non riavvolgeva i punti modificati dopo. La migrazione
-ricostruisce l'indice nel profilo ordinario, con collection distinta per candidata.
-
-In tutti i progetti il delta non vuoto, copy-on-write o rebuild, passa dall'eval gate
-prima della promozione.
-Il golden set è `<root-progetto>/eval/golden.yaml`; se manca la promozione può
-passare come non valutata.
-Una metrica sotto soglia blocca la promozione se il gate è configurato come bloccante;
-un errore nella valutazione segue la configurazione del gate. Questo gate è distinto
-da quello che autorizza l'avvio agentic.
-
-## Scalabilità: risultati e limiti
-
-Le misure seguenti sono del **21 settembre 2026, percorso legacy**. ColBERT
-viene letto a richiesta e i delta legacy riusano i file dei documenti invariati.
-Il delta dei nuovi progetti è copy-on-write: una nuova collection dedicata riceve i
-punti invariati del padre e si ri-embeddano solo i sorgenti cambiati. Se il padre non
-è riusabile (modello di embedding cambiato, collection o artefatti assenti o non
-attestati dal manifest, `VIBECRAFT_DELTA_MODE=rebuild`) si ripiega sul full rebuild
-e il motivo resta in `fallback_reason`. Queste curve, misurate sul percorso legacy,
-non descrivono il suo costo.
-Grafo, metadati e vettori dense/code mantengono costi globali: il corpus non diventa
-illimitato e il costo complessivo del delta non dipende soltanto dai file modificati.
-
-- Una prova full su CPU, 32 documenti / 64 chunk, ha ridotto il picco RSS campionato
-  da **6,436 a 3,152 GiB**. È una prova per variante; formato e raggruppamento
-  dell'encoding cambiano insieme, quindi non è una garanzia per ogni corpus.
-- Le curve del delta includono **150 prove per versione**, con corpus documenti,
-  codice e misto. Con 100 piccoli documenti tutti modificati, la mediana fino allo
-  snapshot pronto passa da **15,934 a 58,099 s**: meno RAM non significa più velocità
-  in ogni caso. Il batching limitato è stato studiato, ma non ancora implementato.
-- Non sono state fissate soglie universali di volume o di sharding. ColBERT rimane
-  locale; il backend multivettore Qdrant non è stato introdotto.
-
-Metodi, curve e limiti: [evidenze della scalabilità](rag/eval/results/README.md#scalabilità-sidecar--21-settembre-2026)
-e [istruzioni del benchmark](rag/README.md#delta-reale-isolato).
-
-## Configurazione
-
-Le principali variabili d'ambiente sono documentate in
-[`rag/.env.example`](rag/.env.example). Per personalizzare il backend nativo:
-
-```bash
-cp rag/.env.example rag/.env.local
-```
-
-`rag/.env.local` è gitignorato e viene caricato automaticamente all'avvio.
-
-Provider e modello LLM si scelgono in [`rag/rag_config.yaml`](rag/rag_config.yaml), anche
-**per singolo step** della pipeline: si può ad esempio generare il canvas con Claude e
-tenere tutto il resto su Ollama locale.
-
-Per importare PDF con Docling, dalla directory `rag/` scarica e verifica i pesi:
-
-```bash
-uv run python scripts/docling_models.py
-uv run python scripts/docling_models.py --verifica
-```
-
-L'importazione DOC/PPT richiede LibreOffice sull'host nell'installazione nativa;
-è già incluso nell'immagine Docker. XLS/XLSX vengono letti direttamente, senza
-ricalcolare le formule. Per usare documenti e codice dell'host in Docker, adatta
-un bind della root completa sotto `/app/projects/<cartella>` e registra il suo manifest;
-oppure importa i file nel progetto selezionato tramite Intake.
-
-## MCP locale
-
-Con il backend HTTP avviato e l'indice del progetto pronto, dalla directory
-`rag/` (imposta `VIBECRAFT_PROJECT_ID=<id>` nel client per un progetto nuovo):
-
-```bash
-uv run --frozen python -B mcp_server.py
-```
-
-Per Claude Code su Windows, `rag/scripts/install_mcp.ps1` sincronizza l'ambiente e
-registra il server come `vibecraft` (`-Scope user|local|project`, `-BackendUrl`):
-rieseguirlo sostituisce la registrazione precedente. Il backend va avviato a parte.
-
-È un adattatore **stdio**, da avviare tramite un client MCP: attende messaggi su
-stdin e non apre una nuova porta. Espone solo `vibecraft_retrieve`,
-`vibecraft_code_search` e `vibecraft_graph_query`, senza scritture o avvio di agenti.
-Il backend predefinito è `http://127.0.0.1:8000`; `VIBECRAFT_MCP_BACKEND_URL` accetta
-solo indirizzi loopback. L'eventuale `VIBECRAFT_API_KEY` va ereditata dall'ambiente
-del client. Configurazione completa e uso in container:
-[MCP locale di sola lettura](rag/README.md#mcp-locale-di-sola-lettura).
+| Download | circa **11 GB**: `bge-m3` 4,3 GB + `qwen3.5:9b` 6,6 GB, più i modelli Docling per i PDF |
+| Disco consigliato | ~20 GB |
+| GPU NVIDIA | facoltativa, ma cambia molto: embedding a 46 chunk/s contro **1 chunk/s** su CPU |
+| Indicizzazione completa (612 elementi) | ~13 s con GPU, **~10 min** su CPU |
+
+Senza GPU funziona tutto. Reindicizzare diventa un'operazione da fare con calma, ma le domande restano usabili: l'embedding della query costa circa un secondo, dentro i ~30 s che l'LLM locale impiega comunque a rispondere.
 
 ## Sicurezza
 
-Il default è **bind su `127.0.0.1`**: raggiungibile solo da questa macchina, senza
-autenticazione. È una scelta deliberata per l'uso locale.
-
-**Se cambi `VIBECRAFT_HOST` per esporre il server in rete, imposta anche
-`VIBECRAFT_API_KEY`.** Con un bind non-loopback le funzioni che hanno senso solo in locale
-(selettore di cartelle nativo, scansione di un percorso arbitrario del filesystem) vengono
-disattivate automaticamente — ma il resto della superficie va protetto da te.
-
-Il server accetta solo richieste con header `Host` riconosciuto (difesa dal DNS
-rebinding): `127.0.0.1`, `localhost`, `::1`, l'indirizzo di `VIBECRAFT_HOST` se è
-specifico e l'host di `VIBECRAFT_BASE_URL`; gli altri ricevono **400**. Se raggiungi il
-server con un altro nome (hostname di LAN, reverse proxy), aggiungilo a
-**`VIBECRAFT_ALLOWED_HOSTS`**, lista separata da virgole (es.
-`VIBECRAFT_ALLOWED_HOSTS=vibecraft.lan,192.168.1.20`). Nessuna wildcard (le voci con `*`
-sono ignorate con un avviso): elenca solo nomi di cui controlli il DNS.
-
-Ogni risposta vieta di essere incorniciata (`X-Frame-Options: DENY`,
-`Content-Security-Policy: frame-ancestors 'none'`, difesa dal clickjacking) e porta
-`X-Content-Type-Options: nosniff` e `Referrer-Policy: same-origin`: la console **non** si
-può incorporare in un `<iframe>` di un'altra pagina, nemmeno di una dashboard interna.
-
-Le risposte portano anche una **Content-Security-Policy** completa: `script-src 'self'`
-senza `unsafe-inline`/`unsafe-eval` (il browser esegue solo gli script serviti da
-`/static/`), nessuna fonte esterna (`default-src 'self'`). Per questo i template in
-`rag/templates/` non contengono `<script>` né handler `onclick=`/`onchange=` inline: il
-codice di ogni pagina sta in `rag/static/pages/<pagina>.js` e i controlli dichiarano
-l'azione con `data-click`/`data-change`/`data-input`, registrata con `registerActions()`
-(`rag/static/shared.js`); `rag/tests/test_csp.py` lo verifica. Gli stili inline restano
-permessi (`style-src 'unsafe-inline'`) perché mermaid, vis e i template scrivono
-attributi `style`: Tailwind non gira nel browser, è precompilato in
-`/static/tailwind*.css` da [`scripts/build_css.sh`](rag/scripts/build_css.sh). Chi
-aggiunge una pagina o un pulsante segue lo stesso schema: un handler inline verrebbe
-bloccato in silenzio. I manuali in `rag/static/manuale/` ubbidiscono allo stesso vincolo:
-lo script è [`rag/static/manuale.js`](rag/static/manuale.js).
-
-La superficie di attacco è mappata rotta per rotta in
-[`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).
+- Ascolta su **`127.0.0.1`** per default: raggiungibile solo da questa macchina.
+- Se lo esponi in rete, imposta `VIBECRAFT_API_KEY`: le funzioni che hanno senso solo in locale si spengono da sole, il resto lo protegge la chiave.
+- Header `Host` verificato contro il DNS rebinding, niente iframe, Content-Security-Policy senza script inline.
+- Ogni rotta HTTP e ogni tool MCP sono mappati in [SECURITY_SURFACE.md](rag/SECURITY_SURFACE.md).
 
 ## Documentazione
 
 | | |
 |---|---|
-| [`rag/README.md`](rag/README.md) | architettura, retrieval, pipeline, indicizzazione — stesso stato documentato di questo file |
-| [`rag/static/manuale/percorso-guidato.html`](rag/static/manuale/percorso-guidato.html) ([EN](rag/static/manuale/percorso-guidato.en.html)) | un caso reale, per chi deve decidere se adottarlo |
-| [`rag/static/manuale/manuale-utente.html`](rag/static/manuale/manuale-utente.html) ([EN](rag/static/manuale/manuale-utente.en.html)) | i controlli della console, capitolo per capitolo |
-| [`rag/adr/`](rag/adr/README.md) | le decisioni architetturali e il perché |
-| [`rag/adr/PIPELINE_GATE.md`](rag/adr/PIPELINE_GATE.md) | contratto validato, decisioni e avvio agentic |
-| [`templates/docs/README.md`](templates/docs/README.md) | indice della baseline documentale inclusa |
-| [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md) | superficie di attacco, rotta per rotta |
-| [`archive/adr/AUDIT.md`](archive/adr/AUDIT.md) | cronaca dell'audit, settembre 2026 |
-| [`rag/adr/DISTRIBUTION.md`](rag/adr/DISTRIBUTION.md) | piano di distribuzione e portabilità |
-| `/infografica` (a server acceso) | il flusso di interrogazione, illustrato |
+| [INSTALL.md](INSTALL.md) | installazione, progetti, aggiornamenti, scalabilità, configurazione, MCP e sicurezza in dettaglio |
+| [Percorso guidato](rag/static/manuale/percorso-guidato.html) | un caso reale dall'inizio alla fine, per chi deve decidere se adottarlo |
+| [Manuale utente](rag/static/manuale/manuale-utente.html) | i controlli della console, capitolo per capitolo |
+| [rag/README.md](rag/README.md) | architettura, retrieval, pipeline, indicizzazione |
+| [rag/adr/](rag/adr/README.md) | le decisioni architetturali e il perché |
+| [archive/README.md](archive/README.md) | le evidenze storiche delle misure: non è il prodotto, e c'è un [clone leggero](INSTALL.md#prima-di-clonare) che le salta |
+| `/infografica` | con il server acceso, il flusso di interrogazione illustrato |
+
+I manuali esistono anche in inglese: [guided walkthrough](rag/static/manuale/percorso-guidato.en.html), [user manual](rag/static/manuale/manuale-utente.en.html).
+
+## FAQ
+
+**I miei documenti escono dalla macchina?**
+No, con Ollama. Il provider si sceglie per singolo step in `rag_config.yaml`: se uno step usa Claude, il contesto di quello step va al provider.
+
+**Funziona senza GPU?**
+Sì. Le domande restano veloci quanto l'LLM; è il reindex completo che passa da secondi a minuti.
+
+**I miei documenti sono scritti male. Li sistema?**
+No. VibeCraft li rende trovabili, non li migliora. Documenti scritti male, risposte scritte male.
+
+**Perché non basta un RAG normale?**
+Perché in un corpus normativo il testo che spiega una regola usa lo stesso vocabolario di quello che la stabilisce, ed è più discorsivo. Vince il confronto semantico e perde quello che conta.
+
+**Perché Python 3.14?**
+Non per le feature. Su Windows un lock a `>=3.12` biforca `onnxruntime` e gonfia il lockfile. uv scarica da sé la 3.14. Decisione in [DISTRIBUTION.md](rag/adr/DISTRIBUTION.md).
+
+**Posso fidarmi ciecamente delle risposte?**
+No, e diffida di qualunque sistema che ti dica il contrario. Le risposte portano le fonti apposta: controllale.
 
 ## Licenza
 
-[Apache-2.0](LICENSE).
+[Apache-2.0](LICENSE). I pesi dei modelli scaricati a runtime (`bge-m3`, `qwen3.5`) hanno ciascuno la propria licenza: verificala prima di un uso commerciale.
 
-I pesi dei modelli scaricati a runtime (`bge-m3`, `qwen3.5`) hanno **ciascuno la propria
-licenza**, indipendente da questa: verificale prima di un uso commerciale.
-
-## Verifica dell'evoluzione multi-progetto
-
-Il gate finale del 5 ottobre 2026 ha registrato **2.348 test superati e 20 skip**
-per privilegi file-symlink Windows, con prove Linux complementari. Lint, check
-Node, integrazione HTTP/Qdrant/browser e persistenza Docker sono stati verificati.
-I provider sono simulati ai confini; lo smoke Docker usa un runtime CPU esistente
-con il sorgente corrente montato. Build Docker da zero e GitHub Actions non
-sono stati eseguiti: il gate non certifica una nuova immagine pubblicata.
+<sub>Stato documentato: `main`, 28 ottobre 2026.</sub>

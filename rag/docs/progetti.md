@@ -121,7 +121,7 @@ copiati; le validazioni storiche richiedono nuova validazione. Registro original
 `projects/projects.v1.backup.json` quando presente; checkpoint:
 `projects/.legacy-migration.json`. Ripeti lo stesso comando per riprendere;
 `--repair` ripara soltanto il candidato proprio dopo interruzione CURRENT/alias.
-Costi e ripristino: [migrazione](../../README.md#migrare-uninstallazione-esistente).
+Costi e ripristino: [migrazione](../../INSTALL.md#migrare-uninstallazione-esistente).
 
 Gli esempi senza `--project` selezionano soltanto il `legacy` registrato.
 Il suo indice è immutabile come gli altri: delta non vuoto con candidata completa,
@@ -137,7 +137,7 @@ collection Qdrant, con scritture ferme. Pesi dei modelli condivisi nell'installa
 
 Il reader richiede `VIBECRAFT_ROLE=reader`, `VIBECRAFT_INDEX_MODE=immutable` e chiave
 API anche su loopback; registry preparato dal writer e API mutanti disabilitate.
-Per creare/importare e per i dettagli Docker: [istruzioni principali](../../README.md#progetti-separati).
+Per creare/importare e per i dettagli Docker: [istruzioni principali](../../INSTALL.md#progetti-separati).
 
 Avvio in-app disponibile per Claude SDK, Ollama locale e Codex **agentic** solo
 dopo prova di isolamento scrittura (`native_sandbox`). Suggest/oneshot Codex e
