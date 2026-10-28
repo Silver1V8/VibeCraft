@@ -481,7 +481,10 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         payload["corpus"] = _fingerprint(files)
         env = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1", "CUDA_VISIBLE_DEVICES": "-1",
                "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4",
-               "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": SERVER_PORT}
+               "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": SERVER_PORT,
+               # R3 rate-limit GET CPU: il reader concorrente a 0,15 s su delta lunghi
+               # (k=100 ~60–90 s) sforerebbe il default ~30/min → 429 spurî. Lab dedicato.
+               "VIBECRAFT_CPU_GET_RATE_LIMIT": "100000"}
         if paths.get("projects_dir") is not None:
             # Deve precedere ogni import di core.config nel child e nel parent.
             env["VIBECRAFT_PROJECTS_DIR"] = str(paths["projects_dir"])
