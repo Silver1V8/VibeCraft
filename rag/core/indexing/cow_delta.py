@@ -56,6 +56,7 @@ from core.config import (
     PROJECT_ROOT,
     QDRANT_API_KEY,
     QDRANT_URL,
+    cow_encode_batch_from_env,
     qdrant_upsert_batch_from_env,
 )
 from core.qdrant_versions import (
@@ -422,6 +423,64 @@ def apply_incremental_indexing(
     if to_index:
         assert docs_dir is not None, "docs_dir richiesto quando ci sono documenti da (ri)indicizzare"
         new_chunks: list[dict] = []
+        # R9: con ColbertWriter, batch di chunk da docs distinti (bound =
+        # VIBECRAFT_COW_ENCODE_BATCH; default 0 in questo commit, poi 12 dopo
+        # gate --real-delta). Un doc con più chunk del bound resta unità sola;
+        # non tocca /ask né il full.
+        encode_batch = cow_encode_batch_from_env() if colbert_writer is not None else 0
+        pending_docs: list[tuple[str, list[dict]]] = []
+        pending_chunk_count = 0
+
+        def _persist_encoded_doc(rel_path: str, doc_chunks: list[dict], points, colbert_partial,
+                                 chunks_partial, doc_dense) -> None:
+            nonlocal upserted, processed_colbert_tokens, qdrant_seconds, save_seconds
+            processed_colbert_tokens += _colbert_token_count(colbert_partial)
+            started = time.perf_counter()
+            upsert_batch = qdrant_upsert_batch_from_env()
+            for i in range(0, len(points), upsert_batch):
+                qdrant.upsert(collection_name=target, points=points[i:i + upsert_batch])
+            qdrant_seconds += time.perf_counter() - started
+            save_started = time.perf_counter()
+            colbert_writer.add_document(rel_path, colbert_partial)
+            save_seconds += time.perf_counter() - save_started
+            chunks_store.update(chunks_partial)
+            if dense_store is not None:
+                dense_store.update(_dense_map(doc_chunks, doc_dense))
+            new_chunk_ids.extend(c["chunk_id"] for c in doc_chunks)
+            upserted += len(points)
+
+        def _flush_encode_batch() -> None:
+            nonlocal pending_docs, pending_chunk_count
+            if not pending_docs:
+                return
+            if len(pending_docs) == 1:
+                rel_path, doc_chunks = pending_docs[0]
+                points, colbert_partial, chunks_partial, doc_dense = _encode_chunks_to_points(
+                    embed_model, doc_chunks)
+                _persist_encoded_doc(rel_path, doc_chunks, points, colbert_partial,
+                                     chunks_partial, doc_dense)
+                del points, colbert_partial, chunks_partial, doc_dense
+            else:
+                all_chunks: list[dict] = []
+                spans: list[tuple[str, int, int]] = []
+                for rel_path, doc_chunks in pending_docs:
+                    start = len(all_chunks)
+                    all_chunks.extend(doc_chunks)
+                    spans.append((rel_path, start, len(all_chunks)))
+                points, colbert_partial, chunks_partial, dense_vecs = _encode_chunks_to_points(
+                    embed_model, all_chunks)
+                for rel_path, start, end in spans:
+                    doc_chunks = all_chunks[start:end]
+                    doc_points = points[start:end]
+                    doc_colbert = {c["chunk_id"]: colbert_partial[c["chunk_id"]] for c in doc_chunks}
+                    doc_meta = {c["chunk_id"]: chunks_partial[c["chunk_id"]] for c in doc_chunks}
+                    doc_dense = dense_vecs[start:end]
+                    _persist_encoded_doc(rel_path, doc_chunks, doc_points, doc_colbert,
+                                         doc_meta, doc_dense)
+                del points, colbert_partial, chunks_partial, dense_vecs, all_chunks
+            pending_docs = []
+            pending_chunk_count = 0
+
         for rel_path in to_index:
             fp = docs_dir / rel_path
             if not fp.exists():
@@ -437,24 +496,30 @@ def apply_incremental_indexing(
             for c in doc_chunks:
                 c["metadata"] = metadata
             if colbert_writer is not None and doc_chunks:
-                points, colbert_partial, chunks_partial, doc_dense = _encode_chunks_to_points(embed_model, doc_chunks)
-                processed_colbert_tokens += _colbert_token_count(colbert_partial)
-                started = time.perf_counter()
-                batch_size = qdrant_upsert_batch_from_env()
-                for i in range(0, len(points), batch_size):
-                    qdrant.upsert(collection_name=target, points=points[i:i + batch_size])
-                qdrant_seconds += time.perf_counter() - started
-                save_started = time.perf_counter()
-                colbert_writer.add_document(rel_path, colbert_partial)
-                save_seconds += time.perf_counter() - save_started
-                chunks_store.update(chunks_partial)
-                if dense_store is not None:
-                    dense_store.update(_dense_map(doc_chunks, doc_dense))
-                new_chunk_ids.extend(c["chunk_id"] for c in doc_chunks)
-                upserted += len(points)
-                del points, colbert_partial, chunks_partial, doc_dense
+                n_chunks = len(doc_chunks)
+                if encode_batch <= 0:
+                    points, colbert_partial, chunks_partial, doc_dense = _encode_chunks_to_points(
+                        embed_model, doc_chunks)
+                    _persist_encoded_doc(rel_path, doc_chunks, points, colbert_partial,
+                                         chunks_partial, doc_dense)
+                    del points, colbert_partial, chunks_partial, doc_dense
+                elif n_chunks > encode_batch:
+                    # Doc più grande del bound: flush del gruppo, poi unità sola.
+                    _flush_encode_batch()
+                    points, colbert_partial, chunks_partial, doc_dense = _encode_chunks_to_points(
+                        embed_model, doc_chunks)
+                    _persist_encoded_doc(rel_path, doc_chunks, points, colbert_partial,
+                                         chunks_partial, doc_dense)
+                    del points, colbert_partial, chunks_partial, doc_dense
+                else:
+                    if pending_chunk_count + n_chunks > encode_batch:
+                        _flush_encode_batch()
+                    pending_docs.append((rel_path, doc_chunks))
+                    pending_chunk_count += n_chunks
             else:
                 new_chunks.extend(doc_chunks)
+
+        _flush_encode_batch()
 
         if new_chunks:
             _log(f"\nVettorializzazione incrementale di {len(new_chunks)} chunk (da {len(to_index)} documenti)...")

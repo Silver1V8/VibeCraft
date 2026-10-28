@@ -17,9 +17,13 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-HOST = "127.0.0.1"
-URL = "http://127.0.0.1:18000"
-QDRANT_URL = "http://127.0.0.1:16333"
+# Porte di default storiche (F2/F3/F6). Override via env per lab throwaway paralleli
+# (es. VIBECRAFT_BENCH_QDRANT_URL=http://127.0.0.1:16334) senza toccare il Qdrant
+# operativo né un altro worker su 16333.
+HOST = os.environ.get("VIBECRAFT_BENCH_HOST", "127.0.0.1")
+SERVER_PORT = os.environ.get("VIBECRAFT_BENCH_PORT", "18000")
+URL = f"http://{HOST}:{SERVER_PORT}"
+QDRANT_URL = os.environ.get("VIBECRAFT_BENCH_QDRANT_URL", "http://127.0.0.1:16333")
 COLLECTION_PREFIX = "sidecar_0628_"
 RESULTS = Path(__file__).resolve().parents[1] / "eval" / "results"
 POLL = 0.5
@@ -393,7 +397,7 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         payload["corpus"] = _fingerprint(files)
         env = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1", "CUDA_VISIBLE_DEVICES": "-1",
                "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4",
-               "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": "18000"}
+               "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": SERVER_PORT}
         old_env = {key: os.environ.get(key) for key in env}
         os.environ.update(env)
         _event(payload, "bootstrap_start")
