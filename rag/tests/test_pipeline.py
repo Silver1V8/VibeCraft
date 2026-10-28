@@ -1,4 +1,3 @@
-from pathlib import Path
 """Test delle funzioni pure di core/pipeline.py: slug, prompt builder (canvas/spec/final/
 validate), controlli strutturali e blocco [AGENT CONTEXT]. Nessun FastAPI, nessun LLM,
 nessun Qdrant reale (build_agent_context nel percorso senza retrieval).
@@ -8,6 +7,7 @@ qui l'unico punto che tocca l'route handler, perché la garanzia riguarda il wir
 _validate_feature e core.llm, non le funzioni pure sopra."""
 import asyncio
 import json
+from pathlib import Path
 
 import networkx as nx
 import pytest
