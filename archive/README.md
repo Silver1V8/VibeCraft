@@ -25,7 +25,7 @@ appesantire gli alberi che si consultano di continuo (`rag/adr/`, `rag/eval/resu
   Dal 2026-10-28 (R6) il **tip** tiene i resoconti (`.md`, CSV, script, patch) e toglie
   dal working tree i blob pesanti (`.json` / `.jsonl` / `.log` / `.zip`, ~108 MiB): vedi
   [`eval-results/HEAVY_REMOVED.md`](eval-results/HEAVY_REMOVED.md). I byte restano nella
-  history git; la ricetta `sparse-checkout` in [README.md](../README.md) evita di
+  history git; la ricetta `sparse-checkout` in [INSTALL.md](../INSTALL.md#prima-di-clonare) evita di
   scaricarli nei clone nuovi. `*/evidence/** -text` in `eval-results/.gitattributes`
   resta valida per i blob ancora presenti e per quelli ripristinati da history.
 

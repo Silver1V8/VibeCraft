@@ -1,29 +1,11 @@
-English | [Italiano](README.md)
+English | [Italiano](INSTALL.md)
 
-> **Documentation languages.** Italian is canonical in `README.md`; English is `README.en.md`. The console language preference is separate (IT/EN selector in the UI, `localStorage` key `vibecraft-lang`).
+# Install and operate
 
-# VibeCraft
+The full guide: requirements, startup, projects, updates, scalability, configuration, MCP,
+and security. The overview is in the [README](README.md#english).
 
-A **Graph-RAG console for document governance**: it indexes a corpus of normative documents and the code that should implement them, and answers questions by citing sources — weighting how authoritative each source is, not only how similar it is to the question.
-
-The difference from a generic RAG is this: in a governance corpus the document that **explains** a rule uses the same vocabulary as the one that **establishes** it, and is often more discursive, so it wins the semantic comparison. VibeCraft accounts for the authority declared by the sources, the declared precedence among conflicting documents, and trust in the path taken on the graph to get there.
-
-Answers are anchored to the retrieved sources; citations, partial results, and open points still need verification. Retrieval does not guarantee that every useful piece of information in the corpus was found.
-
-## Who it is for, and who it is not for
-
-| It fits if | It does not fit if |
-|---|---|
-| the corpus is normative and layered, and the answer lives across multiple documents that may contradict each other | the documents are few and everyone already knows them |
-| you need a **verifiable** answer, with the source and the weight that made it win | you need a fast conversational assistant |
-| data must not leave the machine | an external service is fine |
-
-The system makes documents findable; it does not improve them. If they are poorly written, the answers will be too. On `/ask` it keeps a short per-project thread with accumulated citations (not a general chatbot); it does not query multiple projects together and has no per-user permissions: it is meant to run locally or on a controlled network.
-
-Two guides, generated from source on 18 October 2026. In the console they open as they are; on GitHub the link shows the file.
-
-- [Guided walkthrough](rag/static/manuale/percorso-guidato.en.html) — a real case from start to finish, for people deciding whether to adopt it. When running: [`/static/manuale/percorso-guidato.en.html`](http://127.0.0.1:8000/static/manuale/percorso-guidato.en.html). Italian: [percorso-guidato.html](rag/static/manuale/percorso-guidato.html).
-- [User manual](rag/static/manuale/manuale-utente.en.html) — the controls, chapter by chapter. When running: [`/static/manuale/manuale-utente.en.html`](http://127.0.0.1:8000/static/manuale/manuale-utente.en.html). Italian: [manuale-utente.html](rag/static/manuale/manuale-utente.html).
+## Before cloning
 
 `archive/` is not the product. It is the historical evidence of measurements, cited by the ADRs: see [archive/README.md](archive/README.md) / [archive/README.en.md](archive/README.en.md). Docker and the tests do not read it. From 2026-10-28 (R6) the tip of `archive/eval-results/` keeps reports and pointers (~4 MiB of text); heavy blobs (~108 MiB of json/jsonl/log) remain in **history** — deleting them from the tip alone does not lighten a full clone. For a light clone that does not download them:
 
@@ -39,18 +21,6 @@ Operational console docs are no longer a monolith: index in [`rag/README.md`](ra
 
 **Documented status: `main`, 28 October 2026.**
 Multi-project has been in `main` since 5 October; copy-on-write delta and GPU embedding since the 12th. The in-console manuals are from the 25th. Gate numbers remain those of the day they were measured. The same status is in [`rag/README.md`](rag/README.md) / [`rag/README.en.md`](rag/README.en.md).
-
-## What it does
-
-- **`/ask`** — hybrid retrieval (dense + lexical + ColBERT rerank) with authority re-weighting, plus the code that implements the retrieved sections. Purely structural questions ("what relationships does X have", "what is impacted if I change Y") are answered directly from the graph, without calling the LLM.
-- **Explore → Canvas → Propose → Validate → Archive pipeline** to take a change from interview to spec, anchored to normative documents.
-- **Intake & Import** with local conversion, preview, and staging review: Docling for PDF, direct Excel reading, MarkItDown for modern formats, and LibreOffice for DOC/PPT.
-- **Graph map, Semantic Map, Impact Ripple** over the corpus and indexed code.
-- **Separate projects** with create/open/select, dedicated folders and indexes.
-- **In-app agents** with Claude Code and Ollama; agentic requires a current validated contract in the project. Codex/Cursor remain available via prompt export and external MCP, with integrated launch disabled.
-- **Read-only local MCP** for retrieval, code search, and graph queries.
-- **Blue/green index versioning**, eval-gate on full rebuilds, and rollback with verification of the target Qdrant collection.
-- **On-disk ColBERT**, in per-document NPY files reading only the requested chunks; real-delta benchmark with measured memory and reproducible results.
 
 ## Separate projects
 
@@ -364,27 +334,6 @@ Every response forbids framing (`X-Frame-Options: DENY`, `Content-Security-Polic
 Responses also carry a full **Content-Security-Policy**: `script-src 'self'` without `unsafe-inline`/`unsafe-eval` (the browser runs only scripts served from `/static/`), no external sources (`default-src 'self'`). That is why templates in `rag/templates/` contain no `<script>` or inline `onclick=`/`onchange=` handlers: each page’s code lives in `rag/static/pages/<page>.js` and controls declare the action with `data-click`/`data-change`/`data-input`, registered with `registerActions()` (`rag/static/shared.js`); `rag/tests/test_csp.py` checks it. Inline styles remain allowed (`style-src 'unsafe-inline'`) because mermaid, vis, and templates write `style` attributes: Tailwind does not run in the browser; it is precompiled into `/static/tailwind*.css` by [`scripts/build_css.sh`](rag/scripts/build_css.sh). Anyone adding a page or button follows the same schema: an inline handler would be blocked silently. Manuals under `rag/static/manuale/` obey the same constraint: the script is [`rag/static/manuale.js`](rag/static/manuale.js).
 
 The attack surface is mapped route by route in [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md).
-
-## Documentation
-
-| | |
-|---|---|
-| [`rag/README.md`](rag/README.md) / [`rag/README.en.md`](rag/README.en.md) | architecture, retrieval, pipeline, indexing — same documented status as this file |
-| [`rag/static/manuale/percorso-guidato.en.html`](rag/static/manuale/percorso-guidato.en.html) | a real case, for people deciding whether to adopt it |
-| [`rag/static/manuale/manuale-utente.en.html`](rag/static/manuale/manuale-utente.en.html) | console controls, chapter by chapter |
-| [`rag/adr/`](rag/adr/README.en.md) | architectural decisions and why |
-| [`rag/adr/PIPELINE_GATE.md`](rag/adr/PIPELINE_GATE.md) | validated contract, decisions, and agentic start |
-| [`templates/docs/README.en.md`](templates/docs/README.en.md) | index of the included document baseline |
-| [`rag/SECURITY_SURFACE.md`](rag/SECURITY_SURFACE.md) | attack surface, route by route |
-| [`archive/adr/AUDIT.md`](archive/adr/AUDIT.md) | audit chronicle, September 2026 |
-| [`rag/adr/DISTRIBUTION.md`](rag/adr/DISTRIBUTION.md) | distribution and portability plan |
-| `/infografica` (with server running) | the interrogation flow, illustrated |
-
-## License
-
-[Apache-2.0](LICENSE).
-
-Weights of models downloaded at runtime (`bge-m3`, `qwen3.5`) each have **their own license**, independent of this one: check them before commercial use.
 
 ## Multi-project evolution verification
 

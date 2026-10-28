@@ -25,7 +25,7 @@ weighing down the trees that are consulted day to day (`rag/adr/`, `rag/eval/res
   From 2026-10-28 (R6) the **tip** keeps reports (`.md`, CSV, scripts, patches) and drops
   heavy blobs (`.json` / `.jsonl` / `.log` / `.zip`, ~108 MiB) from the working tree: see
   [`eval-results/HEAVY_REMOVED.md`](eval-results/HEAVY_REMOVED.md). Bytes remain in git
-  history; the `sparse-checkout` recipe in [README.md](../README.md) / [README.en.md](../README.en.md)
+  history; the `sparse-checkout` recipe in [INSTALL.en.md](../INSTALL.en.md#before-cloning)
   avoids downloading them on fresh clones. `*/evidence/** -text` in
   `eval-results/.gitattributes` still applies to remaining and restored blobs.
 
