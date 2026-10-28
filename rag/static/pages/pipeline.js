@@ -1267,7 +1267,12 @@
       btn.disabled = true;
       card.classList.remove('hidden');
       // Se la review è già aperta, non lasciare il dry-run espandersi a metà viewport.
-      card.classList.toggle('is-compact', !document.getElementById('review-canvas').classList.contains('hidden'));
+      // contains/toggle non sono garantiti (harness dry-run escape): add/remove bastano.
+      const review = document.getElementById('review-canvas');
+      const reviewVisible = typeof review?.classList?.contains === 'function'
+        && !review.classList.contains('hidden');
+      if (reviewVisible) card.classList.add('is-compact');
+      else card.classList.remove('is-compact');
       body.innerHTML = `<span class="text-slate-400">${t('pipeline.canvas.dryrunLoading')}</span>`;
       try {
         const res = await fetch('/api/pipeline/canvas/dry-run', {
