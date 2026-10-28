@@ -613,11 +613,11 @@ def qdrant_upsert_batch_from_env() -> int:
 
 
 # Batch encode sul percorso COW/incrementale NPY (R9). 0 = una encode() per documento
-# (comportamento storico). Lo studio F6-03 (archive/.../ENCODING_BATCHING_METHOD.md)
-# ha misurato gruppi di 12 chunk ~2× più veloci dell'encode per-doc su 100 testi
-# piccoli; l'attivazione produttiva resta gated da bench --real-delta prima/dopo.
+# (comportamento storico). Studio F6-03 + gate --real-delta docs N=100 k=0,100
+# reps=3 (PcLavoro, 2026-10-28): mediana ready k=100 83.5s → 38.1s con bound=12
+# (~2.2×). Default produttivo 12; override env VIBECRAFT_COW_ENCODE_BATCH.
 # Non tocca il percorso query /ask né il full rebuild progressivo.
-DEFAULT_COW_ENCODE_BATCH = 0
+DEFAULT_COW_ENCODE_BATCH = 12
 
 
 def cow_encode_batch_from_env() -> int:

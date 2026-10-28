@@ -313,8 +313,13 @@ def _point_digest(qdrant, collection: str) -> dict:
 
 def _physical_collection(qdrant, name: str) -> str:
     """Risolve un alias Qdrant al nome fisico (blue/green). Snapshot create/recover
-    usano la directory della collection fisica, non dell'alias."""
-    for alias in qdrant.get_aliases().aliases:
+    usano la directory della collection fisica, non dell'alias. Se il client non
+    espone get_aliases (mock di unit test) o la chiamata fallisce, resta `name`."""
+    try:
+        aliases = qdrant.get_aliases().aliases
+    except Exception:
+        return name
+    for alias in aliases:
         if alias.alias_name == name:
             return alias.collection_name
     return name
@@ -376,9 +381,13 @@ def _restore_files(paths: dict, original: dict[Path, bytes], qdrant, snapshot) -
         if recovered is False:
             raise RuntimeError("Qdrant snapshot recovery rejected")
         # Dopo un delta COW l'alias punta alla candidata nuova: ripunta al padre
-        # ripristinato così scroll/digest via alias rivedono la baseline.
-        from core.qdrant_versions import _swap_alias
-        _swap_alias(qdrant, paths["collection"], physical)
+        # ripristinato così scroll/digest via alias rivedono la baseline. Solo se
+        # l'alias esiste già (blue/green); altrimenti recover sulla fisica basta
+        # (unit test mock senza alias, collection omonima).
+        if hasattr(qdrant, "get_aliases"):
+            from core.qdrant_versions import _read_alias_target, _swap_alias
+            if _read_alias_target(qdrant, paths["collection"]) is not None:
+                _swap_alias(qdrant, paths["collection"], physical)
 
 
 def _query_spec(mode: str, index: int) -> tuple[str, str]:

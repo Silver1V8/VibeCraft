@@ -2228,19 +2228,20 @@ def test_delta_ristretto_non_dimentica_le_cancellazioni_non_elaborate(tmp_path, 
 # Default 0 = per-documento; bound>0 accumula chunk di docs distinti in una
 # encode(). Non tocca /ask né il full rebuild progressivo.
 # ---------------------------------------------------------------------------
-def test_cow_encode_batch_from_env_default_off(monkeypatch):
+def test_cow_encode_batch_from_env_default_twelve(monkeypatch):
+    """R9 ship: default produttivo 12 dopo gate --real-delta docs N100 (~2.2×)."""
     monkeypatch.delenv("VIBECRAFT_COW_ENCODE_BATCH", raising=False)
-    assert _config.cow_encode_batch_from_env() == 0
+    assert _config.cow_encode_batch_from_env() == 12
 
 
 def test_cow_encode_batch_from_env_custom_and_invalid(monkeypatch, caplog):
-    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "12")
-    assert _config.cow_encode_batch_from_env() == 12
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "8")
+    assert _config.cow_encode_batch_from_env() == 8
     monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "-3")
     assert _config.cow_encode_batch_from_env() == 0
     monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "nope")
     with caplog.at_level("WARNING"):
-        assert _config.cow_encode_batch_from_env() == 0
+        assert _config.cow_encode_batch_from_env() == 12
     assert "VIBECRAFT_COW_ENCODE_BATCH" in caplog.text
 
 
@@ -2292,8 +2293,8 @@ def test_cow_encode_batch_reduces_encode_calls_for_tiny_docs(tmp_path, monkeypat
 
 
 def test_cow_encode_batch_off_keeps_per_document_encode(tmp_path, monkeypatch):
-    """Default/0: una encode() per documento (comportamento storico NPY)."""
-    monkeypatch.delenv("VIBECRAFT_COW_ENCODE_BATCH", raising=False)
+    """Bound esplicito 0: una encode() per documento (comportamento storico NPY)."""
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "0")
     encode_calls: list[int] = []
 
     def _counting_encode(_model, chunks):

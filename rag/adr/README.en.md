@@ -41,5 +41,6 @@ write-time attribution and recovery of interrupted reloads.
 Integration check: 1,767 tests passed on Windows (5 skipped for missing Docling
 weights), 438 on Linux (9 skipped for missing Git, covered on Windows).
 Memory savings are measured; many deltas on small documents can slow down.
-Limited batching studied; sharding and ColBERT on Qdrant not activated.
+R9 (2026-10-28): COW batch encode default 12; `--real-delta` docs N=100 k=100
+median ready ~83.5s → ~38.1s. Sharding and ColBERT on Qdrant not activated.
 To update an existing index follow the [operational procedure](../README.md#artefatti-dellindice-formati-sicuri-ispezionabili-e-versionati-bluegreen).
