@@ -1941,11 +1941,11 @@ Not even personal identity alone proves that someone has read the point.
 We can count the acceptances **that occurred during** an execution of the agent,
 we cannot call them acceptances **made by the agent**. The correlation
 Temporal does not distinguish a concurrent UI session from an automatic request.
-The current correlation observes only the server process: `activity_scope`
-It reports the PID, executions without features are listed separately.
-An empty list does not prove the absence of agents on other processes; the feature of the
-client in suggest/oneshot remains declared; in agentic it is compared with
-the validated record. The events of Phase 2 are in the pipeline journal,
+Correlation uses a shared on-disk registry (`database/pipeline/activity/`,
+`activity_scope=shared-disk`): workers that share the same database see the
+same active executions; dead PIDs are purged on read. Executions without a
+feature are listed separately. The client feature in suggest/oneshot remains
+declared; in agentic it is compared with the validated record. The events of Phase 2 are in the pipeline journal,
 separated from the history of evaluations. An attempt without a concluding event
 does not certify completion; a recording error indicates incomplete measurement.
 

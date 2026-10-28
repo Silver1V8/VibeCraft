@@ -638,7 +638,7 @@
       const who = f.covered_by;
       const coverage = who ? t('pipeline.gate.coveredBy', { id: who.decision_id, by: who.declared_by, at: who.recorded_at })
         : t('pipeline.gate.uncovered');
-      return `${f.rule || f.kind} · ${f.message}\n${coverage}`;
+      return `${f.rule || f.topic || f.kind} · ${f.message}\n${coverage}`;
     }
 
     function admissionSummary(gate) {
