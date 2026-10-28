@@ -490,13 +490,36 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         sys.path.insert(0, str(paths["rag"]))
         import uvicorn
         import server as server_module
-        from api.deps import reload_index_state, state as server_state
+        from api.deps import (
+            current_snapshot, evict_project, reload_index_state, state as server_state,
+        )
         from core.indexing import check_index_integrity
         from qdrant_client import QdrantClient
         bench_project = None
         if paths.get("project_id"):
             from core.projects import ProjectRegistry
             bench_project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
+
+        def _drop_server_snapshot() -> None:
+            """Rilascia lease/ColBERT dello snapshot in-process prima del restore su disco.
+
+            Per i progetti ordinari lo snapshot vive in `_snapshots[id]`, non in
+            `state["snapshot"]`: azzerare solo quest'ultimo lasciava il reader lock
+            sulla versione e il restore falliva con BlockingIOError.
+            """
+            snap = current_snapshot(bench_project) if bench_project is not None else server_state.get("snapshot")
+            if snap is not None:
+                store = getattr(snap, "colbert_store", None)
+                close = getattr(store, "close", None)
+                if close is not None:
+                    close()
+                lease = getattr(snap, "version_lease", None)
+                if lease is not None:
+                    lease.close()
+            if bench_project is not None:
+                evict_project(bench_project.id)
+            else:
+                server_state["snapshot"] = None
         qdrant = QdrantClient(url=QDRANT_URL, timeout=300)
         server = uvicorn.Server(uvicorn.Config(
             server_module.app, host=HOST, port=int(SERVER_PORT), log_level="warning"))
@@ -600,7 +623,7 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
                         # No HTTP readers or writer remain. Drop the server's active
                         # Mapping before removing version directories; its OS lease
                         # must never be invalidated by deleting the lock file.
-                        server_state["snapshot"] = None
+                        _drop_server_snapshot()
                         _restore_files(paths, original, qdrant, snapshot)
                         reload_index_state(project=bench_project)
                         restored = (_fingerprint(files) == payload["corpus"] and
