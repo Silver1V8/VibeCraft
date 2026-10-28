@@ -46,6 +46,11 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 > file markdown, non un secondo elenco da tenere sincronizzato a mano — e i conteggi di
 > §Metodologia sono ricontati dal codice, non più dichiarati a mano.
 >
+> **Layout moduli (R1, 2026-10-28):** le implementazioni vivono in `api/auth.py`,
+> `api/security_middleware.py`, `api/index_runtime.py`, `api/pages.py`; [`api/deps.py`](api/deps.py)
+> resta il punto di import e il seam di monkeypatch. I link sotto a `api/deps.py` restano
+> validi per la superficie pubblica.
+>
 > **Riverificato il 2026-09-07**: i conteggi di §Metodologia sono stati ricontati sul
 > codice (57 route, 24 POST, per-file esatti) e reggono. Sono cambiate due cose dal
 > riallineamento di agosto, entrambe recepite sotto: la versione di FastAPI su cui poggia
