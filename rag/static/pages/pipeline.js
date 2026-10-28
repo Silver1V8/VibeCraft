@@ -12,6 +12,10 @@
     let sessionLoading = false;
     let pendingDraft = null;
     let chatMessages = [];
+    /* Approvazione spec.md: solo UI (sblocca prompt + governance). Prima viveva
+       solo nelle classi DOM: loadFeatureStatus / soft-refresh / cambio passo la
+       azzeravano e tornava "Approva per sbloccare". Persiste nella bozza locale. */
+    let specApproved = false;
     const draftEditors = ['explore-md-editor', 'canvas-md-editor', 'spec-md-editor'];
     const draftProject = selectedProjectId();
     const lastFeatureKey = `vibecraft:pipeline:last:${JSON.stringify(draftProject)}`;
@@ -91,13 +95,44 @@
       const draft = {version: 1, feature: featureName, savedAt: new Date().toISOString(),
         devType, step: currentStep, exploreHistory, interviewLog, messages: chatMessages,
         input: document.getElementById('chat-input').value,
-        editors: draftEditors.map(id => document.getElementById(id).value)};
+        editors: draftEditors.map(id => document.getElementById(id).value),
+        specApproved: !!specApproved};
       try {
         localStorage.setItem(draftKey(featureName), JSON.stringify(draft));
         localStorage.setItem(lastFeatureKey, featureName);
         sessionStatus(t('pipeline.session.lastSave', { when: new Date(draft.savedAt).toLocaleString() }));
       } catch (_) {
         sessionStatus(t('pipeline.session.saveFailed'));
+      }
+    }
+
+    function readDraftSpecApproved(feature) {
+      try {
+        const draft = JSON.parse(localStorage.getItem(draftKey(feature)) || 'null');
+        return !!(draft && draft.version === 1 && draft.feature === feature && draft.specApproved === true);
+      } catch (_) { return false; }
+    }
+
+    /* Applica o revoca lo sblocco Propose senza toccare il contenuto degli editor. */
+    function applySpecApproval(approved, { scroll = false } = {}) {
+      specApproved = !!approved;
+      const review = document.getElementById('review-spec');
+      review.classList.toggle('is-approved', specApproved);
+      review.style.maxHeight = specApproved ? '' : '42vh';
+      const hint = document.getElementById('review-spec-hint');
+      if (hint) {
+        hint.setAttribute('data-i18n',
+          specApproved ? 'pipeline.review.approvedHint' : 'pipeline.review.approveUnlock');
+        hint.textContent = specApproved
+          ? t('pipeline.review.approvedHint')
+          : t('pipeline.review.approveUnlock');
+      }
+      document.getElementById('validate-card').classList.toggle('hidden', !specApproved);
+      document.getElementById('final-prompt-card').classList.toggle('hidden', !specApproved);
+      if (specApproved) {
+        const details = document.getElementById('validate-details-root');
+        if (details) details.open = false;
+        if (scroll) document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
 
@@ -110,7 +145,8 @@
           || !Number.isInteger(draft.step) || draft.step < 1 || draft.step > 5
           || !['devType', 'exploreHistory', 'interviewLog', 'input'].every(key => typeof draft[key] === 'string')
           || !Array.isArray(draft.editors) || draft.editors.length !== 3 || !draft.editors.every(text => typeof text === 'string')
-          || !Array.isArray(draft.messages) || !draft.messages.every(m => m && ['user', 'ai'].includes(m.role) && typeof m.text === 'string')) {
+          || !Array.isArray(draft.messages) || !draft.messages.every(m => m && ['user', 'ai'].includes(m.role) && typeof m.text === 'string')
+          || (draft.specApproved != null && typeof draft.specApproved !== 'boolean')) {
           throw new Error('invalid draft');
         }
         choosePipelineDraft(draft);
@@ -139,6 +175,7 @@
         setStepState(i + 1, draft.editors[i] ? 'warning' : 'pending', draft.editors[i] ? t('pipeline.step.localDraft') : undefined);
       });
       document.getElementById('spec-open-points-status').textContent = t('pipeline.session.draftSpecHint');
+      applySpecApproval(!!draft.specApproved && !!document.getElementById('spec-md-editor').value);
       goToStep(draft.step);
       sessionLoading = false;
       updateChatControls();
@@ -274,6 +311,10 @@
         if (stato === 'done' || stato === 'warning' || stato === 'failed') return;
         setStepState(i, i === step ? 'current' : 'pending');
       });
+      // Rivalida lo sblocco Propose a ogni show: il pannello viene nascosto col
+      // passo, e senza rehydrate il prompt/governance restavano hidden dopo un
+      // soft-refresh o un loadFeatureStatus che aveva azzerato le classi.
+      if (step === 3 && specApproved) applySpecApproval(true);
       savePipelineDraft();
     }
 
@@ -375,11 +416,7 @@
       for (const id of ['review-explore', 'review-canvas', 'review-spec', 'canvas-loader', 'propose-loader']) setPanelVisible(id, false);
       for (const id of ['final-prompt-card', 'validate-card', 'validate-report-box', 'gate-comparison', 'drift-report-card', 'archive-report-card', 'dryrun-card', 'agent-context-wrap']) document.getElementById(id).classList.add('hidden');
       document.getElementById('dryrun-card').classList.remove('is-compact');
-      const reviewSpec = document.getElementById('review-spec');
-      reviewSpec.classList.remove('is-approved');
-      reviewSpec.style.maxHeight = '42vh';
-      const reviewHint = document.getElementById('review-spec-hint');
-      if (reviewHint) reviewHint.textContent = t('pipeline.review.approveUnlock');
+      applySpecApproval(false);
       for (const id of ['drift-report-box', 'archive-report-box', 'agent-output', 'gate-status', 'gate-decisions', 'gate-comparison', 'gate-status-summary']) {
         const el = document.getElementById(id);
         if (el) el.textContent = '';
@@ -436,6 +473,12 @@
 
       // Riprende automaticamente dall'ultimo step con contenuto già generato,
       // altrimenti il pannello popolato resterebbe nascosto dietro allo step 1.
+      // Approvazione dalla bozza locale (anche senza "Ripristina"): lo sblocco UI
+      // non dipende dal contenuto editor, solo dal flag salvato in localStorage.
+      if (furthestStep >= 3 && readDraftSpecApproved(featureName)
+        && (window._finalPrompt || document.getElementById('final-prompt-box').textContent)) {
+        applySpecApproval(true);
+      }
       goToStep(furthestStep);
 
       await refreshFilesControl();
@@ -592,13 +635,8 @@
       btn.disabled = true;
       setPanelVisible('propose-loader', true);
       setPanelVisible('review-spec', false);
-      const reviewSpec = document.getElementById('review-spec');
-      reviewSpec.classList.remove('is-approved');
-      reviewSpec.style.maxHeight = '42vh';
-      const reviewHint = document.getElementById('review-spec-hint');
-      if (reviewHint) reviewHint.textContent = t('pipeline.review.approveUnlock');
-      document.getElementById('final-prompt-card').classList.add('hidden');
-      document.getElementById('validate-card').classList.add('hidden');
+      applySpecApproval(false);
+      savePipelineDraft();
 
       try {
         const res = await fetch('/api/pipeline/propose/generate', {
@@ -629,17 +667,8 @@
     }
 
     function approveSpec() {
-      const review = document.getElementById('review-spec');
-      review.classList.add('is-approved');
-      review.style.maxHeight = '';
-      const hint = document.getElementById('review-spec-hint');
-      if (hint) hint.textContent = t('pipeline.review.approvedHint');
-      document.getElementById('validate-card').classList.remove('hidden');
-      document.getElementById('final-prompt-card').classList.remove('hidden');
-      // Prompt + Esegui prima dei log: un solo scroll del pannello, governance chiusa.
-      const details = document.getElementById('validate-details-root');
-      if (details) details.open = false;
-      document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      applySpecApproval(true, { scroll: true });
+      savePipelineDraft();
       refreshGateReview();
     }
 

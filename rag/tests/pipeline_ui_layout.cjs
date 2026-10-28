@@ -24,7 +24,8 @@ assert.match(html, /id="gate-status-summary"/);
 assert.match(html, /class="agent-run-bar"/);
 assert.doesNotMatch(html, /id="final-prompt-box"[^>]*max-h-64/);
 
-assert.match(js, /classList\.add\('is-approved'\)/);
+assert.match(js, /applySpecApproval|specApproved/);
+assert.match(js, /classList\.toggle\('is-approved'/);
 assert.match(js, /dryrun-card'\)\.classList\.add\('is-compact'\)/);
 assert.match(js, /gate-status-summary/);
 assert.match(js, /gate-point-raw/);

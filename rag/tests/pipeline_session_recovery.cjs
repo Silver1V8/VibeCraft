@@ -27,7 +27,7 @@ function page(storage, project = 'alpha', server = {}) {
       addEventListener(type, fn) { this.listeners[type] = fn; },
       appendChild(child) { this.children.push(child); }, add(child) { this.options.push(child); },
       set textContent(value) { text = value; this.children = []; }, get textContent() { return text; },
-      focus() {}, scrollIntoView() {}, setAttribute() {},
+      focus() {}, scrollIntoView() {}, setAttribute() {}, removeAttribute() {},
     };
   }
   const node = id => nodes[id] ||= element();
@@ -145,11 +145,28 @@ async function browserRecovery() {
   assert.ok(saved.data.size > 0, 'conversation and edits must be persisted before refresh');
   assert.ok(![...saved.data.values()].join('').includes('SECRET-NEVER-PERSIST'));
 
+  // Approva spec: lo sblocco deve sopravvivere a cambio passo e a soft-refresh.
+  first.node('final-prompt-box').textContent = 'prompt locale';
+  first.context.window._finalPrompt = 'prompt locale';
+  first.context.approveSpec();
+  assert.equal(vm.runInContext('specApproved', first.context), true);
+  assert.equal(first.node('final-prompt-card').classList.contains('hidden'), false);
+  first.context.goToStep(2);
+  first.context.goToStep(3);
+  assert.equal(vm.runInContext('specApproved', first.context), true, 'step nav must keep approval');
+  assert.equal(first.node('final-prompt-card').classList.contains('hidden'), false);
+  assert.equal(first.node('review-spec').classList.contains('is-approved'), true);
+  const persisted = JSON.parse([...saved.data.values()].find(v => typeof v === 'string' && v.startsWith('{')));
+  assert.equal(persisted.specApproved, true);
+
   const resumed = page(saved, 'alpha', {'canvas.md': 'Canvas server nuovo', 'spec.md': 'Spec server nuova'});
   await settle(); await settle();
   assert.equal(resumed.node('feature-name-input').value, 'payments');
   assert.equal(resumed.node('canvas-md-editor').value, 'Canvas server nuovo', 'new server version stays visible until explicit restore');
   assert.equal(resumed.node('session-restore-btn').hidden, false);
+  // Soft-refresh: loadFeatureStatus rilegge la bozza e riapplica lo sblocco senza Ripristina.
+  assert.equal(vm.runInContext('specApproved', resumed.context), true, 'load rehydrates approval from draft');
+  assert.equal(resumed.node('final-prompt-card').classList.contains('hidden'), false);
   resumed.context.restorePipelineDraft();
   assert.equal(resumed.node('canvas-md-editor').value, 'Canvas locale');
   assert.equal(resumed.node('spec-md-editor').value, 'Spec locale');
@@ -157,6 +174,8 @@ async function browserRecovery() {
   assert.equal(vm.runInContext('exploreHistory', resumed.context), 'model conversation');
   assert.match(vm.runInContext('interviewLog', resumed.context), /Requisiti pagamento/);
   assert.equal(vm.runInContext('currentStep', resumed.context), 3);
+  assert.equal(vm.runInContext('specApproved', resumed.context), true);
+  assert.equal(resumed.node('final-prompt-card').classList.contains('hidden'), false);
   assert.equal(resumed.node('chat-log').children[1].textContent, '<img src=x onerror=alert(1)> risposta');
   assert.equal(resumed.requests.filter(r => r.options?.method === 'POST').length, 0, 'restore never changes server');
   assert.match(resumed.node('session-status').textContent, /locale/i);
