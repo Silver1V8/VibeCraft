@@ -166,9 +166,14 @@
     }
     /* Propose pre-approvazione: l'altezza del pannello è content-sized (max 42vh),
        quindi serve un minimo sull'editor — altrimenti min-height:0 delle review-stage
-       lo lascia a 2 righe. */
+       lo lascia a 2 righe. Il resoconto punti aperti può essere lungo: se non
+       scrolla da solo, overflow:hidden del review-stage clippa Salva/Approva. */
     #review-spec:not(.is-approved) .md-editor {
-      min-height: min(16rem, 28vh);
+      min-height: min(12rem, 22vh);
+    }
+    #review-spec:not(.is-approved) #spec-open-points-status {
+      max-height: 4.5rem;
+      overflow-y: auto;
     }
     #review-spec.is-approved {
       flex: 0 0 auto;
