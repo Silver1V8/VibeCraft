@@ -239,7 +239,8 @@ async function browserChecks() {
     assert.equal(await page.locator('#project-select').inputValue(), A);
     assert.equal(await other.locator('#project-select').inputValue(), B);
     assert.equal(await page.locator('#project-select option').first().textContent(), projects[0].name);
-    assert.equal(await page.locator('#project-bar img').count(), 0);
+    // Dal 2026-10-28 la barra ha il logo VC al posto della scritta: deve restare l'unica immagine.
+    assert.deepEqual(await page.locator('#project-bar img').evaluateAll(imgs => imgs.map(img => img.getAttribute('src'))), ['/static/logo-vc.png?v=2']);
     const frameA = page.frameLocator(`iframe[data-project-id="${A}"][data-workspace-page="/"]`);
     await frameA.locator('#question-input').fill('A question');
     await frameA.locator('#ask-btn').click();
