@@ -24,6 +24,7 @@ from core.artifacts import (
     manifest_path as manifest_path,
     _project_artifact_path as _project_artifact_path,
 )
+from core.projects import ProjectRegistry as ProjectRegistry
 from core.config import (
     COLLECTION_NAME as COLLECTION_NAME,
     DATABASE_DIR as DATABASE_DIR,

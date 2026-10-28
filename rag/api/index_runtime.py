@@ -454,7 +454,8 @@ def _load_index_snapshot(*, boot: bool = False, project: ProjectContext | None =
 def project_registry() -> ProjectRegistry:
     with deps._registry_lock:
         if deps._registry is None:
-            deps._registry = ProjectRegistry()
+            # Seam: i test patchano deps.ProjectRegistry (non il binding locale).
+            deps._registry = deps.ProjectRegistry()
         return deps._registry
 
 
