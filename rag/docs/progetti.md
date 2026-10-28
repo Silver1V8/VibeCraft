@@ -139,9 +139,10 @@ Il reader richiede `VIBECRAFT_ROLE=reader`, `VIBECRAFT_INDEX_MODE=immutable` e c
 API anche su loopback; registry preparato dal writer e API mutanti disabilitate.
 Per creare/importare e per i dettagli Docker: [istruzioni principali](../../README.md#progetti-separati).
 
-Avvio in-app disponibile per Claude SDK e Ollama locale. Codex/Cursor integrati
-sono disabilitati con `native_read_isolation_unverified`; prompt export e MCP
-esterno rimangono disponibili. Sono supportati eliminazione (destroy sulle root gestite;
+Avvio in-app disponibile per Claude SDK, Ollama locale e Codex **agentic** solo
+dopo prova di isolamento scrittura (`native_sandbox`). Suggest/oneshot Codex e
+Cursor restano `native_read_isolation_unverified`; prompt export e MCP esterno
+rimangono disponibili. Sono supportati eliminazione (destroy sulle root gestite;
 unregister sulle root esterne), rinomina del solo nome visualizzato (id e percorso fissi) e
 filtro dell'elenco progetti per nome o id (`?q=`). Restano fuori: spostamento/migrazione
 dell'id, ricerca cross-project sul corpus, ACL per progetto o embedding differenti.

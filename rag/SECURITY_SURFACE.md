@@ -556,13 +556,18 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   stretto di Claude, limite b). In `agentic` `write_file`/`edit_file` passano da
   `_path_escapes_code`, la stessa decisione del hook Claude; il deny torna al modello come
   risultato del tool. Output dei tool troncato a 6.000 caratteri per la finestra di 16K.
-- **`codex` / `cursor`**: solo `suggest` e `oneshot` (rifiutati con 400 in `agentic`),
-  perché il confinamento delle loro scritture non è verificabile dai nostri test. Codex
-  gira con `--sandbox read-only`: verificato dal vivo il 2026-09-15 (codex-cli 0.154.0),
-  un `Set-Content` in `code/` è stato negato e il file non è stato creato. Cursor gira con
-  `agent -p --mode plan|ask --sandbox enabled`: `-p` da solo ha **scrittura e shell**
-  (`agent --help`), quindi la sola lettura la danno le modalità plan/ask, non l'assenza
-  di `--force`. Il sandbox di Codex read-only non limita le **letture** fuori dal progetto.
+- **`codex` / `cursor`**: `suggest`/`oneshot` restano rifiutati (`native_read_isolation_unverified`)
+  perché l'isolamento **letture** fra progetti non è certificato. **Agentic Codex** si apre
+  solo dopo la prova fail-closed in `native_sandbox.probe_write_isolation("codex")`
+  (`codex sandbox -P :workspace` con `windows.sandbox=unelevated`): scrittura sotto `code/`
+  consentita, scrittura fuori negata — misurato su PcLavoro 2026-10-28 (codex-cli 0.154.0).
+  L'argv agentic usa `--sandbox workspace-write`, `-C code/`, `-c windows.sandbox="unelevated"`.
+  Nota: a differenza di Claude (Bash rimosso), Codex workspace-write consente shell *dentro*
+  il sandbox. **Cursor agentic resta parcheggiato**: `cursorsandbox.exe` con policy
+  `workspace_readwrite` su Windows 2026.09.10 ha lasciato scrivere fuori dal cwd (prova
+  negativa); senza login CLI non si riesegue il path `agent -p`. Codice
+  `native_write_isolation_unverified` se la prova Codex fallisce. Codex suggest storico:
+  `--sandbox read-only` verificato dal vivo il 2026-09-15 (Set-Content in `code/` negato).
 - **Argomenti delle CLI**: il prompt passa su stdin, mai in argv (gli shim `.cmd` di npm
   su Windows lo farebbero interpretare a `cmd.exe`); il nome modello è vincolato da
   `^(|[A-Za-z0-9][\w.:/-]{0,99})$`, quindi non può iniziare con `-` né contenere metacaratteri.
@@ -628,6 +633,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   azioni che scrivono. CSP completa (Fatto 11): `script-src 'self'` senza
   `unsafe-inline`/`unsafe-eval`, nessuno script né handler inline nei template; residuo
   `style-src 'unsafe-inline'` per gli stili inline di librerie grafiche e template.
-- **Debiti annotati:** `style-src 'unsafe-inline'` (CSP, Fatto 11); Codex/Cursor agentic
-  disabilitati finché l'isolamento scrittura non è verificato (§5). §4 #4 (rate-limit GET
+- **Debiti annotati:** `style-src 'unsafe-inline'` (CSP, Fatto 11); Cursor agentic e
+  Codex/Cursor suggest-oneshot restano chiusi (§5: letture native + cursorsandbox Windows).
+  Codex agentic gated dalla prova scrittura `native_sandbox` (§5). §4 #4 (rate-limit GET
   CPU) e §4 #5 (OpenAPI su bind esposto) chiusi il 2026-10-28.

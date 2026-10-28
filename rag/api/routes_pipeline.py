@@ -16,7 +16,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from agent_bridge import AGENT_MODES
-from agent_runners import (RUNNERS, NATIVE_UNAVAILABLE_CODE, list_runners,
+from agent_runners import (RUNNERS, list_runners, native_detail,
                            run_streaming as run_agent_streaming, validate_run)
 from api.deps import (
     IndexSnapshot,
@@ -376,8 +376,7 @@ async def agent_run(req: AgentRunRequest, project=Depends(get_project)):
     if req.mode not in AGENT_MODES:
         raise HTTPException(status_code=400, detail=f"Modalità non valida: {req.mode}")
     if reason := validate_run(req.runner, req.mode, req.model, project=project):
-        detail = {"code": NATIVE_UNAVAILABLE_CODE, "message": reason.removeprefix(NATIVE_UNAVAILABLE_CODE + ": ")} if reason.startswith(NATIVE_UNAVAILABLE_CODE) else reason
-        raise HTTPException(status_code=400, detail=detail)
+        raise HTTPException(status_code=400, detail=native_detail(reason))
     if req.mode != 'agentic' and not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
     # Budget prima di gate e journal: il rifiuto non è un esito del contratto. 429 come le

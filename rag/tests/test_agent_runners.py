@@ -22,12 +22,20 @@ def tool(project, name, args, mode="agentic"):
     return ar.execute_tool(name, args, mode=mode, project_root=project, code_root=project / "code")
 
 
-def test_validate_run():
+def test_validate_run(monkeypatch):
     assert ar.validate_run("local", "agentic", "qwen3.5:9b") is None
     assert ar.validate_run("claude", "suggest", "sonnet") is None
-    assert ar.validate_run("codex", "agentic", "") is not None  # agentic solo claude/local
+    assert ar.validate_run("codex", "suggest", "") is not None  # letture native non verificate
     assert ar.validate_run("cursor", "suggest", "--force") is not None
     assert ar.validate_run("nope", "suggest", "") is not None
+    monkeypatch.setattr(ar, "probe_write_isolation",
+                        lambda runner, force=False: __import__("native_sandbox").ProbeResult(
+                            runner, False, "mocked fail"))
+    assert ar.validate_run("codex", "agentic", "").startswith("native_write_isolation_unverified")
+    monkeypatch.setattr(ar, "probe_write_isolation",
+                        lambda runner, force=False: __import__("native_sandbox").ProbeResult(
+                            runner, True, "mocked ok", True, True))
+    assert ar.validate_run("codex", "agentic", "") is None
 
 
 @pytest.mark.parametrize("path", ["../rag/cfg.yaml", "rag/x.py", "../../evil.txt", str(Path("/evil.txt").resolve())])
@@ -106,6 +114,10 @@ def test_cli_commands_are_read_only_and_keep_prompt_off_argv(monkeypatch, tmp_pa
     assert codex[1] == "exec" and codex[codex.index("--sandbox") + 1] == "read-only" and codex[-1] == "-"
     disabled = {codex[i + 1] for i, arg in enumerate(codex) if arg == "--disable"}
     assert {"plugins", "computer_use", "browser_use", "hooks"} <= disabled
+    agentic = ar.cli_command("codex", "", tmp_path / "code", tmp_path / "last.txt", "agentic")
+    assert agentic[agentic.index("--sandbox") + 1] == "workspace-write"
+    assert 'windows.sandbox="unelevated"' in agentic
+    assert Path(agentic[agentic.index("-C") + 1]) == tmp_path / "code"
     for mode, expected in (("suggest", "plan"), ("oneshot", "ask")):
         cursor = ar.cli_command("cursor", "", tmp_path, tmp_path / "last.txt", mode)
         # `agent -p` da solo ha scrittura e shell: la sola lettura è --mode plan|ask.
@@ -151,5 +163,9 @@ def test_run_streaming_records_finish_and_errors(monkeypatch):
     finished.clear()
     lines = list(ar.run_streaming("local", "p", "suggest", "m", on_finish=finished.append))
     assert "Ollama giù" in json.loads(lines[-1])["message"] and finished[0]["type"] == "error"
-    with pytest.raises(ValueError):
+    monkeypatch.setattr(
+        ar, "probe_write_isolation",
+        lambda runner, force=False: __import__("native_sandbox").ProbeResult(
+            runner, False, "unit-test force fail"))
+    with pytest.raises(ValueError, match="native_write_isolation_unverified"):
         ar.run_streaming("codex", "p", "agentic", "")

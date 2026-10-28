@@ -38,12 +38,29 @@ def runner(monkeypatch):
 
 
 def test_external_cli_runners_cannot_start_agentic(env, monkeypatch):
+    import agent_runners as ar
+    from native_sandbox import ProbeResult
     _, _, client = env
     calls = runner(monkeypatch)
     vid = validated(client)
-    for bad in (dict(runner='codex'), dict(runner='cursor'), dict(runner='local', model='--force')):
+    # Cursor: agentic non è tra le modes → 400. local con modello flag-like → 400.
+    for bad in (dict(runner='cursor'), dict(runner='local', model='--force')):
         r = client.post('/api/pipeline/agent/run', json=dict(feature='demo', validation_id=vid, mode='agentic', **bad))
         assert r.status_code in (400, 422) and not calls
+    # Codex agentic fail-closed senza prova scrittura.
+    monkeypatch.setattr(ar, 'probe_write_isolation',
+                        lambda runner, force=False: ProbeResult(runner, False, 'unit fail'))
+    denied = client.post('/api/pipeline/agent/run',
+                         json=dict(feature='demo', validation_id=vid, mode='agentic', runner='codex'))
+    assert denied.status_code == 400
+    assert denied.json()['detail']['code'] == 'native_write_isolation_unverified'
+    assert not calls
+    # Con prova ok, Codex agentic è ammissibile (gate/journal invariati).
+    monkeypatch.setattr(ar, 'probe_write_isolation',
+                        lambda runner, force=False: ProbeResult(runner, True, 'unit ok', True, True))
+    ok = client.post('/api/pipeline/agent/run',
+                     json=dict(feature='demo', validation_id=vid, mode='agentic', runner='codex'))
+    assert ok.status_code == 200 and calls and calls[0][1] == 'agentic'
 
 
 def test_modified_contract_blocks_then_revalidation_admits_frozen_text(env, monkeypatch):
