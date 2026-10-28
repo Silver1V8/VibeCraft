@@ -3,7 +3,7 @@ English | [Italiano](INSTALL.md)
 # Install and operate
 
 The full guide: requirements, startup, projects, updates, scalability, configuration, MCP,
-and security. The overview is in the [README](README.en.md).
+and security. The overview is in the [README](README.md#english).
 
 ## Before cloning
 
