@@ -79,16 +79,16 @@ negli argomenti delle CLI, quindi niente `-` iniziale né metacaratteri.
 |---|---|---|---|
 | `claude` | suggest, agentic, oneshot | tre tool MCP | bridge SDK descritto sopra |
 | `local` (Ollama `/api/chat`) | suggest, agentic, oneshot | `read_file`/`list_files`/`grep` | i tool li esegue VibeCraft, niente shell; letture nella root del progetto, escludendo altre root, link, `.git` e `.env*`; in agentic `write_file`/`edit_file` passano da `_path_escapes_code`, la stessa decisione dell'hook Claude; output dei tool troncato a 6.000 caratteri |
-| `codex` | export prompt | MCP esterno con ID esplicito | integrato disabilitato: isolamento letture non verificato |
-| `cursor` | export prompt | MCP esterno con ID esplicito | integrato disabilitato: isolamento letture non verificato |
+| `codex` | suggest/oneshot: export; agentic: gated | MCP esterno con ID esplicito | suggest/oneshot: `native_read_isolation_unverified`; agentic solo se `native_sandbox.probe_write_isolation("codex")` ok (`workspace-write`, cwd=`code/`) |
+| `cursor` | export prompt | MCP esterno con ID esplicito | integrato disabilitato (letture + scritture: `cursorsandbox` non ha confinato le scritture su Windows) |
 
-L'avvio integrato resta disponibile per `claude` e `local`. Per `codex` e
-`cursor` il server restituisce 400 `native_read_isolation_unverified` prima
-di avviare la CLI: cwd e sola lettura non dimostrano isolamento fra progetti.
+L'avvio integrato resta disponibile per `claude` e `local`. Codex **agentic** si
+apre solo dopo la prova scrittura fail-closed (`native_write_isolation_unverified`
+se fallisce). Suggest/oneshot di Codex e tutto Cursor restano 400
+`native_read_isolation_unverified` (export/MCP ok).
 `GET /api/pipeline/agent/runners` distingue `installed`, `available`,
 `export_available` e motivo di indisponibilità; il binario installato non
-rende disponibile il lancio. Export prompt e MCP esterno sono utilizzabili
-anche senza binario. Il nome modello e i timeout conservano i vincoli esistenti.
+basta. Il nome modello e i timeout conservano i vincoli esistenti.
 Claude/local catturano root, code_root e ID del progetto; Read e scansioni
 sicure restano disponibili, scritture soltanto in `code/`. Link, segreti,
 `.git` e progetti annidati sono esclusi; uno scan SDK di un subtree che li
