@@ -17,15 +17,27 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-HOST = "127.0.0.1"
-URL = "http://127.0.0.1:18000"
-QDRANT_URL = "http://127.0.0.1:16333"
-COLLECTION_PREFIX = "sidecar_0628_"
+# Porte di default storiche (F2/F3/F6). Override via env per lab throwaway paralleli
+# (es. VIBECRAFT_BENCH_QDRANT_URL=http://127.0.0.1:16334) senza toccare il Qdrant
+# operativo né un altro worker su 16333.
+HOST = os.environ.get("VIBECRAFT_BENCH_HOST", "127.0.0.1")
+SERVER_PORT = os.environ.get("VIBECRAFT_BENCH_PORT", "18000")
+URL = f"http://{HOST}:{SERVER_PORT}"
+QDRANT_URL = os.environ.get("VIBECRAFT_BENCH_QDRANT_URL", "http://127.0.0.1:16333")
+# Prefisso collection dedicato. Default storico sidecar_0628_; lab post-migrazione
+# progetti usano vibecraft_<id> (es. vibecraft_r9before) con override env (letto a runtime).
+DEFAULT_COLLECTION_PREFIX = "sidecar_0628_"
 RESULTS = Path(__file__).resolve().parents[1] / "eval" / "results"
 POLL = 0.5
 JOB_TIMEOUT = 600
 QUERIES = ("prenotazione evento posti", "pagamenti accettati", "notifiche prenotazione")
 _stop = threading.Event()
+# Riempito da validate_paths quando il checkout ha projects/ ordinario (post S-layout).
+_ACTIVE_PROJECT_ID: str | None = None
+
+
+def collection_prefix() -> str:
+    return os.environ.get("VIBECRAFT_BENCH_COLLECTION_PREFIX", DEFAULT_COLLECTION_PREFIX)
 
 
 def _sha(data: bytes) -> str:
@@ -53,6 +65,7 @@ def _safe(path: Path, root: Path) -> Path:
 
 
 def validate_paths(checkout_arg: str, output_arg: str, *, bootstrap: bool = False) -> dict:
+    global _ACTIVE_PROJECT_ID
     checkout = Path(checkout_arg)
     output = Path(output_arg)
     if not checkout.is_absolute() or not output.is_absolute():
@@ -72,21 +85,58 @@ def validate_paths(checkout_arg: str, output_arg: str, *, bootstrap: bool = Fals
     import yaml
     config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
     collection = (config.get("vector_database") or {}).get("collection_name")
-    if not isinstance(collection, str) or not collection.startswith(COLLECTION_PREFIX) or not collection.replace("_", "").isalnum():
-        raise ValueError("collection must use dedicated sidecar_0628_ prefix")
+    prefix = collection_prefix()
+    if not isinstance(collection, str) or not collection.startswith(prefix) or not collection.replace("_", "").isalnum():
+        raise ValueError(f"collection must use dedicated {prefix} prefix")
     docs_setting = Path(str(config["paths"]["docs_dir"]))
     code_setting = Path(str(config["paths"]["codebase_dir"]))
     if (docs_setting.is_absolute() or code_setting.is_absolute() or
             ".." in docs_setting.parts or ".." in code_setting.parts):
         raise ValueError("config path may not escape checkout")
     docs = _safe(checkout / str(docs_setting).lstrip("./"), results)
-    code = _safe(checkout / "code", results)
     configured_code = _safe(checkout / str(code_setting).lstrip("./"), results)
-    database = _safe(rag / "database", results)
-    if (not _within(docs, checkout) or configured_code != code or
+    # Layout ordinario (projects/): docs/code/database sotto la root gestita.
+    # Layout storico: code == checkout/code e database == rag/database.
+    projects_dir = checkout / "projects"
+    registry_file = projects_dir / "projects.json"
+    project_id = None
+    if registry_file.is_file():
+        registry = json.loads(registry_file.read_text(encoding="utf-8"))
+        records = registry.get("projects") or []
+        if registry.get("schema_version") != 2 or len(records) != 1:
+            raise ValueError("bench project registry must be schema 2 with exactly one project")
+        project_id = records[0]["id"]
+        project_root = _safe(Path(records[0]["root"]), results)
+        if not _within(project_root, projects_dir):
+            raise ValueError("project root must stay under checkout/projects")
+        code = _safe(project_root / "code", results)
+        docs = _safe(project_root / "docs", results)
+        database = _safe(project_root / "database", results)
+        if configured_code != code or not _within(docs, project_root):
+            raise ValueError("config docs/code must match the registered project layout")
+        expected_collection = "vibecraft_" + project_id
+        if collection != expected_collection:
+            raise ValueError(f"collection must match project ({expected_collection})")
+    else:
+        code = _safe(checkout / "code", results)
+        if configured_code != code:
+            raise ValueError("effective core paths differ from dedicated checkout")
+        database = _safe(rag / "database", results)
+    if (not _within(docs, checkout) or
             not all(p.is_dir() for p in (rag, docs, code, database))):
         raise ValueError("effective core paths differ from dedicated checkout")
-    if not bootstrap and any(database.iterdir()):
+    def _database_has_index(root: Path) -> bool:
+        if (root / "CURRENT").exists():
+            return True
+        versions = root / "versions"
+        if versions.is_dir() and any(versions.iterdir()):
+            return True
+        # Layout storico: database/ vuota. Layout progetto: scaffolding vuota ok.
+        if project_id is None:
+            return any(root.iterdir())
+        return False
+
+    if not bootstrap and _database_has_index(database):
         raise ValueError("dedicated database must be empty before bootstrap")
     output = _safe(output, results)
     if output.parent != run or (output.exists() and not bootstrap) or _within(output, checkout):
@@ -97,8 +147,11 @@ def validate_paths(checkout_arg: str, output_arg: str, *, bootstrap: bool = Fals
     for root in (docs, code, database):
         for path in root.rglob("*"):
             _safe(path, results)
+    _ACTIVE_PROJECT_ID = project_id
     return dict(run=run, checkout=checkout, rag=rag, docs=docs, code=code,
-                database=database, output=output, collection=collection)
+                database=database, output=output, collection=collection,
+                project_id=project_id,
+                projects_dir=(projects_dir if project_id else None))
 
 
 def validate_cell(n: int, mode: str, ks: list[int], repeats: int) -> None:
@@ -176,8 +229,13 @@ def _event(payload: dict, name: str, **fields) -> None:
 
 def _http(method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
     data = json.dumps(body).encode() if body is not None else None
-    req = Request(URL + path, data=data, method=method,
-                  headers={"Content-Type": "application/json"} if data else {})
+    headers = {}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
+    # Layout ordinario: senza header il server risolve solo id "legacy".
+    if _ACTIVE_PROJECT_ID:
+        headers["X-VibeCraft-Project"] = _ACTIVE_PROJECT_ID
+    req = Request(URL + path, data=data, method=method, headers=headers)
     with urlopen(req, timeout=30) as response:
         return response.status, json.loads(response.read())
 
@@ -233,8 +291,9 @@ def _qdrant_preflight(collection: str) -> list[str]:
         aliases = [item.alias_name for item in client.get_aliases().aliases]
     finally:
         client.close()
+    prefix = collection_prefix()
     if (collection in physical or collection in aliases or
-            any(not name.startswith(COLLECTION_PREFIX) for name in physical + aliases)):
+            any(not name.startswith(prefix) for name in physical + aliases)):
         raise ValueError(f"Qdrant port contains non-dedicated or reused collection/alias: {physical}, {aliases}")
     return physical
 
@@ -250,6 +309,20 @@ def _point_digest(qdrant, collection: str) -> dict:
             break
     entries.sort(key=lambda p: str(p["id"]))
     return {"count": len(entries), "sha256": _sha(json.dumps(entries, sort_keys=True, separators=(",", ":")).encode())}
+
+
+def _physical_collection(qdrant, name: str) -> str:
+    """Risolve un alias Qdrant al nome fisico (blue/green). Snapshot create/recover
+    usano la directory della collection fisica, non dell'alias. Se il client non
+    espone get_aliases (mock di unit test) o la chiamata fallisce, resta `name`."""
+    try:
+        aliases = qdrant.get_aliases().aliases
+    except Exception:
+        return name
+    for alias in aliases:
+        if alias.alias_name == name:
+            return alias.collection_name
+    return name
 
 
 def _backup_database(paths: dict) -> dict:
@@ -269,7 +342,11 @@ def _restore_files(paths: dict, original: dict[Path, bytes], qdrant, snapshot) -
     from core.writer_lock import try_version_lease, writer_lock
     db = paths["database"]
     backup = paths["output"] / "baseline-database"
-    with writer_lock(timeout_seconds=60), ExitStack() as leases:
+    project = None
+    if paths.get("project_id"):
+        from core.projects import ProjectRegistry
+        project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
+    with writer_lock(timeout_seconds=60, project=project), ExitStack() as leases:
         versions = db / "versions"
         if versions.is_dir():
             for folder in versions.iterdir():
@@ -296,11 +373,21 @@ def _restore_files(paths: dict, original: dict[Path, bytes], qdrant, snapshot) -
             else:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
-        recovered = qdrant.recover_snapshot(collection_name=paths["collection"],
-                          location=f"file:///qdrant/snapshots/{paths['collection']}/{snapshot.name}",
-                          priority="snapshot", wait=True)
+        physical = paths.get("qdrant_physical") or _physical_collection(qdrant, paths["collection"])
+        recovered = qdrant.recover_snapshot(
+            collection_name=physical,
+            location=f"file:///qdrant/snapshots/{physical}/{snapshot.name}",
+            priority="snapshot", wait=True)
         if recovered is False:
             raise RuntimeError("Qdrant snapshot recovery rejected")
+        # Dopo un delta COW l'alias punta alla candidata nuova: ripunta al padre
+        # ripristinato così scroll/digest via alias rivedono la baseline. Solo se
+        # l'alias esiste già (blue/green); altrimenti recover sulla fisica basta
+        # (unit test mock senza alias, collection omonima).
+        if hasattr(qdrant, "get_aliases"):
+            from core.qdrant_versions import _read_alias_target, _swap_alias
+            if _read_alias_target(qdrant, paths["collection"]) is not None:
+                _swap_alias(qdrant, paths["collection"], physical)
 
 
 def _query_spec(mode: str, index: int) -> tuple[str, str]:
@@ -331,10 +418,11 @@ def _query_reader(samples: list[dict], stop: threading.Event, mode: str) -> None
         stop.wait(0.15)
 
 
-def _join_writer():
+def _join_writer(project_id: str | None = None):
     from api import routes_reindex
     from api.deps import project_registry
-    project = project_registry().get("legacy")
+    pid = project_id or _ACTIVE_PROJECT_ID or "legacy"
+    project = project_registry().get(pid)
     manager = routes_reindex.project_manager(project)
     while not manager.join_all(timeout=5):
         pass
@@ -344,9 +432,18 @@ def _bootstrap(paths: dict) -> int:
     sys.path.insert(0, str(paths["rag"]))
     from core.indexing import incremental_index
     from core.writer_lock import writer_lock
-    with writer_lock(timeout_seconds=60):
-        result = incremental_index()
-    _save(paths["output"] / "bootstrap.json", {"pid": os.getpid(), "result": result})
+    project = None
+    if paths.get("project_id"):
+        # VIBECRAFT_PROJECTS_DIR deve essere già nell'env del child (vedi run()).
+        from core.projects import ProjectRegistry
+        project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
+        with writer_lock(timeout_seconds=60, project=project):
+            result = incremental_index(project=project)
+    else:
+        with writer_lock(timeout_seconds=60):
+            result = incremental_index()
+    _save(paths["output"] / "bootstrap.json", {"pid": os.getpid(), "result": result,
+                                              "project_id": paths.get("project_id")})
     return 2 if _stop.is_set() else 0
 
 
@@ -393,7 +490,13 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         payload["corpus"] = _fingerprint(files)
         env = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1", "CUDA_VISIBLE_DEVICES": "-1",
                "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4",
-               "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": "18000"}
+               "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": SERVER_PORT,
+               # R3 rate-limit GET CPU: il reader concorrente a 0,15 s su delta lunghi
+               # (k=100 ~60–90 s) sforerebbe il default ~30/min → 429 spurî. Lab dedicato.
+               "VIBECRAFT_CPU_GET_RATE_LIMIT": "100000"}
+        if paths.get("projects_dir") is not None:
+            # Deve precedere ogni import di core.config nel child e nel parent.
+            env["VIBECRAFT_PROJECTS_DIR"] = str(paths["projects_dir"])
         old_env = {key: os.environ.get(key) for key in env}
         os.environ.update(env)
         _event(payload, "bootstrap_start")
@@ -414,11 +517,39 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         sys.path.insert(0, str(paths["rag"]))
         import uvicorn
         import server as server_module
-        from api.deps import reload_index_state, state as server_state
+        from api.deps import (
+            current_snapshot, evict_project, reload_index_state, state as server_state,
+        )
         from core.indexing import check_index_integrity
         from qdrant_client import QdrantClient
+        bench_project = None
+        if paths.get("project_id"):
+            from core.projects import ProjectRegistry
+            bench_project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
+
+        def _drop_server_snapshot() -> None:
+            """Rilascia lease/ColBERT dello snapshot in-process prima del restore su disco.
+
+            Per i progetti ordinari lo snapshot vive in `_snapshots[id]`, non in
+            `state["snapshot"]`: azzerare solo quest'ultimo lasciava il reader lock
+            sulla versione e il restore falliva con BlockingIOError.
+            """
+            snap = current_snapshot(bench_project) if bench_project is not None else server_state.get("snapshot")
+            if snap is not None:
+                store = getattr(snap, "colbert_store", None)
+                close = getattr(store, "close", None)
+                if close is not None:
+                    close()
+                lease = getattr(snap, "version_lease", None)
+                if lease is not None:
+                    lease.close()
+            if bench_project is not None:
+                evict_project(bench_project.id)
+            else:
+                server_state["snapshot"] = None
         qdrant = QdrantClient(url=QDRANT_URL, timeout=300)
-        server = uvicorn.Server(uvicorn.Config(server_module.app, host=HOST, port=18000, log_level="warning"))
+        server = uvicorn.Server(uvicorn.Config(
+            server_module.app, host=HOST, port=int(SERVER_PORT), log_level="warning"))
         server_thread = threading.Thread(target=server.run, daemon=False)
         server_thread.start()
         deadline = time.monotonic() + 180
@@ -430,7 +561,8 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         validate_job(verification, mode, [], 0)
         payload["baseline_verification_job"] = verification
         _join_writer()
-        payload["baseline_integrity"] = check_index_integrity(emit=lambda *_: None)
+        payload["baseline_integrity"] = check_index_integrity(
+            emit=lambda *_: None, project=bench_project)
         if not payload["baseline_integrity"]["ok"]:
             raise RuntimeError("baseline integrity failed")
         _join_writer()
@@ -439,10 +571,13 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         payload["baseline_database"] = baseline
         payload["baseline_points"] = _point_digest(qdrant, paths["collection"])
         payload["baseline_current"] = (paths["database"] / "CURRENT").read_bytes().hex()
-        snapshot = qdrant.create_snapshot(collection_name=paths["collection"], wait=True)
+        physical = _physical_collection(qdrant, paths["collection"])
+        paths["qdrant_physical"] = physical
+        snapshot = qdrant.create_snapshot(collection_name=physical, wait=True)
         if snapshot is None or not snapshot.name or Path(snapshot.name).name != snapshot.name:
             raise RuntimeError("Qdrant snapshot unavailable")
         payload["qdrant_snapshot"] = snapshot.name
+        payload["qdrant_physical_collection"] = physical
         _event(payload, "baseline_frozen")
         payload["baseline_queries"] = []
         for i, query in enumerate(QUERIES):
@@ -498,7 +633,8 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
                     sample["empty_results_rate"] = sample["empty_results_count"] / len(sample["queries"]) if sample["queries"] else None
                     if not sample["queries"] or any(q.get("error") or q.get("status") != 200 for q in sample["queries"]):
                         raise ValueError("concurrent query failed")
-                    sample["integrity"] = check_index_integrity(emit=lambda *_: None)
+                    sample["integrity"] = check_index_integrity(
+                        emit=lambda *_: None, project=bench_project)
                     if not sample["integrity"]["ok"]:
                         raise ValueError("sample index integrity failed")
                     sample["valid"] = True
@@ -517,14 +653,15 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
                         # No HTTP readers or writer remain. Drop the server's active
                         # Mapping before removing version directories; its OS lease
                         # must never be invalidated by deleting the lock file.
-                        server_state["snapshot"] = None
+                        _drop_server_snapshot()
                         _restore_files(paths, original, qdrant, snapshot)
-                        reload_index_state()
+                        reload_index_state(project=bench_project)
                         restored = (_fingerprint(files) == payload["corpus"] and
                                     _database_fingerprint(paths["database"]) == baseline and
                                     (paths["database"] / "CURRENT").read_bytes().hex() == payload["baseline_current"] and
                                     _point_digest(qdrant, paths["collection"]) == payload["baseline_points"] and
-                                    check_index_integrity(emit=lambda *_: None)["ok"])
+                                    check_index_integrity(
+                                        emit=lambda *_: None, project=bench_project)["ok"])
                         sample["restore_verified"] = restored
                     except Exception as exc:
                         sample["valid"] = False

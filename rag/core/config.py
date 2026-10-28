@@ -610,3 +610,26 @@ def qdrant_upsert_batch_from_env() -> int:
             raw, DEFAULT_QDRANT_UPSERT_BATCH)
         batch = DEFAULT_QDRANT_UPSERT_BATCH
     return max(1, batch)
+
+
+# Batch encode sul percorso COW/incrementale NPY (R9). 0 = una encode() per documento
+# (comportamento storico). Studio F6-03 + gate --real-delta docs N=100 k=0,100
+# reps=3 (PcLavoro, 2026-10-28): mediana ready k=100 83.5s → 38.1s con bound=12
+# (~2.2×). Default produttivo 12; override env VIBECRAFT_COW_ENCODE_BATCH.
+# Non tocca il percorso query /ask né il full rebuild progressivo.
+DEFAULT_COW_ENCODE_BATCH = 12
+
+
+def cow_encode_batch_from_env() -> int:
+    """Quanti chunk (da documenti distinti) accumulare prima di una encode() sul
+    delta NPY con ColbertWriter. Env VIBECRAFT_COW_ENCODE_BATCH; 0 = per-documento.
+    Un documento con più chunk del bound resta una unità sola (come oggi)."""
+    raw = os.environ.get("VIBECRAFT_COW_ENCODE_BATCH", "")
+    try:
+        batch = int(raw) if raw else DEFAULT_COW_ENCODE_BATCH
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "VIBECRAFT_COW_ENCODE_BATCH non numerica (%r): uso il default %d.",
+            raw, DEFAULT_COW_ENCODE_BATCH)
+        batch = DEFAULT_COW_ENCODE_BATCH
+    return max(0, batch)
