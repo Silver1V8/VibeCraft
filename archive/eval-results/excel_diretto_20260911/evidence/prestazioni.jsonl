@@ -1,7 +1,0 @@
-{"file": "SOLVSAMP.XLS", "byte": 197120, "secondi": 0.042, "rss_prima_mb": 155.0, "picco_rss_mb": 157.8, "markdown_byte": 54227, "md_sha256": "24bed94c91bb8a1fe2f3e99959ce699e3d4765b8e72cc8ea9c6a59fbcc2174e8"}
-{"file": "PROTTPLN.XLS", "byte": 18432, "secondi": 0.011, "rss_prima_mb": 155.4, "picco_rss_mb": 157.0, "markdown_byte": 1099, "md_sha256": "c856c9dc3523085bb6b453b903649189df412991653878a8d533b27273df4954"}
-{"file": "casi_excel.xls", "byte": 33792, "secondi": 0.015, "rss_prima_mb": 155.1, "picco_rss_mb": 155.1, "markdown_byte": 2687, "md_sha256": "26892c438179dc1e3077bfcb8bb90d2a3ec357c18f313b8d097621c6aa489e3c"}
-{"file": "casi_excel.xlsx", "byte": 15159, "secondi": 0.026, "rss_prima_mb": 155.4, "picco_rss_mb": 157.2, "markdown_byte": 2687, "md_sha256": "26892c438179dc1e3077bfcb8bb90d2a3ec357c18f313b8d097621c6aa489e3c"}
-{"file": "registro_excel.xlsx", "byte": 9765, "secondi": 0.021, "rss_prima_mb": 155.3, "picco_rss_mb": 157.2, "markdown_byte": 1447, "md_sha256": "6954045bce7ba035f4893ac1da3244e5525d68a0da7e957db1c2b4ca0529e3a5"}
-{"file": "sintetico_100k.xlsx", "byte": 391110, "secondi": 2.026, "rss_prima_mb": 155.3, "picco_rss_mb": 256.4, "markdown_byte": 644144, "md_sha256": "c52de5ac0cd9e3c0174fefdfdfc1a49a587035dc340f8375c667f646ebdd9749"}
-{"file": "sintetico_990k.xlsx", "byte": 3674612, "secondi": 19.702, "rss_prima_mb": 155.1, "picco_rss_mb": 1113.3, "markdown_byte": 6410358, "md_sha256": "f5d9ee0fcfad77bdf6d428a928cb241f3424454bc56abc849e30574631bd66a3"}

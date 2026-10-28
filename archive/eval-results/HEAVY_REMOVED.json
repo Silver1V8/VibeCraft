@@ -1,0 +1,3763 @@
+{
+  "removed_files": 728,
+  "removed_bytes": 112781772,
+  "kept_bytes_approx_after": 4371681,
+  "runs": {
+    "colbert_memory_20260915": [
+      {
+        "path": "colbert_memory_20260915/evidence/memory.json",
+        "bytes": 4756,
+        "suffix": ".json"
+      }
+    ],
+    "corpus_disambigua_20260910-170000": [
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 6815,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/inventario_sha256.json",
+        "bytes": 6550,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/build_disambigua.json",
+        "bytes": 712,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/comp_pdf_disamb.json",
+        "bytes": 239130,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/comp_pdf_S2.json",
+        "bytes": 240345,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/comp_pdf_v2.json",
+        "bytes": 237793,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/decisivo_scala.json",
+        "bytes": 8058,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/gen_pdf_disamb.json",
+        "bytes": 25099,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/gen_pdf_S2.json",
+        "bytes": 22799,
+        "suffix": ".json"
+      },
+      {
+        "path": "corpus_disambigua_20260910-170000/evidence/out/gen_pdf_v2.json",
+        "bytes": 26311,
+        "suffix": ".json"
+      }
+    ],
+    "dep_docling_20260908-160000": [
+      {
+        "path": "dep_docling_20260908-160000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 2768,
+        "suffix": ".json"
+      },
+      {
+        "path": "dep_docling_20260908-160000/evidence/summary.json",
+        "bytes": 4288,
+        "suffix": ".json"
+      }
+    ],
+    "excel_diretto_20260911": [
+      {
+        "path": "excel_diretto_20260911/evidence/classificazione_SOLVSAMP.json",
+        "bytes": 107577,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/container_1/results.json",
+        "bytes": 8155,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/container_2/results.json",
+        "bytes": 8156,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 31510,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/host_a/results.json",
+        "bytes": 8857,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/host_a_banco_da_correggere/results.json",
+        "bytes": 9314,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/host_b/results.json",
+        "bytes": 8854,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/budget.xls.9bae8d49.excel.json",
+        "bytes": 3990,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/budget.xlsx.3d23d5d6.excel.json",
+        "bytes": 4776,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/casi_excel.xls.8fc9f60b.excel.json",
+        "bytes": 20897,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/casi_excel.xlsx.7fa2a847.excel.json",
+        "bytes": 20898,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/legacy.xls.34afb1ad.excel.json",
+        "bytes": 9917,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/PROTTPLN.XLS.c59c01b6.excel.json",
+        "bytes": 1582,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/registro.xls.34afb1ad.excel.json",
+        "bytes": 9940,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/registro.xlsx.588a3d14.excel.json",
+        "bytes": 9933,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/registro.xlsx.e457f838.excel.json",
+        "bytes": 6292,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/registro_excel.xlsx.1fc40f0d.excel.json",
+        "bytes": 9947,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/rete.xlsx.56d2d1b3.excel.json",
+        "bytes": 2066,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/SOLVSAMP.XLS.b7fefe55.excel.json",
+        "bytes": 276856,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/oracolo_excel/SOLVSAMP.XLS.lo.xlsx.88bdfd19.excel.json",
+        "bytes": 277002,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/prestazioni.jsonl",
+        "bytes": 1500,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/protected.after.json",
+        "bytes": 6737,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/protected.before.json",
+        "bytes": 6737,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_diretto_20260911/evidence/strict-gate-diretto.json",
+        "bytes": 976,
+        "suffix": ".json"
+      }
+    ],
+    "excel_fidelity_20260910": [
+      {
+        "path": "excel_fidelity_20260910/evidence/baseline1/results.json",
+        "bytes": 48834,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/baseline2/results.json",
+        "bytes": 48833,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/candidate-code-sha256.json",
+        "bytes": 1024,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/candidate1/results.json",
+        "bytes": 39653,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/candidate2/results.json",
+        "bytes": 39654,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 21761,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/gap1/results.json",
+        "bytes": 36567,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/protected.before.json",
+        "bytes": 6824,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/remote-ci.json",
+        "bytes": 375,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/strict-baseline.json",
+        "bytes": 224,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/strict-candidate.json",
+        "bytes": 390,
+        "suffix": ".json"
+      },
+      {
+        "path": "excel_fidelity_20260910/evidence/verification.json",
+        "bytes": 3845,
+        "suffix": ".json"
+      }
+    ],
+    "fix_attribuzione_20260909-183000": [
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 16434,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/inventario_sha256.json",
+        "bytes": 12552,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/manifest/congelamento.json",
+        "bytes": 26542,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/confronto_finale.json",
+        "bytes": 251172,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_originale.json",
+        "bytes": 12540,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_originale_p2.json",
+        "bytes": 12571,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_originale_p3.json",
+        "bytes": 12853,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_originale_v1_strumento_difettoso.json",
+        "bytes": 11375,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_variante.json",
+        "bytes": 13946,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_variante_p2.json",
+        "bytes": 13746,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/diagnostici_variante_p3.json",
+        "bytes": 13915,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_A_p1.json",
+        "bytes": 442136,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_A_p2.json",
+        "bytes": 442146,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_A_p3.json",
+        "bytes": 444091,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_B_p1.json",
+        "bytes": 460674,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_B_p2.json",
+        "bytes": 461890,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_B_p3.json",
+        "bytes": 463934,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_C_p1.json",
+        "bytes": 443835,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_C_p2.json",
+        "bytes": 445059,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_C_p3.json",
+        "bytes": 446448,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_D_p1.json",
+        "bytes": 461468,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_D_p2.json",
+        "bytes": 461582,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/eval_D_p3.json",
+        "bytes": 460652,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/prompt_A.json",
+        "bytes": 3808,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/prompt_B.json",
+        "bytes": 3809,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/prompt_C.json",
+        "bytes": 3913,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_attribuzione_20260909-183000/evidence/out/prompt_D.json",
+        "bytes": 3914,
+        "suffix": ".json"
+      }
+    ],
+    "fix_generazione_20260909-200000": [
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione2_B.json",
+        "bytes": 2676,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione3_B.json",
+        "bytes": 14189,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione_B.json",
+        "bytes": 13573,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/ablazione_graduata_B.json",
+        "bytes": 13571,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_ordine_B.json",
+        "bytes": 7984,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_w2_A.json",
+        "bytes": 8810,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_w2_B.json",
+        "bytes": 3598,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/prova_x4_B.json",
+        "bytes": 7153,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_orig_A_p1.json",
+        "bytes": 13092,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_orig_A_p2.json",
+        "bytes": 12859,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_orig_A_p3.json",
+        "bytes": 13973,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_w1_A_p1.json",
+        "bytes": 12019,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_w1_A_p2.json",
+        "bytes": 37106,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/rep_w1_A_p3.json",
+        "bytes": 11451,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_v0_B.json",
+        "bytes": 2595,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_A_r1.json",
+        "bytes": 1820,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_A_r2.json",
+        "bytes": 1932,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_A_r3.json",
+        "bytes": 2349,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_B_r1.json",
+        "bytes": 1794,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_B_r2.json",
+        "bytes": 1529,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/replay_w1_B_r3.json",
+        "bytes": 2853,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/diagnosi/varianti_B.json",
+        "bytes": 8458,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 17882,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/inventario_sha256.json",
+        "bytes": 11761,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/manifest/congelamento.json",
+        "bytes": 26542,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/out/diagnostici_w1_p1.json",
+        "bytes": 12436,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/out/diagnostici_w1_p2.json",
+        "bytes": 13235,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/out/diagnostici_w1_p3.json",
+        "bytes": 12605,
+        "suffix": ".json"
+      },
+      {
+        "path": "fix_generazione_20260909-200000/evidence/out/riscoring_archivio.json",
+        "bytes": 4155,
+        "suffix": ".json"
+      }
+    ],
+    "gate_end_to_end_20260915": [
+      {
+        "path": "gate_end_to_end_20260915/evidence/events.jsonl",
+        "bytes": 7993,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/frictions.jsonl",
+        "bytes": 1170,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/measurements.json",
+        "bytes": 3660,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/modify-1.request.json",
+        "bytes": 6993,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/run-1.request.json",
+        "bytes": 205,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/run-2.request.json",
+        "bytes": 277,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/timings.jsonl",
+        "bytes": 747,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/validate-1.request.json",
+        "bytes": 94,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/validate-2.request.json",
+        "bytes": 94,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/validate-3.request.json",
+        "bytes": 94,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/validations/val-1c4dc25feb074c34a2477e78ff934349.json",
+        "bytes": 39817,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/validations/val-e355c024c65147fba5f20f60eb2b68a9.json",
+        "bytes": 39241,
+        "suffix": ".json"
+      },
+      {
+        "path": "gate_end_to_end_20260915/evidence/validations/val-f3ea0d38b2d0421c895cbb87c08d23b2.json",
+        "bytes": 39549,
+        "suffix": ".json"
+      }
+    ],
+    "implementazione_migliorie_20260910": [
+      {
+        "path": "implementazione_migliorie_20260910/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 11950,
+        "suffix": ".json"
+      },
+      {
+        "path": "implementazione_migliorie_20260910/evidence/out/e2e_api.json",
+        "bytes": 6838,
+        "suffix": ".json"
+      },
+      {
+        "path": "implementazione_migliorie_20260910/evidence/out/esperimento/report.json",
+        "bytes": 9123,
+        "suffix": ".json"
+      },
+      {
+        "path": "implementazione_migliorie_20260910/evidence/out/verifica_s2.json",
+        "bytes": 634900,
+        "suffix": ".json"
+      }
+    ],
+    "libreoffice_20260910": [
+      {
+        "path": "libreoffice_20260910/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 33962,
+        "suffix": ".json"
+      },
+      {
+        "path": "libreoffice_20260910/evidence/out_base/risultati.json",
+        "bytes": 19192,
+        "suffix": ".json"
+      },
+      {
+        "path": "libreoffice_20260910/evidence/out_lo_1/risultati.json",
+        "bytes": 43644,
+        "suffix": ".json"
+      },
+      {
+        "path": "libreoffice_20260910/evidence/out_lo_2/risultati.json",
+        "bytes": 43740,
+        "suffix": ".json"
+      }
+    ],
+    "pass_20260910-140000": [
+      {
+        "path": "pass_20260910-140000/evidence/calibrazione/riepilogo_varianti.json",
+        "bytes": 2876,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 3926,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/inventario_sha256.json",
+        "bytes": 4258,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/out/prova_cf_diag3.json",
+        "bytes": 15692,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/out/prova_k5_diag3.json",
+        "bytes": 14587,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/out/prova_u_diag3.json",
+        "bytes": 14154,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/out/prova_v_k10.json",
+        "bytes": 45924,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/out/prova_v_k5.json",
+        "bytes": 11342,
+        "suffix": ".json"
+      },
+      {
+        "path": "pass_20260910-140000/evidence/out/soffitto.json",
+        "bytes": 4560,
+        "suffix": ".json"
+      }
+    ],
+    "pilot_docling_20260908-170030": [
+      {
+        "path": "pilot_docling_20260908-170030/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 14310,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/baseline_report.json",
+        "bytes": 1986,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/confronto_celle.json",
+        "bytes": 3701,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/confronto_celle_run2.json",
+        "bytes": 3701,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/confronto_domande.json",
+        "bytes": 3667,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/confronto_testo.json",
+        "bytes": 6609,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/confronto_testo_disaggregato.json",
+        "bytes": 2289,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/granite_refine_report.json",
+        "bytes": 2007,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/granite_report.json",
+        "bytes": 6555,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/multihop_20260908_171352.json",
+        "bytes": 11175,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/novlm-run2/granite_report_run2.json",
+        "bytes": 1482,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/out/retrieval_pdf.json",
+        "bytes": 8548,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/summary.json",
+        "bytes": 12160,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_20260908-170030/evidence/truth/verita_riferimento.json",
+        "bytes": 8494,
+        "suffix": ".json"
+      }
+    ],
+    "pilot_docling_chiusura_20260909-160000": [
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/audit_finale_20260909-110000.json",
+        "bytes": 28642,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_baseline/chunks.json",
+        "bytes": 443413,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_baseline/index_manifest.json",
+        "bytes": 35150,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_candidate/chunks.json",
+        "bytes": 444697,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/audit/indice_precedente_candidate/index_manifest.json",
+        "bytes": 35152,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/indice_baseline.json",
+        "bytes": 777,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/diff/indice_candidate.json",
+        "bytes": 997,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 23134,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/inventario_sha256.json",
+        "bytes": 13648,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/manifest/manifest.json",
+        "bytes": 3432,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_baseline-variante.json",
+        "bytes": 301099,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_baseline.json",
+        "bytes": 304834,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate-r2.json",
+        "bytes": 25370,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate-r3.json",
+        "bytes": 20370,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate-variante.json",
+        "bytes": 304702,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/attribuzione_candidate.json",
+        "bytes": 304265,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/confronto_finale.json",
+        "bytes": 258890,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline-variante_p1.json",
+        "bytes": 442848,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline-variante_p2.json",
+        "bytes": 441070,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline-variante_p3.json",
+        "bytes": 442965,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline_p1.json",
+        "bytes": 442599,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline_p2.json",
+        "bytes": 443424,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_baseline_p3.json",
+        "bytes": 441464,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate-variante_p1.json",
+        "bytes": 459950,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate-variante_p2.json",
+        "bytes": 460853,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate-variante_p3.json",
+        "bytes": 460238,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate_p1.json",
+        "bytes": 459997,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate_p2.json",
+        "bytes": 460256,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/eval_candidate_p3.json",
+        "bytes": 460541,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/sonda_baseline.json",
+        "bytes": 3737,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/sonda_candidate.json",
+        "bytes": 3405,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/suite.json",
+        "bytes": 556,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/out/verifica_riuso.json",
+        "bytes": 2182,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_chiusura_20260909-160000/evidence/truth/verita_riferimento.json",
+        "bytes": 8494,
+        "suffix": ".json"
+      }
+    ],
+    "pilot_docling_finale_20260909-110000": [
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 14944,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/inventario_sha256.json",
+        "bytes": 8779,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/manifest/manifest_input_e_catena.json",
+        "bytes": 4366,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_celle.json",
+        "bytes": 3687,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_domande.json",
+        "bytes": 3565,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_risposte.json",
+        "bytes": 4672,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/confronto_testo.json",
+        "bytes": 5942,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/eval_baseline.json",
+        "bytes": 45882,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/eval_candidate.json",
+        "bytes": 47130,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/candidate_diagrammi.json",
+        "bytes": 50555,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/candidate_mockup.json",
+        "bytes": 96409,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/run1/run_report.json",
+        "bytes": 7202,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/candidate_diagrammi.json",
+        "bytes": 50555,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/candidate_mockup.json",
+        "bytes": 96409,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/run2/run_report.json",
+        "bytes": 7202,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/out/verification.json",
+        "bytes": 1438,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_finale_20260909-110000/evidence/truth/verita_riferimento.json",
+        "bytes": 8494,
+        "suffix": ".json"
+      }
+    ],
+    "pilot_docling_sourcefix_20260909": [
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/confronto_celle.json",
+        "bytes": 3687,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/confronto_domande.json",
+        "bytes": 3565,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/confronto_testo.json",
+        "bytes": 5886,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 9975,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/inventory.json",
+        "bytes": 3528,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/run1/run_report.json",
+        "bytes": 4079,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/run1/standard_diagrammi.json",
+        "bytes": 50555,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/run1/standard_mockup.json",
+        "bytes": 96409,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/run2/run_report.json",
+        "bytes": 4078,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/run2/standard_diagrammi.json",
+        "bytes": 50555,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/run2/standard_mockup.json",
+        "bytes": 96409,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/sourcefix_report.json",
+        "bytes": 918,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/truth/verita_riferimento.json",
+        "bytes": 8494,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_sourcefix_20260909/evidence/verification.json",
+        "bytes": 582,
+        "suffix": ".json"
+      }
+    ],
+    "pilot_docling_standard_20260909-095127": [
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/artifact_inventory.json",
+        "bytes": 15162,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/confronto_celle.json",
+        "bytes": 3687,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/confronto_domande.json",
+        "bytes": 3689,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/confronto_testo.json",
+        "bytes": 6009,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 16715,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/run1/run_report.json",
+        "bytes": 5153,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/run1/standard_diagrammi.json",
+        "bytes": 53712,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/run1/standard_mockup.json",
+        "bytes": 97273,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/run2/run_report.json",
+        "bytes": 5305,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/run2/standard_diagrammi.json",
+        "bytes": 53712,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/run2/standard_mockup.json",
+        "bytes": 97273,
+        "suffix": ".json"
+      },
+      {
+        "path": "pilot_docling_standard_20260909-095127/evidence/truth/verita_riferimento.json",
+        "bytes": 8494,
+        "suffix": ".json"
+      }
+    ],
+    "propose_ablation_20260914": [
+      {
+        "path": "propose_ablation_20260914/evidence/AFTER_REVIEW/KEY.json",
+        "bytes": 1488,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/AFTER_REVIEW/MEASUREMENTS.json",
+        "bytes": 12733,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/manifest.json",
+        "bytes": 4676,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P01_provider.json",
+        "bytes": 225067,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P02_provider.json",
+        "bytes": 214910,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P03_provider.json",
+        "bytes": 122280,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P04_provider.json",
+        "bytes": 123033,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P05_provider.json",
+        "bytes": 220283,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P06_provider.json",
+        "bytes": 132464,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P07_provider.json",
+        "bytes": 220757,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P08_provider.json",
+        "bytes": 129514,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P09_provider.json",
+        "bytes": 218784,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P10_provider.json",
+        "bytes": 228970,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P11_provider.json",
+        "bytes": 128932,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/responses/P12_provider.json",
+        "bytes": 132950,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/run_status.json",
+        "bytes": 2349,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_ablation_20260914/evidence/runtime_observation.json",
+        "bytes": 128,
+        "suffix": ".json"
+      }
+    ],
+    "propose_count_ablation_20260914": [
+      {
+        "path": "propose_count_ablation_20260914/evidence/manifest.json",
+        "bytes": 6387,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/MAPPING.json",
+        "bytes": 46916,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_B0_r1_provider.json",
+        "bytes": 123561,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_B0_r2_provider.json",
+        "bytes": 126747,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_B0_r3_provider.json",
+        "bytes": 133901,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V1_r1_provider.json",
+        "bytes": 123445,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V1_r2_provider.json",
+        "bytes": 133569,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V1_r3_provider.json",
+        "bytes": 133474,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V2_r1_provider.json",
+        "bytes": 133572,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V2_r2_provider.json",
+        "bytes": 136494,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V2_r3_provider.json",
+        "bytes": 130940,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V3_r1_provider.json",
+        "bytes": 138848,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V3_r2_provider.json",
+        "bytes": 134756,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/fe3_V3_r3_provider.json",
+        "bytes": 139208,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_B0_r1_provider.json",
+        "bytes": 228684,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_B0_r2_provider.json",
+        "bytes": 222883,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_B0_r3_provider.json",
+        "bytes": 221057,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V1_r1_provider.json",
+        "bytes": 229665,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V1_r2_provider.json",
+        "bytes": 222705,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V1_r3_provider.json",
+        "bytes": 231660,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V2_r1_provider.json",
+        "bytes": 235296,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V2_r2_provider.json",
+        "bytes": 225626,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V2_r3_provider.json",
+        "bytes": 222379,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V3_r1_provider.json",
+        "bytes": 238906,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V3_r2_provider.json",
+        "bytes": 239165,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/responses/la2_V3_r3_provider.json",
+        "bytes": 236784,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/run_status.json",
+        "bytes": 4550,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/STRUCTURAL.json",
+        "bytes": 158451,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_count_ablation_20260914/evidence/VERIFICATION.json",
+        "bytes": 622,
+        "suffix": ".json"
+      }
+    ],
+    "propose_inventory_ablation_20260914": [
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/ANNOTATIONS.json",
+        "bytes": 55279,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/manifest.json",
+        "bytes": 4632,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/responses/fe3_V4_r1_provider.json",
+        "bytes": 160459,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/responses/fe3_V4_r2_provider.json",
+        "bytes": 146028,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/responses/fe3_V4_r3_provider.json",
+        "bytes": 144517,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/responses/la2_V4_r1_provider.json",
+        "bytes": 249049,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/responses/la2_V4_r2_provider.json",
+        "bytes": 254388,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/responses/la2_V4_r3_provider.json",
+        "bytes": 250726,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/run_status.json",
+        "bytes": 1327,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/STRUCTURAL.json",
+        "bytes": 188421,
+        "suffix": ".json"
+      },
+      {
+        "path": "propose_inventory_ablation_20260914/evidence/VERIFICATION.json",
+        "bytes": 617,
+        "suffix": ".json"
+      }
+    ],
+    "sel_contesto_20260910-090000": [
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_k5_S0_golden.json",
+        "bytes": 21531,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_k5_S0_multihop.json",
+        "bytes": 3841,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_k5_S2_golden.json",
+        "bytes": 21531,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_k5_S2_multihop.json",
+        "bytes": 3842,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S0_golden.json",
+        "bytes": 21599,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S0_multihop.json",
+        "bytes": 3867,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S1_golden.json",
+        "bytes": 21598,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S1_multihop.json",
+        "bytes": 3866,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S2_golden.json",
+        "bytes": 21600,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S2_multihop.json",
+        "bytes": 3868,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S2fin_golden.json",
+        "bytes": 21600,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S2fin_multihop.json",
+        "bytes": 3868,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S3a_golden.json",
+        "bytes": 21599,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S3a_multihop.json",
+        "bytes": 3867,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S3b_golden.json",
+        "bytes": 21599,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/calibrazione/cop_S3b_multihop.json",
+        "bytes": 3867,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/diagnosi/ablazione_scala.json",
+        "bytes": 5592,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/diagnosi/comp_aggressivo_pdf.json",
+        "bytes": 88816,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/diagnosi/gen_aggressivo.json",
+        "bytes": 3929,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 23694,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/holdout/comp_S0.json",
+        "bytes": 298283,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/holdout/comp_S2.json",
+        "bytes": 298368,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/holdout/gen_S0.json",
+        "bytes": 30101,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/holdout/gen_S2.json",
+        "bytes": 28238,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/inventario_sha256.json",
+        "bytes": 15075,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/manifest/congelamento.json",
+        "bytes": 26495,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_A_golden.json",
+        "bytes": 2290227,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_A_golden_solosem.json",
+        "bytes": 1859454,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_A_multihop.json",
+        "bytes": 347425,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_A_multihop_solosem.json",
+        "bytes": 302317,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_A_solografo.json",
+        "bytes": 287657,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_A_solosem.json",
+        "bytes": 220405,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_k5_S0_pdf.json",
+        "bytes": 217637,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_k5_S2_pdf.json",
+        "bytes": 166531,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_S1_pdf.json",
+        "bytes": 239219,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_S2_finale_pdf.json",
+        "bytes": 238956,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_S2_off.json",
+        "bytes": 289465,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_S3a_pdf.json",
+        "bytes": 289547,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_S3b_pdf.json",
+        "bytes": 289547,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/comp_S4_pdf.json",
+        "bytes": 238993,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/composizione_A_attuale.json",
+        "bytes": 289465,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/gen_k5_S0_pdf.json",
+        "bytes": 29420,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/gen_k5_S2_pdf.json",
+        "bytes": 27532,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/gen_S0_pdf.json",
+        "bytes": 28149,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/gen_S2_pdf.json",
+        "bytes": 25887,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_golden_0.0.json",
+        "bytes": 2290314,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_golden_0.30.json",
+        "bytes": 2248832,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_golden_0.35.json",
+        "bytes": 2152127,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_golden_0.40.json",
+        "bytes": 2020097,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_golden_0.45.json",
+        "bytes": 1920820,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_multihop_0.0.json",
+        "bytes": 347512,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_multihop_0.30.json",
+        "bytes": 346550,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_multihop_0.35.json",
+        "bytes": 340280,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_multihop_0.40.json",
+        "bytes": 333764,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_multihop_0.45.json",
+        "bytes": 315214,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_pdf_0.0.json",
+        "bytes": 289552,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_pdf_0.30.json",
+        "bytes": 254184,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_pdf_0.35.json",
+        "bytes": 238956,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_pdf_0.40.json",
+        "bytes": 232881,
+        "suffix": ".json"
+      },
+      {
+        "path": "sel_contesto_20260910-090000/evidence/out/sweep_pdf_0.45.json",
+        "bytes": 225230,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_20260915": [
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921/phase1d-bootstrap.json",
+        "bytes": 1361,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921/phase1d-result.json",
+        "bytes": 14617,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-partial-summary.json",
+        "bytes": 5202,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-process.json",
+        "bytes": 1652,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-process.jsonl",
+        "bytes": 440835,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-process.stderr.log",
+        "bytes": 6054,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2/phase1d-bootstrap.json",
+        "bytes": 1360,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2/phase1d-result.json",
+        "bytes": 15498,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2-process.json",
+        "bytes": 1664,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2-process.jsonl",
+        "bytes": 432282,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2-process.stderr.log",
+        "bytes": 6968,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2-process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-20260921-r2-summary.json",
+        "bytes": 5040,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/calibration-corpus-config.zip",
+        "bytes": 21180,
+        "suffix": ".zip"
+      },
+      {
+        "path": "sidecar_20260915/evidence/environment-20260921.json",
+        "bytes": 2138,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/environment.json",
+        "bytes": 1167,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/historical-artifacts-provenance.json",
+        "bytes": 2772,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/phase2-prepared-environment.json",
+        "bytes": 5209,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/phase3-code-vector-parity.json",
+        "bytes": 4349,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/phase3-comparison/comparison.json",
+        "bytes": 102542,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/phase3-config-comparison.json",
+        "bytes": 6404,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/phase3-prepared-environment.json",
+        "bytes": 5285,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/qdrant-bind-snapshot-failure.log",
+        "bytes": 3254,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_20260915/evidence/qdrant-native-f3-snapshot-probe.json",
+        "bytes": 1464,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/qdrant-native-snapshot-probe.json",
+        "bytes": 1377,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/qdrant-preflight-20260921.json",
+        "bytes": 521,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/series-post-progress.json",
+        "bytes": 1436,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_20260915/evidence/series-progress.json",
+        "bytes": 1435,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_code_n10": [
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/bootstrap.json",
+        "bytes": 1230,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/process.json",
+        "bytes": 1678,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/process.jsonl",
+        "bytes": 925876,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/process.stderr.log",
+        "bytes": 70895,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/resources.json",
+        "bytes": 13711,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n10/evidence/result.json",
+        "bytes": 96169,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_code_n100": [
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/bootstrap.json",
+        "bytes": 1232,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/process.json",
+        "bytes": 1688,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/process.jsonl",
+        "bytes": 1818983,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/process.stderr.log",
+        "bytes": 171709,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/resources.json",
+        "bytes": 17847,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n100/evidence/result.json",
+        "bytes": 346432,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_code_n30": [
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/bootstrap.json",
+        "bytes": 1227,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/process.json",
+        "bytes": 1678,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/process.jsonl",
+        "bytes": 962535,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/process.stderr.log",
+        "bytes": 71944,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/resources.json",
+        "bytes": 13744,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_code_n30/evidence/result.json",
+        "bytes": 102763,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_docs_n10": [
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/bootstrap.json",
+        "bytes": 1443,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/process.json",
+        "bytes": 1678,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/process.jsonl",
+        "bytes": 897135,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/process.stderr.log",
+        "bytes": 90505,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/resources.json",
+        "bytes": 13618,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n10/evidence/result.json",
+        "bytes": 102797,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_docs_n100": [
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/bootstrap.json",
+        "bytes": 3249,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/process.json",
+        "bytes": 1687,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/process.jsonl",
+        "bytes": 1713959,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/process.stderr.log",
+        "bytes": 223877,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/resources.json",
+        "bytes": 17759,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n100/evidence/result.json",
+        "bytes": 443827,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_docs_n30": [
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/bootstrap.json",
+        "bytes": 1845,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/process.json",
+        "bytes": 1678,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/process.jsonl",
+        "bytes": 964965,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/process.stderr.log",
+        "bytes": 95068,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/resources.json",
+        "bytes": 13665,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_docs_n30/evidence/result.json",
+        "bytes": 128024,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_mixed_n10": [
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/bootstrap.json",
+        "bytes": 1334,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/process.json",
+        "bytes": 1684,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/process.jsonl",
+        "bytes": 924031,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/process.stderr.log",
+        "bytes": 87962,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/resources.json",
+        "bytes": 13842,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n10/evidence/result.json",
+        "bytes": 100860,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_mixed_n100": [
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/bootstrap.json",
+        "bytes": 2247,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/process.json",
+        "bytes": 1694,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/process.jsonl",
+        "bytes": 1844160,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/process.stderr.log",
+        "bytes": 222149,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/resources.json",
+        "bytes": 17963,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n100/evidence/result.json",
+        "bytes": 401598,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_mixed_n30": [
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/bootstrap.json",
+        "bytes": 1544,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/process.json",
+        "bytes": 1683,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/process.jsonl",
+        "bytes": 1014454,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/process.stderr.log",
+        "bytes": 90925,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/resources.json",
+        "bytes": 13868,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_mixed_n30/evidence/result.json",
+        "bytes": 117361,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_20260921_smoke_docs_n10": [
+      {
+        "path": "sidecar_delta_20260921_smoke_docs_n10/evidence/bootstrap.json",
+        "bytes": 1445,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_smoke_docs_n10/evidence/process.json",
+        "bytes": 1704,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_20260921_smoke_docs_n10/evidence/process.jsonl",
+        "bytes": 442660,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_20260921_smoke_docs_n10/evidence/process.stderr.log",
+        "bytes": 14543,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_smoke_docs_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_20260921_smoke_docs_n10/evidence/result.json",
+        "bytes": 18887,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_code_n10": [
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/bootstrap.json",
+        "bytes": 1394,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/input-verification.json",
+        "bytes": 296,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/prepared-environment.json",
+        "bytes": 538,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/process.json",
+        "bytes": 1697,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/process.jsonl",
+        "bytes": 839660,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/process.stderr.log",
+        "bytes": 73643,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/resources.json",
+        "bytes": 13608,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n10/evidence/result.json",
+        "bytes": 100825,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_code_n100": [
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/bootstrap.json",
+        "bytes": 1392,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/input-verification.json",
+        "bytes": 297,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/prepared-environment.json",
+        "bytes": 541,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/process.json",
+        "bytes": 1708,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/process.jsonl",
+        "bytes": 1716656,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/process.stderr.log",
+        "bytes": 170521,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/resources.json",
+        "bytes": 17756,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n100/evidence/result.json",
+        "bytes": 349616,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_code_n30": [
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/bootstrap.json",
+        "bytes": 1388,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/input-verification.json",
+        "bytes": 296,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/prepared-environment.json",
+        "bytes": 538,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/process.json",
+        "bytes": 1698,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/process.jsonl",
+        "bytes": 886770,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/process.stderr.log",
+        "bytes": 73009,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/resources.json",
+        "bytes": 13676,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_code_n30/evidence/result.json",
+        "bytes": 106461,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_docs_n10": [
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/bootstrap.json",
+        "bytes": 1611,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/input-verification.json",
+        "bytes": 296,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/prepared-environment.json",
+        "bytes": 538,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/process.json",
+        "bytes": 1698,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/process.jsonl",
+        "bytes": 970189,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/process.stderr.log",
+        "bytes": 116609,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/resources.json",
+        "bytes": 13529,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n10/evidence/result.json",
+        "bytes": 115724,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_docs_n100": [
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/bootstrap.json",
+        "bytes": 3414,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/input-verification.json",
+        "bytes": 297,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/prepared-environment.json",
+        "bytes": 541,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/process.json",
+        "bytes": 1708,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/process.jsonl",
+        "bytes": 3584269,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/process.stderr.log",
+        "bytes": 553213,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/resources.json",
+        "bytes": 17737,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n100/evidence/result.json",
+        "bytes": 564398,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_docs_n30": [
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/bootstrap.json",
+        "bytes": 2011,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/input-verification.json",
+        "bytes": 296,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/prepared-environment.json",
+        "bytes": 538,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/process.json",
+        "bytes": 1697,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/process.jsonl",
+        "bytes": 1113631,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/process.stderr.log",
+        "bytes": 116360,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/resources.json",
+        "bytes": 13575,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_docs_n30/evidence/result.json",
+        "bytes": 142642,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_mixed_n10": [
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/bootstrap.json",
+        "bytes": 1507,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/input-verification.json",
+        "bytes": 297,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/prepared-environment.json",
+        "bytes": 541,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/process.json",
+        "bytes": 1704,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/process.jsonl",
+        "bytes": 897936,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/process.stderr.log",
+        "bytes": 97101,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/resources.json",
+        "bytes": 13740,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n10/evidence/result.json",
+        "bytes": 108710,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_mixed_n100": [
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/bootstrap.json",
+        "bytes": 2411,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/input-verification.json",
+        "bytes": 298,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/prepared-environment.json",
+        "bytes": 544,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/process.json",
+        "bytes": 1714,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/process.jsonl",
+        "bytes": 2639836,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/process.stderr.log",
+        "bytes": 353097,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/resources.json",
+        "bytes": 17933,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n100/evidence/result.json",
+        "bytes": 461943,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_mixed_n30": [
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/bootstrap.json",
+        "bytes": 1706,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/input-verification.json",
+        "bytes": 297,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/prepared-environment.json",
+        "bytes": 541,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/process.json",
+        "bytes": 1704,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/process.jsonl",
+        "bytes": 1003337,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/process.stderr.log",
+        "bytes": 97323,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/resources.json",
+        "bytes": 13798,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_mixed_n30/evidence/result.json",
+        "bytes": 125368,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_npy_20260921_smoke_docs_n10": [
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/bootstrap.json",
+        "bytes": 1608,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/prepared-environment.json",
+        "bytes": 549,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/process.json",
+        "bytes": 1724,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/process.jsonl",
+        "bytes": 422952,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/process.stderr.log",
+        "bytes": 13964,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_npy_20260921_smoke_docs_n10/evidence/result.json",
+        "bytes": 21441,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_code_n10": [
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/bootstrap.json",
+        "bytes": 1231,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/process.json",
+        "bytes": 1702,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/process.jsonl",
+        "bytes": 817459,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/process.stderr.log",
+        "bytes": 72512,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/resources.json",
+        "bytes": 13693,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n10/evidence/result.json",
+        "bytes": 98656,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_code_n100": [
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/bootstrap.json",
+        "bytes": 1231,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/process.json",
+        "bytes": 1713,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/process.jsonl",
+        "bytes": 1674382,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/process.stderr.log",
+        "bytes": 171077,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/resources.json",
+        "bytes": 17805,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n100/evidence/result.json",
+        "bytes": 348103,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_code_n30": [
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/bootstrap.json",
+        "bytes": 1227,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/process.json",
+        "bytes": 1702,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/process.jsonl",
+        "bytes": 840740,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/process.stderr.log",
+        "bytes": 71508,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/resources.json",
+        "bytes": 13691,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_code_n30/evidence/result.json",
+        "bytes": 103840,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_docs_n10": [
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/bootstrap.json",
+        "bytes": 1443,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/process.json",
+        "bytes": 1702,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/process.jsonl",
+        "bytes": 798696,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/process.stderr.log",
+        "bytes": 93484,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/resources.json",
+        "bytes": 13569,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n10/evidence/result.json",
+        "bytes": 104730,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_docs_n100": [
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/bootstrap.json",
+        "bytes": 3250,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/process.json",
+        "bytes": 1713,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/process.jsonl",
+        "bytes": 1582088,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/process.stderr.log",
+        "bytes": 219709,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/resources.json",
+        "bytes": 17711,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n100/evidence/result.json",
+        "bytes": 443479,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_docs_n30": [
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/bootstrap.json",
+        "bytes": 1843,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/process.json",
+        "bytes": 1702,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/process.jsonl",
+        "bytes": 843462,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/process.stderr.log",
+        "bytes": 95140,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/resources.json",
+        "bytes": 13630,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_docs_n30/evidence/result.json",
+        "bytes": 128848,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_mixed_n10": [
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/bootstrap.json",
+        "bytes": 1340,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/process.json",
+        "bytes": 1708,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/process.jsonl",
+        "bytes": 808751,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/process.stderr.log",
+        "bytes": 89771,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/resources.json",
+        "bytes": 13805,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n10/evidence/result.json",
+        "bytes": 102630,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_mixed_n100": [
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/bootstrap.json",
+        "bytes": 2243,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/process.json",
+        "bytes": 1719,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/process.jsonl",
+        "bytes": 1710961,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/process.stderr.log",
+        "bytes": 224871,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/resources.json",
+        "bytes": 17926,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n100/evidence/result.json",
+        "bytes": 403521,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_mixed_n30": [
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/bootstrap.json",
+        "bytes": 1543,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/process.json",
+        "bytes": 1708,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/process.jsonl",
+        "bytes": 866958,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/process.stderr.log",
+        "bytes": 90745,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/resources.json",
+        "bytes": 13830,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_mixed_n30/evidence/result.json",
+        "bytes": 118425,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_delta_post_20260921_smoke_docs_n10": [
+      {
+        "path": "sidecar_delta_post_20260921_smoke_docs_n10/evidence/bootstrap.json",
+        "bytes": 1444,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_smoke_docs_n10/evidence/process.json",
+        "bytes": 1729,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_smoke_docs_n10/evidence/process.jsonl",
+        "bytes": 396308,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_smoke_docs_n10/evidence/process.stderr.log",
+        "bytes": 13758,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_smoke_docs_n10/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_delta_post_20260921_smoke_docs_n10/evidence/result.json",
+        "bytes": 18996,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_fullmemory_post_20260921": [
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/corpus-provenance.json",
+        "bytes": 16784,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/post-run-input-verification.json",
+        "bytes": 536,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/prepared-environment.json",
+        "bytes": 33984,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/process.json",
+        "bytes": 1662,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/process.jsonl",
+        "bytes": 3949176,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/process.stderr.log",
+        "bytes": 148,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/resources.json",
+        "bytes": 3284,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_post_20260921/evidence/result.json",
+        "bytes": 31670,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_fullmemory_pre_20260921": [
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/corpus-provenance.json",
+        "bytes": 17379,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/frozen-code-verification.json",
+        "bytes": 28813,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/post-run-input-verification.json",
+        "bytes": 282,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/process.json",
+        "bytes": 1657,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/process.jsonl",
+        "bytes": 6147206,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/process.stderr.log",
+        "bytes": 919,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/resources.json",
+        "bytes": 2909,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_fullmemory_pre_20260921/evidence/result.json",
+        "bytes": 18743,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_migration_20260921": [
+      {
+        "path": "sidecar_migration_20260921/evidence/migration.stderr.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_migration_20260921/evidence/migration.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_migration_20260921/evidence/post-run-input-verification.json",
+        "bytes": 99,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_migration_20260921/evidence/prepared-environment.json",
+        "bytes": 31161,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_migration_20260921/evidence/result.json",
+        "bytes": 21210,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_npy_20260921": [
+      {
+        "path": "sidecar_npy_20260921/evidence/batching-study-input-after.json",
+        "bytes": 167,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/batching-study.json",
+        "bytes": 122898,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/batching-study.stderr.log",
+        "bytes": 16346,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/batching-study.stdout.log",
+        "bytes": 576,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/encoding_batch_parity.json",
+        "bytes": 6561,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/encoding_batch_parity.stderr.log",
+        "bytes": 150,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/encoding_batch_parity.stdout.log",
+        "bytes": 103,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/full-comparison.json",
+        "bytes": 1575,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/full-numeric-parity.json",
+        "bytes": 27255,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/full-retrieval-parity.json",
+        "bytes": 74087,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/full-retrieval.stderr.log",
+        "bytes": 1109,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/full-retrieval.stdout.log",
+        "bytes": 514,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/npy-delta-summary.json",
+        "bytes": 97150,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/phase6-comparison/comparison.json",
+        "bytes": 102582,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/phase6-input-verification.json",
+        "bytes": 2844,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/phase6-prepared-environment.json",
+        "bytes": 6410,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/progress.json",
+        "bytes": 724,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/qdrant-native-f6-container.json",
+        "bytes": 8521,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_npy_20260921/evidence/qdrant-native-f6-final-state.json",
+        "bytes": 227,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_readers_20260921": [
+      {
+        "path": "sidecar_readers_20260921/evidence/candidate-preparation.json",
+        "bytes": 39,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/candidates-process.json",
+        "bytes": 1170,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/candidates-process.jsonl",
+        "bytes": 87852,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/candidates-process.stderr.log",
+        "bytes": 434,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/candidates-process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/comparison.json",
+        "bytes": 5174,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/conversion-f3.json",
+        "bytes": 61,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/conversion-process.json",
+        "bytes": 1158,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/conversion-process.jsonl",
+        "bytes": 11093,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/conversion-process.stderr.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/conversion-process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/conversion.json",
+        "bytes": 64,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/disk-allocation.json",
+        "bytes": 15153,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/f3-parity.json",
+        "bytes": 839,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-eager-0.json",
+        "bytes": 7532,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-eager-1.json",
+        "bytes": 7532,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-eager-2.json",
+        "bytes": 7532,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-eager-3.json",
+        "bytes": 7535,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-eager-4.json",
+        "bytes": 7534,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-lazy-0.json",
+        "bytes": 7534,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-lazy-1.json",
+        "bytes": 7532,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-lazy-2.json",
+        "bytes": 7533,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-lazy-3.json",
+        "bytes": 7533,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-lazy-4.json",
+        "bytes": 7531,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-npy-0.json",
+        "bytes": 7528,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-npy-1.json",
+        "bytes": 7534,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-npy-2.json",
+        "bytes": 7532,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-npy-3.json",
+        "bytes": 7535,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-npy-4.json",
+        "bytes": 7534,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-process.json",
+        "bytes": 1162,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-process.jsonl",
+        "bytes": 2558166,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-process.stderr.log",
+        "bytes": 15621,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/full-process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/historical-candidates.json",
+        "bytes": 122081,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/historical-hashes.json",
+        "bytes": 915,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/historical-parity.json",
+        "bytes": 1383,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-eager-0.json",
+        "bytes": 4391,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-eager-1.json",
+        "bytes": 4390,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-eager-2.json",
+        "bytes": 4390,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-eager-3.json",
+        "bytes": 4391,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-eager-4.json",
+        "bytes": 4392,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-lazy-0.json",
+        "bytes": 4387,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-lazy-1.json",
+        "bytes": 4386,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-lazy-2.json",
+        "bytes": 4386,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-lazy-3.json",
+        "bytes": 4384,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-lazy-4.json",
+        "bytes": 4386,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-npy-0.json",
+        "bytes": 4390,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-npy-1.json",
+        "bytes": 4386,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-npy-2.json",
+        "bytes": 4388,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-npy-3.json",
+        "bytes": 4387,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-npy-4.json",
+        "bytes": 4385,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-process.json",
+        "bytes": 1136,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-process.jsonl",
+        "bytes": 455747,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-process.stderr.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/io-process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/linux-synthetic-selfcheck.json",
+        "bytes": 263,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/pm-preflight.json",
+        "bytes": 4905,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/post-run-integrity.json",
+        "bytes": 2129,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/progress.json",
+        "bytes": 554,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/resources.json",
+        "bytes": 39556,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_readers_20260921/evidence/synthetic-selfcheck.json",
+        "bytes": 281,
+        "suffix": ".json"
+      }
+    ],
+    "sidecar_retention_20260921": [
+      {
+        "path": "sidecar_retention_20260921/evidence/bootstrap.json",
+        "bytes": 1609,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/linux-selfcheck.json",
+        "bytes": 836,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/prepared-environment.json",
+        "bytes": 655,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/process.json",
+        "bytes": 1768,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/process.jsonl",
+        "bytes": 690546,
+        "suffix": ".jsonl"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/process.stderr.log",
+        "bytes": 29503,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/process.stdout.log",
+        "bytes": 0,
+        "suffix": ".log"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/result.json",
+        "bytes": 393424,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/retention-summary.json",
+        "bytes": 11012,
+        "suffix": ".json"
+      },
+      {
+        "path": "sidecar_retention_20260921/evidence/windows-selfcheck-inventory.json",
+        "bytes": 1016,
+        "suffix": ".json"
+      }
+    ],
+    "verifica_finale_20260910": [
+      {
+        "path": "verifica_finale_20260910/evidence/docker/avvio/approve.json",
+        "bytes": 1144,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/docker/avvio/health.json",
+        "bytes": 473,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/docker/avvio/preview.json",
+        "bytes": 1196,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/docker/avvio/upload.json",
+        "bytes": 548,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/e2e/e2e_api_v2.json",
+        "bytes": 7013,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/EVIDENCE_MANIFEST.json",
+        "bytes": 23391,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/formati/confronto.json",
+        "bytes": 16135,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/formati/timeout_reale.json",
+        "bytes": 543,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/formati2/confronto_2.json",
+        "bytes": 3975,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/gate_log_excerpt.json",
+        "bytes": 529,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/indice/scenario_sandbox.json",
+        "bytes": 2760,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/indice/scenario_sandbox_dopo_fix.json",
+        "bytes": 2817,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/indice/staging_cataloghi.json",
+        "bytes": 1494,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/linux/struttura_linux.json",
+        "bytes": 3706,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/linux/struttura_linux_fonts.json",
+        "bytes": 3730,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/linux/struttura_windows.json",
+        "bytes": 3857,
+        "suffix": ".json"
+      },
+      {
+        "path": "verifica_finale_20260910/evidence/s2/s2_risposte.json",
+        "bytes": 1235105,
+        "suffix": ".json"
+      }
+    ]
+  }
+}

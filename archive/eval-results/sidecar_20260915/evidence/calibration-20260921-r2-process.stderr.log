@@ -1,57 +1,0 @@
-2026-09-21 11:55:41,826 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/count "HTTP/1.1 200 OK"
-2026-09-21 11:55:41,833 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 11:55:41,842 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 11:55:41,864 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 11:55:41,868 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 11:55:41,871 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 11:55:41,950 INFO api.deps: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 9277.12it/s]
-2026-09-21 11:55:44,260 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 11:55:44,263 INFO api.deps: Connessione a Qdrant (server mode): http://127.0.0.1:16333 ...
-2026-09-21 11:55:44,294 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 11:55:44,294 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 11:55:44,297 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 11:55:44,298 INFO api.deps: Stato alias Qdrant (riconciliazione): aligned (expected=sidecar_0628_benchmark, actual=sidecar_0628_benchmark, repaired=False)
-2026-09-21 11:55:44,301 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 11:55:44,326 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 11:55:44,327 INFO api.deps: Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...
-2026-09-21 11:55:44,337 INFO api.deps: Grafo caricato: 13 nodi, 10 archi.
-2026-09-21 11:55:44,337 INFO api.deps: Multivettori ColBERT caricati: 9 chunk. Chunk sidecar: 9 sezioni. Simboli codice: 1.
-2026-09-21 11:55:44,338 INFO api.deps: Caricamento descrizioni regole dai file spec...
-2026-09-21 11:55:44,338 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 11:55:44,339 INFO api.deps: Server pronto.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1166.06it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.06it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.05it/s]
-2026-09-21 11:55:44,998 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
-2026-09-21 11:55:45,003 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4056.39it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.25it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.24it/s]
-2026-09-21 11:55:45,267 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
-2026-09-21 11:55:45,293 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3656.76it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.52it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.51it/s]
-2026-09-21 11:55:45,560 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
-2026-09-21 11:55:45,566 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/query "HTTP/1.1 200 OK"
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 7972.06it/s]
-2026-09-21 11:55:47,777 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 11:55:47,783 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-2026-09-21 11:55:48,218 INFO api.deps: Entità indicizzate (0): []
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 9123.89it/s]
-2026-09-21 11:55:50,826 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 11:55:50,831 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 2 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 11:55:50,836 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 11:55:50,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 11:55:50,856 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 11:55:50,890 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 11:55:50,891 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 3 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 11:55:50,891 INFO core.indexing: 
-Vettorializzazione incrementale di 3 chunk (da 1 documenti)...
-2026-09-21 11:55:52,296 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_benchmark/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 11:55:52,297 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 3 chunk upsertati.
-2026-09-21 11:55:52,297 INFO core.indexing: 🔗 Code-link ricalcolati per 1 simboli toccati → 1 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 11:55:52,410 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T095552
-2026-09-21 11:55:52,410 INFO core.indexing: 🧾 Manifest aggiornato: 9 chunk, 13 nodi, 10 archi.
-2026-09-21 11:55:52,410 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T095552.
-2026-09-21 11:55:52,410 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 11:55:52,904 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 11:55:53,323 INFO api.deps: Shutdown: rilascio risorse.

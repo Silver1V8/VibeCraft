@@ -1,2 +1,0 @@
-{"selfcheck": "passed", "versions": ["v20260921T123405", "v20260921T125911"], "collections": ["sidecar_0628_fullmemory_pre__v20260921T123405", "sidecar_0628_fullmemory_post__v20260921T125911"], "queries": ["prenotazione evento posti", "pagamenti accettati", "notifiche prenotazione"], "model_loaded": false}
-{"output": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_npy_20260921\\evidence\\full-retrieval-parity.json", "queries": 3, "final_ids_identical": [true, true, true]}

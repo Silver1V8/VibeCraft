@@ -25,9 +25,19 @@ Two guides, generated from source on 18 October 2026. In the console they open a
 - [Guided walkthrough](rag/static/manuale/percorso-guidato.en.html) — a real case from start to finish, for people deciding whether to adopt it. When running: [`/static/manuale/percorso-guidato.en.html`](http://127.0.0.1:8000/static/manuale/percorso-guidato.en.html). Italian: [percorso-guidato.html](rag/static/manuale/percorso-guidato.html).
 - [User manual](rag/static/manuale/manuale-utente.en.html) — the controls, chapter by chapter. When running: [`/static/manuale/manuale-utente.en.html`](http://127.0.0.1:8000/static/manuale/manuale-utente.en.html). Italian: [manuale-utente.html](rag/static/manuale/manuale-utente.html).
 
-`archive/` is not the product. It is the historical evidence of measurements, cited by the ADRs: see [archive/README.md](archive/README.md) / [archive/README.en.md](archive/README.en.md). Docker and the tests do not read it. Removing it with an ordinary commit does not lighten clones: the bytes remain in history.
+`archive/` is not the product. It is the historical evidence of measurements, cited by the ADRs: see [archive/README.md](archive/README.md) / [archive/README.en.md](archive/README.en.md). Docker and the tests do not read it. From 2026-10-28 (R6) the tip of `archive/eval-results/` keeps reports and pointers (~4 MiB of text); heavy blobs (~108 MiB of json/jsonl/log) remain in **history** — deleting them from the tip alone does not lighten a full clone. For a light clone that does not download them:
 
-**Documented status: `main`, 25 October 2026.**
+```bash
+git clone --filter=blob:none --sparse https://github.com/Silver1V8/VibeCraft.git
+cd VibeCraft
+git sparse-checkout set '/*' '!archive/eval-results'
+```
+
+Inventory and recovery: [archive/eval-results/HEAVY_REMOVED.md](archive/eval-results/HEAVY_REMOVED.md).
+
+Operational console docs are no longer a monolith: index in [`rag/README.md`](rag/README.md), pages in [`rag/docs/`](rag/docs/) (outside the corpus, like ADRs). Italian is canonical; [`rag/README.en.md`](rag/README.en.md) is a short index.
+
+**Documented status: `main`, 28 October 2026.**
 Multi-project has been in `main` since 5 October; copy-on-write delta and GPU embedding since the 12th. The in-console manuals are from the 25th. Gate numbers remain those of the day they were measured. The same status is in [`rag/README.md`](rag/README.md) / [`rag/README.en.md`](rag/README.en.md).
 
 ## What it does

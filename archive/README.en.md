@@ -21,11 +21,13 @@ weighing down the trees that are consulted day to day (`rag/adr/`, `rag/eval/res
   `rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md`.
 - `adr/horizontal-bench/` — the runs from 28 September 2026. A new run is still written
   under `rag/adr/horizontal-bench/`.
-- `eval-results/<run>/` — evaluation runs with an `evidence/` folder (~119 MB total),
-  moved from the former `rag/eval/results/<run>/`. Each run keeps its internal structure
-  unchanged. `*/evidence/** -text` in `eval-results/.gitattributes` preserves original
-  bytes and SHA-256 hashes even with `core.autocrlf` on, as
-  `rag/eval/results/.gitattributes` did for the original tree.
+- `eval-results/<run>/` — evaluation runs moved from the former `rag/eval/results/<run>/`.
+  From 2026-10-28 (R6) the **tip** keeps reports (`.md`, CSV, scripts, patches) and drops
+  heavy blobs (`.json` / `.jsonl` / `.log` / `.zip`, ~108 MiB) from the working tree: see
+  [`eval-results/HEAVY_REMOVED.md`](eval-results/HEAVY_REMOVED.md). Bytes remain in git
+  history; the `sparse-checkout` recipe in [README.md](../README.md) / [README.en.md](../README.en.md)
+  avoids downloading them on fresh clones. `*/evidence/** -text` in
+  `eval-results/.gitattributes` still applies to remaining and restored blobs.
 
 ## What is NOT here
 
@@ -46,11 +48,11 @@ or commits remain text, not links, as in the original.
 
 ## Frozen archive
 
-The content is kept as testimony, not to be re-run: evidence files are byte-for-byte the
-originals (even where an internal relative link no longer resolves from the new location)
-and reproduction scripts (`*.py`, `*.py.txt`) assume the old path
+The content is kept as testimony, not to be re-run. Reports and scripts still on the tip
+are byte-for-byte the originals (even where an internal relative link no longer resolves
+from the new location). Reproduction scripts (`*.py`, `*.py.txt`) assume the old path
 `rag/eval/results/<run>/evidence/` — for example `Path(__file__).parents[4]` to reach
 `rag/`, or sibling runs looked up next to their own folder. To re-run them they must be
-temporarily restored to that location. New runs are produced under `rag/eval/results/`,
-not here: that is why the archive does not have the `.gitignore` evidence whitelist that
-governs that tree.
+temporarily restored to that location, and heavy evidence restored from history if needed
+(see `HEAVY_REMOVED.md`). New runs are produced under `rag/eval/results/`, not here: that
+is why the archive does not have the `.gitignore` evidence whitelist that governs that tree.

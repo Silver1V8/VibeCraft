@@ -35,7 +35,7 @@ Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono cos
 
 Versioni in inglese: [Guided walkthrough](rag/static/manuale/percorso-guidato.en.html), [User manual](rag/static/manuale/manuale-utente.en.html).
 
-`archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Toglierla con un commit ordinario non alleggerisce i clone: i byte restano nella history. Per un clone leggero senza `archive/` (≈118 MB di `eval-results`):
+`archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Dal 2026-10-28 (R6) il tip di `archive/eval-results/` tiene solo resoconti e puntatori (~4 MiB di testo); i blob pesanti (~108 MiB di json/jsonl/log) restano nella **history** — un commit che li toglie dal tip non alleggerisce da solo un clone completo. Per un clone leggero che non li scarica:
 
 ```bash
 git clone --filter=blob:none --sparse https://github.com/Silver1V8/VibeCraft.git
@@ -43,9 +43,11 @@ cd VibeCraft
 git sparse-checkout set '/*' '!archive/eval-results'
 ```
 
-(oppure `git sparse-checkout set --no-cone '/*' '!/archive'` per escludere tutta `archive/`; tieni [archive/README.md](archive/README.md) se ti serve il puntatore).
+(oppure `git sparse-checkout set --no-cone '/*' '!/archive'` per escludere tutta `archive/`; tieni [archive/README.md](archive/README.md) se ti serve il puntatore). Inventario e recupero: [archive/eval-results/HEAVY_REMOVED.md](archive/eval-results/HEAVY_REMOVED.md).
 
-**Stato documentato: `main`, 25 ottobre 2026.**
+La guida operativa della console non sta più in un monolite: indice in [`rag/README.md`](rag/README.md), pagine in [`rag/docs/`](rag/docs/) (fuori dal corpus, come gli ADR). Italiano canonico; `rag/README.en.md` è un indice breve.
+
+**Stato documentato: `main`, 28 ottobre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
 dal 12. I manuali in console sono del 25. I numeri di un gate restano quelli del giorno
 in cui sono stati misurati. Lo stesso stato è in [`rag/README.md`](rag/README.md).

@@ -1,2 +1,0 @@
-{"selfcheck": "passed", "source": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_delta_post_20260921_docs_n100\\evidence\\result.json", "chunks": 100, "query_shape": [4, 1024], "calls_per_variant": {"global": 1, "per_document": 100, "groups_12": 9}, "model_loaded": false}
-{"output": "C:\\Users\\Silve\\.codex\\worktrees\\0628\\vibecraft\\rag\\eval\\results\\sidecar_npy_20260921\\evidence\\batching-study.json", "medians_encode_seconds": {"global": 7.407768799999758, "per_document": 27.33695570000782, "groups_12": 13.403688899998087}}
