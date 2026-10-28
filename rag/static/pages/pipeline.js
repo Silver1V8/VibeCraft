@@ -1010,8 +1010,13 @@
       }
     }
 
-    /* Consumer NDJSON: parseNdjsonStream in /static/shared.js (R7). */
-    const consumeNdjson = parseNdjsonStream;
+    /* ──────────── CONSUMER NDJSON (streaming drift/archive) ────────────
+       Implementazione in shared.js::parseNdjsonStream (R7). Wrapper locale così
+       i harness Node che mockano `consumeNdjson` senza caricare shared.js
+       restano validi (pipeline_runner_capability.cjs taglia su questo marker). */
+    async function consumeNdjson(res, onEvent) {
+      return parseNdjsonStream(res, onEvent);
+    }
 
     /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */
     async function runDriftCheck() {
