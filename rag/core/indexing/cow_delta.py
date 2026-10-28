@@ -424,8 +424,8 @@ def apply_incremental_indexing(
         assert docs_dir is not None, "docs_dir richiesto quando ci sono documenti da (ri)indicizzare"
         new_chunks: list[dict] = []
         # R9: con ColbertWriter, batch di chunk da docs distinti (bound =
-        # VIBECRAFT_COW_ENCODE_BATCH; default 0 in questo commit, poi 12 dopo
-        # gate --real-delta). Un doc con più chunk del bound resta unità sola;
+        # VIBECRAFT_COW_ENCODE_BATCH; default produttivo 12). 0 = una encode()
+        # per doc (storico). Un doc con più chunk del bound resta unità sola;
         # non tocca /ask né il full.
         encode_batch = cow_encode_batch_from_env() if colbert_writer is not None else 0
         pending_docs: list[tuple[str, list[dict]]] = []
