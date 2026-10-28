@@ -374,7 +374,16 @@
       for (const id of draftEditors) document.getElementById(id).value = '';
       for (const id of ['review-explore', 'review-canvas', 'review-spec', 'canvas-loader', 'propose-loader']) setPanelVisible(id, false);
       for (const id of ['final-prompt-card', 'validate-card', 'validate-report-box', 'gate-comparison', 'drift-report-card', 'archive-report-card', 'dryrun-card', 'agent-context-wrap']) document.getElementById(id).classList.add('hidden');
-      for (const id of ['drift-report-box', 'archive-report-box', 'agent-output', 'gate-status', 'gate-decisions', 'gate-comparison']) document.getElementById(id).textContent = '';
+      document.getElementById('dryrun-card').classList.remove('is-compact');
+      const reviewSpec = document.getElementById('review-spec');
+      reviewSpec.classList.remove('is-approved');
+      reviewSpec.style.maxHeight = '42vh';
+      const reviewHint = document.getElementById('review-spec-hint');
+      if (reviewHint) reviewHint.textContent = t('pipeline.review.approveUnlock');
+      for (const id of ['drift-report-box', 'archive-report-box', 'agent-output', 'gate-status', 'gate-decisions', 'gate-comparison', 'gate-status-summary']) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = '';
+      }
       for (const id of ['drift-loader', 'archive-loader']) setPanelVisible(id, false);
       for (const id of ['drift-check-btn', 'archive-btn', 'canvas-dryrun-btn', 'agent-context-btn']) document.getElementById(id).disabled = false;
       window._finalPrompt = '';
@@ -557,6 +566,7 @@
         if (revision !== sessionRevision) return;
         document.getElementById('canvas-md-editor').value = data.content;
         savePipelineDraft();
+        document.getElementById('dryrun-card').classList.add('is-compact');
         setPanelVisible('review-canvas', true);
         markStepDone(2);
         await refreshFilesControl();
@@ -582,7 +592,13 @@
       btn.disabled = true;
       setPanelVisible('propose-loader', true);
       setPanelVisible('review-spec', false);
+      const reviewSpec = document.getElementById('review-spec');
+      reviewSpec.classList.remove('is-approved');
+      reviewSpec.style.maxHeight = '42vh';
+      const reviewHint = document.getElementById('review-spec-hint');
+      if (reviewHint) reviewHint.textContent = t('pipeline.review.approveUnlock');
       document.getElementById('final-prompt-card').classList.add('hidden');
+      document.getElementById('validate-card').classList.add('hidden');
 
       try {
         const res = await fetch('/api/pipeline/propose/generate', {
@@ -613,9 +629,17 @@
     }
 
     function approveSpec() {
+      const review = document.getElementById('review-spec');
+      review.classList.add('is-approved');
+      review.style.maxHeight = '';
+      const hint = document.getElementById('review-spec-hint');
+      if (hint) hint.textContent = t('pipeline.review.approvedHint');
       document.getElementById('validate-card').classList.remove('hidden');
       document.getElementById('final-prompt-card').classList.remove('hidden');
-      document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Prompt + Esegui prima dei log: un solo scroll del pannello, governance chiusa.
+      const details = document.getElementById('validate-details-root');
+      if (details) details.open = false;
+      document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
       refreshGateReview();
     }
 
@@ -673,6 +697,10 @@
       btn.disabled = true;
       box.classList.remove('hidden');
       box.textContent = t('pipeline.validate.running');
+      const reportDetails = document.getElementById('validate-report-details');
+      if (reportDetails) reportDetails.open = true;
+      const rootDetails = document.getElementById('validate-details-root');
+      if (rootDetails) rootDetails.open = true;
       try {
         const res = await fetch('/api/pipeline/validate', {method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({feature: validatingFeature})});
@@ -682,9 +710,20 @@
         validationRefs.set(validatingFeature, data.validation_id || null);
         box.textContent = validationSummary(data);
         document.getElementById('validate-structural').textContent = t('pipeline.validate.checksStatus', { structural: data.checks?.structural?.status || 'unavailable', semantic: data.checks?.semantic?.status || 'unavailable' });
+        const summaryEl = document.getElementById('gate-status-summary');
+        if (summaryEl) {
+          summaryEl.textContent = [
+            t('pipeline.validate.checksStatus', { structural: data.checks?.structural?.status || 'unavailable', semantic: data.checks?.semantic?.status || 'unavailable' }),
+            admissionSummary(data.gate),
+          ].join('\n');
+        }
         await refreshGateReview();
       } catch (e) {
-        if (featureName === validatingFeature) box.textContent = t('pipeline.validate.unavailable', { msg: e.message });
+        if (featureName === validatingFeature) {
+          box.textContent = t('pipeline.validate.unavailable', { msg: e.message });
+          const summaryEl = document.getElementById('gate-status-summary');
+          if (summaryEl) summaryEl.textContent = t('pipeline.validate.unavailable', { msg: e.message });
+        }
       } finally { btn.disabled = false; }
     }
 
@@ -705,16 +744,25 @@
         if (!res.ok) throw new Error(gateApiError(data));
         if (!selected) validationRefs.set(reviewingFeature, data.validation_id || null);
         gateReview = {data, feature: reviewingFeature};
-        document.getElementById('gate-status').textContent = [
+        const summaryLines = [
           admissionSummary(data.gate),
           data.validation_id ? t('pipeline.gate.validationId', { id: data.validation_id }) : t('pipeline.gate.validationAbsent'),
           t('pipeline.gate.openPointsStatus', { status: data.gate.open_points_status ?? t('pipeline.gate.unreadable') }),
+        ];
+        const summaryEl = document.getElementById('gate-status-summary');
+        if (summaryEl) summaryEl.textContent = summaryLines.join('\n');
+        document.getElementById('gate-status').textContent = [
+          ...summaryLines,
           ...gateMessages(data.gate),
           ...(data.structural_findings || []).map(describeFinding),
         ].join('\n');
         renderDecisionEditor(data);
       } catch (e) {
-        if (featureName === reviewingFeature) document.getElementById('gate-status').textContent = e.message;
+        if (featureName === reviewingFeature) {
+          document.getElementById('gate-status').textContent = e.message;
+          const summaryEl = document.getElementById('gate-status-summary');
+          if (summaryEl) summaryEl.textContent = e.message;
+        }
       }
     }
 
@@ -752,8 +800,18 @@
       element('p', t('pipeline.decision.disclaimer'));
       if (!Array.isArray(data.point_decisions)) { element('p', t('pipeline.decision.reportInvalid')); return; }
       if (!data.point_decisions.length) { element('p', t('pipeline.decision.noOpenPoints')); return; }
-      for (const p of data.point_decisions) element('pre', `${p.point.id} · ${p.status}\n${JSON.stringify(p.point, null, 2)}` +
-        (p.decision ? `\n${t('pipeline.decision.recorded', { id: p.decision.decision_id, by: p.decision.declared_by, at: p.decision.recorded_at })}\n${p.decision.motivation}` : ''));
+      for (const p of data.point_decisions) {
+        const wrap = document.createElement('details');
+        wrap.className = 'gate-point-raw';
+        const sum = document.createElement('summary');
+        sum.textContent = `${p.point.id} · ${p.status}`;
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(p.point, null, 2) +
+          (p.decision ? `\n${t('pipeline.decision.recorded', { id: p.decision.decision_id, by: p.decision.declared_by, at: p.decision.recorded_at })}\n${p.decision.motivation}` : '');
+        wrap.appendChild(sum);
+        wrap.appendChild(pre);
+        host.appendChild(wrap);
+      }
       element('label', t('pipeline.decision.pointLabel')).htmlFor = 'decision-point';
       const points = element('select', '', 'decision-point');
       points.add(new Option(t('pipeline.decision.selectPoint'), ''));
@@ -1208,6 +1266,8 @@
       const body = document.getElementById('dryrun-body');
       btn.disabled = true;
       card.classList.remove('hidden');
+      // Se la review è già aperta, non lasciare il dry-run espandersi a metà viewport.
+      card.classList.toggle('is-compact', !document.getElementById('review-canvas').classList.contains('hidden'));
       body.innerHTML = `<span class="text-slate-400">${t('pipeline.canvas.dryrunLoading')}</span>`;
       try {
         const res = await fetch('/api/pipeline/canvas/dry-run', {
