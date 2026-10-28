@@ -1,0 +1,1 @@
+{"question": "Quanto dura un prestito? Rispondi in massimo otto parole.", "dispatch_monotonic": 7849.2959385, "first_text_monotonic": 7897.5057566, "finish_monotonic": 7897.5064799, "response_mode": "stream", "status_code": 200, "terminal_event": null, "text_bytes": 1, "outcome": "cancelled", "reason": null, "probe": "cancel_after_first_text", "stream_error": null}
