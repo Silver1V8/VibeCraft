@@ -567,6 +567,36 @@ OLLAMA_TIMEOUT_SECONDS = float(os.environ.get("VIBECRAFT_OLLAMA_TIMEOUT_SECONDS"
 # fette il rischio si sposta a "quali fette sono già arrivate", non se arrivano.
 DEFAULT_QDRANT_UPSERT_BATCH = 256
 
+# Retention del gate agentic (rag_config.yaml → pipeline_gate.*). Env opzionali per
+# override senza toccare il YAML; mai meno di 1. Vedi core/pipeline_store.prune_*.
+_pipeline_gate_cfg: dict = config.get("pipeline_gate") or {}
+DEFAULT_PIPELINE_VALIDATIONS_KEEP = max(1, int(_pipeline_gate_cfg.get("validations_keep_per_feature", 20)))
+DEFAULT_PIPELINE_EVENTS_KEEP_LINES = max(1, int(_pipeline_gate_cfg.get("events_keep_lines", 2000)))
+
+
+def pipeline_validations_keep_from_env() -> int:
+    raw = os.environ.get("VIBECRAFT_PIPELINE_VALIDATIONS_KEEP", "")
+    try:
+        keep = int(raw) if raw else DEFAULT_PIPELINE_VALIDATIONS_KEEP
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "VIBECRAFT_PIPELINE_VALIDATIONS_KEEP non numerica (%r): uso il default %d.",
+            raw, DEFAULT_PIPELINE_VALIDATIONS_KEEP)
+        keep = DEFAULT_PIPELINE_VALIDATIONS_KEEP
+    return max(1, keep)
+
+
+def pipeline_events_keep_from_env() -> int:
+    raw = os.environ.get("VIBECRAFT_PIPELINE_EVENTS_KEEP_LINES", "")
+    try:
+        keep = int(raw) if raw else DEFAULT_PIPELINE_EVENTS_KEEP_LINES
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "VIBECRAFT_PIPELINE_EVENTS_KEEP_LINES non numerica (%r): uso il default %d.",
+            raw, DEFAULT_PIPELINE_EVENTS_KEEP_LINES)
+        keep = DEFAULT_PIPELINE_EVENTS_KEEP_LINES
+    return max(1, keep)
+
 
 def qdrant_upsert_batch_from_env() -> int:
     """Quanti punti per chiamata upsert Qdrant (env VIBECRAFT_QDRANT_UPSERT_BATCH,

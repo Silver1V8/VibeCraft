@@ -1939,11 +1939,12 @@ neppure l'identità personale prova da sola che qualcuno abbia letto il punto.
 Possiamo contare le accettazioni **avvenute durante** un'esecuzione dell'agente,
 non possiamo chiamarle accettazioni **effettuate dall'agente**. La correlazione
 temporale non distingue una sessione UI concorrente da una richiesta automatica.
-La correlazione attuale osserva il solo processo server: `activity_scope`
-riporta il PID, le esecuzioni prive di feature sono elencate separatamente.
-Una lista vuota non prova assenza di agenti su altri processi; la feature del
-client in suggest/oneshot resta dichiarata; in agentic viene confrontata con
-il record validato. Gli eventi della Fase 2 sono nel journal della pipeline,
+La correlazione usa un registry condiviso su disco (`database/pipeline/activity/`,
+`activity_scope=shared-disk`): i worker che condividono lo stesso database vedono
+le stesse esecuzioni attive; i PID morti vengono purgati in lettura. Le
+esecuzioni prive di feature sono elencate separatamente. La feature del client
+in suggest/oneshot resta dichiarata; in agentic viene confrontata con il record
+validato. Gli eventi della Fase 2 sono nel journal della pipeline,
 separati dallo storico delle valutazioni. Un tentativo senza evento conclusivo
 non certifica il completamento; un errore di registrazione indica misura incompleta.
 

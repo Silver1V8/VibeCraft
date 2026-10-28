@@ -677,6 +677,16 @@ code_parsers:
     - "dockerfile.*"
     - "*.dockerfile"
 
+# Retention del gate agentic (core/pipeline_store.py). Misura del 15/09/2026 sulla
+# feature gate-probe-posti: ~240 KiB per ciclo completo (6 record × ~40 KiB mediani),
+# senza rotazione. validations_keep_per_feature trattiene le ultime N validazioni
+# CONCLUSE per feature (running mai eliminate). events_keep_lines taglia il journal
+# events.jsonl alle ultime N righe dopo ogni append. Override runtime:
+# VIBECRAFT_PIPELINE_VALIDATIONS_KEEP / VIBECRAFT_PIPELINE_EVENTS_KEEP_LINES.
+pipeline_gate:
+  validations_keep_per_feature: 20
+  events_keep_lines: 2000
+
 # Verifica ESEGUITA del codice prodotto da un run agentico (core/verification.py).
 # Il resoconto dei punti aperti e' dichiarato dall'agente e nessun runner ha una shell:
 # senza questo blocco "implementato e verificato" resta un'opinione del modello. Qui il
