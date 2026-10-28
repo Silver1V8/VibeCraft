@@ -489,7 +489,8 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         from core.indexing import check_index_integrity
         from qdrant_client import QdrantClient
         qdrant = QdrantClient(url=QDRANT_URL, timeout=300)
-        server = uvicorn.Server(uvicorn.Config(server_module.app, host=HOST, port=18000, log_level="warning"))
+        server = uvicorn.Server(uvicorn.Config(
+            server_module.app, host=HOST, port=int(SERVER_PORT), log_level="warning"))
         server_thread = threading.Thread(target=server.run, daemon=False)
         server_thread.start()
         deadline = time.monotonic() + 180
