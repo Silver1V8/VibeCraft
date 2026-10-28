@@ -24,12 +24,20 @@ HOST = os.environ.get("VIBECRAFT_BENCH_HOST", "127.0.0.1")
 SERVER_PORT = os.environ.get("VIBECRAFT_BENCH_PORT", "18000")
 URL = f"http://{HOST}:{SERVER_PORT}"
 QDRANT_URL = os.environ.get("VIBECRAFT_BENCH_QDRANT_URL", "http://127.0.0.1:16333")
-COLLECTION_PREFIX = "sidecar_0628_"
+# Prefisso collection dedicato. Default storico sidecar_0628_; lab post-migrazione
+# progetti usano vibecraft_<id> (es. vibecraft_r9before) con override env (letto a runtime).
+DEFAULT_COLLECTION_PREFIX = "sidecar_0628_"
 RESULTS = Path(__file__).resolve().parents[1] / "eval" / "results"
 POLL = 0.5
 JOB_TIMEOUT = 600
 QUERIES = ("prenotazione evento posti", "pagamenti accettati", "notifiche prenotazione")
 _stop = threading.Event()
+# Riempito da validate_paths quando il checkout ha projects/ ordinario (post S-layout).
+_ACTIVE_PROJECT_ID: str | None = None
+
+
+def collection_prefix() -> str:
+    return os.environ.get("VIBECRAFT_BENCH_COLLECTION_PREFIX", DEFAULT_COLLECTION_PREFIX)
 
 
 def _sha(data: bytes) -> str:
@@ -57,6 +65,7 @@ def _safe(path: Path, root: Path) -> Path:
 
 
 def validate_paths(checkout_arg: str, output_arg: str, *, bootstrap: bool = False) -> dict:
+    global _ACTIVE_PROJECT_ID
     checkout = Path(checkout_arg)
     output = Path(output_arg)
     if not checkout.is_absolute() or not output.is_absolute():
@@ -76,21 +85,58 @@ def validate_paths(checkout_arg: str, output_arg: str, *, bootstrap: bool = Fals
     import yaml
     config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
     collection = (config.get("vector_database") or {}).get("collection_name")
-    if not isinstance(collection, str) or not collection.startswith(COLLECTION_PREFIX) or not collection.replace("_", "").isalnum():
-        raise ValueError("collection must use dedicated sidecar_0628_ prefix")
+    prefix = collection_prefix()
+    if not isinstance(collection, str) or not collection.startswith(prefix) or not collection.replace("_", "").isalnum():
+        raise ValueError(f"collection must use dedicated {prefix} prefix")
     docs_setting = Path(str(config["paths"]["docs_dir"]))
     code_setting = Path(str(config["paths"]["codebase_dir"]))
     if (docs_setting.is_absolute() or code_setting.is_absolute() or
             ".." in docs_setting.parts or ".." in code_setting.parts):
         raise ValueError("config path may not escape checkout")
     docs = _safe(checkout / str(docs_setting).lstrip("./"), results)
-    code = _safe(checkout / "code", results)
     configured_code = _safe(checkout / str(code_setting).lstrip("./"), results)
-    database = _safe(rag / "database", results)
-    if (not _within(docs, checkout) or configured_code != code or
+    # Layout ordinario (projects/): docs/code/database sotto la root gestita.
+    # Layout storico: code == checkout/code e database == rag/database.
+    projects_dir = checkout / "projects"
+    registry_file = projects_dir / "projects.json"
+    project_id = None
+    if registry_file.is_file():
+        registry = json.loads(registry_file.read_text(encoding="utf-8"))
+        records = registry.get("projects") or []
+        if registry.get("schema_version") != 2 or len(records) != 1:
+            raise ValueError("bench project registry must be schema 2 with exactly one project")
+        project_id = records[0]["id"]
+        project_root = _safe(Path(records[0]["root"]), results)
+        if not _within(project_root, projects_dir):
+            raise ValueError("project root must stay under checkout/projects")
+        code = _safe(project_root / "code", results)
+        docs = _safe(project_root / "docs", results)
+        database = _safe(project_root / "database", results)
+        if configured_code != code or not _within(docs, project_root):
+            raise ValueError("config docs/code must match the registered project layout")
+        expected_collection = "vibecraft_" + project_id
+        if collection != expected_collection:
+            raise ValueError(f"collection must match project ({expected_collection})")
+    else:
+        code = _safe(checkout / "code", results)
+        if configured_code != code:
+            raise ValueError("effective core paths differ from dedicated checkout")
+        database = _safe(rag / "database", results)
+    if (not _within(docs, checkout) or
             not all(p.is_dir() for p in (rag, docs, code, database))):
         raise ValueError("effective core paths differ from dedicated checkout")
-    if not bootstrap and any(database.iterdir()):
+    def _database_has_index(root: Path) -> bool:
+        if (root / "CURRENT").exists():
+            return True
+        versions = root / "versions"
+        if versions.is_dir() and any(versions.iterdir()):
+            return True
+        # Layout storico: database/ vuota. Layout progetto: scaffolding vuota ok.
+        if project_id is None:
+            return any(root.iterdir())
+        return False
+
+    if not bootstrap and _database_has_index(database):
         raise ValueError("dedicated database must be empty before bootstrap")
     output = _safe(output, results)
     if output.parent != run or (output.exists() and not bootstrap) or _within(output, checkout):
@@ -101,8 +147,11 @@ def validate_paths(checkout_arg: str, output_arg: str, *, bootstrap: bool = Fals
     for root in (docs, code, database):
         for path in root.rglob("*"):
             _safe(path, results)
+    _ACTIVE_PROJECT_ID = project_id
     return dict(run=run, checkout=checkout, rag=rag, docs=docs, code=code,
-                database=database, output=output, collection=collection)
+                database=database, output=output, collection=collection,
+                project_id=project_id,
+                projects_dir=(projects_dir if project_id else None))
 
 
 def validate_cell(n: int, mode: str, ks: list[int], repeats: int) -> None:
@@ -237,8 +286,9 @@ def _qdrant_preflight(collection: str) -> list[str]:
         aliases = [item.alias_name for item in client.get_aliases().aliases]
     finally:
         client.close()
+    prefix = collection_prefix()
     if (collection in physical or collection in aliases or
-            any(not name.startswith(COLLECTION_PREFIX) for name in physical + aliases)):
+            any(not name.startswith(prefix) for name in physical + aliases)):
         raise ValueError(f"Qdrant port contains non-dedicated or reused collection/alias: {physical}, {aliases}")
     return physical
 
@@ -273,7 +323,11 @@ def _restore_files(paths: dict, original: dict[Path, bytes], qdrant, snapshot) -
     from core.writer_lock import try_version_lease, writer_lock
     db = paths["database"]
     backup = paths["output"] / "baseline-database"
-    with writer_lock(timeout_seconds=60), ExitStack() as leases:
+    project = None
+    if paths.get("project_id"):
+        from core.projects import ProjectRegistry
+        project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
+    with writer_lock(timeout_seconds=60, project=project), ExitStack() as leases:
         versions = db / "versions"
         if versions.is_dir():
             for folder in versions.iterdir():
@@ -335,10 +389,11 @@ def _query_reader(samples: list[dict], stop: threading.Event, mode: str) -> None
         stop.wait(0.15)
 
 
-def _join_writer():
+def _join_writer(project_id: str | None = None):
     from api import routes_reindex
     from api.deps import project_registry
-    project = project_registry().get("legacy")
+    pid = project_id or _ACTIVE_PROJECT_ID or "legacy"
+    project = project_registry().get(pid)
     manager = routes_reindex.project_manager(project)
     while not manager.join_all(timeout=5):
         pass
@@ -348,9 +403,18 @@ def _bootstrap(paths: dict) -> int:
     sys.path.insert(0, str(paths["rag"]))
     from core.indexing import incremental_index
     from core.writer_lock import writer_lock
-    with writer_lock(timeout_seconds=60):
-        result = incremental_index()
-    _save(paths["output"] / "bootstrap.json", {"pid": os.getpid(), "result": result})
+    project = None
+    if paths.get("project_id"):
+        # VIBECRAFT_PROJECTS_DIR deve essere già nell'env del child (vedi run()).
+        from core.projects import ProjectRegistry
+        project = ProjectRegistry(bootstrap_legacy=False).get(paths["project_id"])
+        with writer_lock(timeout_seconds=60, project=project):
+            result = incremental_index(project=project)
+    else:
+        with writer_lock(timeout_seconds=60):
+            result = incremental_index()
+    _save(paths["output"] / "bootstrap.json", {"pid": os.getpid(), "result": result,
+                                              "project_id": paths.get("project_id")})
     return 2 if _stop.is_set() else 0
 
 
@@ -398,6 +462,9 @@ def run(paths: dict, n: int, mode: str, ks: list[int], repeats: int) -> int:
         env = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONUTF8": "1", "CUDA_VISIBLE_DEVICES": "-1",
                "HF_HUB_OFFLINE": "1", "OMP_NUM_THREADS": "4", "MKL_NUM_THREADS": "4",
                "QDRANT_URL": QDRANT_URL, "VIBECRAFT_HOST": HOST, "VIBECRAFT_PORT": SERVER_PORT}
+        if paths.get("projects_dir") is not None:
+            # Deve precedere ogni import di core.config nel child e nel parent.
+            env["VIBECRAFT_PROJECTS_DIR"] = str(paths["projects_dir"])
         old_env = {key: os.environ.get(key) for key in env}
         os.environ.update(env)
         _event(payload, "bootstrap_start")
