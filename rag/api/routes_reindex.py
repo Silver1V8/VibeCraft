@@ -50,9 +50,11 @@ from core.indexing import (
     _swap_alias,
     assert_rollback_target_has_vectors,
     build_graph_and_index,
+    check_index_integrity,
     gc_orphaned_qdrant_collections,
     incremental_index,
     immutable_index_active,
+    index_status,
     rollback_qdrant_alias_if_needed,
     rollback_shares_collection_with_later_versions,
 )
@@ -282,6 +284,27 @@ async def reindex_status(job_id: str, project=Depends(get_project)):
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job di reindex non trovato: {job_id}")
     return _job_content(job)
+
+
+# ---------------------------------------------------------------------------
+# Stato / integrità dell'indice (lifecycle, non pipeline Explore→Archive).
+# Spostati da routes_pipeline.py (quick win R10, 2026-10-28).
+# ---------------------------------------------------------------------------
+@router.get("/api/index/status")
+async def api_index_status(project=Depends(get_project)):
+    """Segnala se l'indice Graph RAG è aggiornato rispetto ai documenti in docs/ (drift di
+    indicizzazione): confronta gli hash correnti con lo snapshot salvato dall'ultima build."""
+    return await run_in_threadpool(index_status, project=project)
+
+
+@router.get("/api/index/integrity")
+async def api_index_integrity(project=Depends(get_project)):
+    """Check economico di integrità dell'indice (zero embedding): manifest, hash dei
+    sorgenti, integrità degli artefatti in database/ e allineamento del conteggio Qdrant
+    col sidecar chunk. Riusa il client Qdrant del server se disponibile."""
+    return await run_in_threadpool(
+        check_index_integrity, state.get("qdrant"), lambda *_a, **_k: None,
+        project=project)
 
 
 # ---------------------------------------------------------------------------

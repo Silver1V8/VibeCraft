@@ -1010,20 +1010,12 @@
       }
     }
 
-    /* ──────────── CONSUMER NDJSON (streaming drift/archive) ──────────── */
+    /* ──────────── CONSUMER NDJSON (streaming drift/archive) ────────────
+       Implementazione in shared.js::parseNdjsonStream (R7). Wrapper locale così
+       i harness Node che mockano `consumeNdjson` senza caricare shared.js
+       restano validi (pipeline_runner_capability.cjs taglia su questo marker). */
     async function consumeNdjson(res, onEvent) {
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (const line of lines) { if (line.trim()) onEvent(JSON.parse(line)); }
-      }
-      if (buffer.trim()) onEvent(JSON.parse(buffer));
+      return parseNdjsonStream(res, onEvent);
     }
 
     /* ──────────── STEP 4: VERIFICA DEL DRIFT (streaming) ──────────── */

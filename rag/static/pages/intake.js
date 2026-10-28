@@ -18,64 +18,7 @@
       ).join('');
     }
 
-    /* ──────────── Markdown → HTML minimale e sicuro ────────────
-       Escapa TUTTO l'input prima di riconoscere qualunque costrutto: i tag prodotti
-       sono solo quelli che questa funzione genera esplicitamente, mai markup annidato
-       nel contenuto sorgente (niente XSS da un documento caricato/generato).
-       escapeHtml e inlineMd vivono in /static/shared.js (caricato in <head>). */
-
-    function excelText(text) {
-      // Excel (core/intake_excel.py): toglie solo gli escape del serializzatore (\X, &#N;, <br>)
-      // in un unico passaggio, poi ri-escapa TUTTO: il markup della fonte resta testo.
-      const decoded = String(text).replace(/\\([!-\/:-@\[-`{-~])|&#(\d+);|<br>/g, (m, punct, code) =>
-        punct !== undefined ? punct
-          : code !== undefined ? (Number(code) <= 0x10FFFF ? String.fromCodePoint(Number(code)) : m)
-          : '\n');
-      return escapeHtml(decoded).replace(/\n/g, '<br>');
-    }
-
-    function mdToHtml(md, excel = false) {
-      const lines = String(md).replace(/\r\n/g, '\n').split('\n');
-      const renderText = excel ? excelText : inlineMd;
-      let html = '', inCode = false, codeBuf = [], inList = false, inTable = false;
-      const closeList = () => { if (inList) { html += '</ul>'; inList = false; } };
-      const closeTable = () => { if (inTable) { html += '</tbody></table>'; inTable = false; } };
-      for (const raw of lines) {
-        if (excel && raw.startsWith('|') && raw.endsWith('|')) {
-          if (/^[| :\-]+$/.test(raw)) continue;
-          // I pipe dei dati sono sempre `\|`: si divide solo sui delimitatori non escapati.
-          const cells = raw.slice(1, -1).split(/(?<!\\)\|/).map(c => renderText(c.trim()));
-          if (!inTable) {
-            html += '<table><thead><tr>' + cells.map(c => `<th scope="col">${c}</th>`).join('') + '</tr></thead><tbody>';
-            inTable = true;
-          } else {
-            html += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
-          }
-          continue;
-        }
-        closeTable();
-        if (raw.trim().startsWith('```')) {
-          if (!inCode) { closeList(); inCode = true; codeBuf = []; }
-          else { html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`; inCode = false; }
-          continue;
-        }
-        if (inCode) { codeBuf.push(raw); continue; }
-        let m = /^(#{1,6})\s+(.*)$/.exec(raw);
-        if (m) { closeList(); const lvl = m[1].length; html += `<h${lvl}>${renderText(m[2])}</h${lvl}>`; continue; }
-        if (/^\s*[-*]\s+/.test(raw)) {
-          if (!inList) { html += '<ul>'; inList = true; }
-          html += `<li>${renderText(raw.replace(/^\s*[-*]\s+/, ''))}</li>`;
-          continue;
-        }
-        closeList();
-        if (raw.trim() === '') continue;
-        html += `<p>${renderText(raw)}</p>`;
-      }
-      closeList();
-      closeTable();
-      if (inCode) html += `<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`;
-      return html;
-    }
+    /* Markdown → HTML: mdToHtml / excelText vivono in /static/shared.js (R7). */
 
     function formatDate(iso) {
       if (!iso) return '';

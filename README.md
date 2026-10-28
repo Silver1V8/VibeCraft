@@ -35,7 +35,15 @@ Due guide, generate dal sorgente il 18 ottobre 2026. Nella console si aprono cos
 
 Versioni in inglese: [Guided walkthrough](rag/static/manuale/percorso-guidato.en.html), [User manual](rag/static/manuale/manuale-utente.en.html).
 
-`archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Toglierla con un commit ordinario non alleggerisce i clone: i byte restano nella history.
+`archive/` non è il prodotto. È l'evidenza storica delle misure, citata dagli ADR: vedi [archive/README.md](archive/README.md). Docker e i test non la leggono. Toglierla con un commit ordinario non alleggerisce i clone: i byte restano nella history. Per un clone leggero senza `archive/` (≈118 MB di `eval-results`):
+
+```bash
+git clone --filter=blob:none --sparse https://github.com/Silver1V8/VibeCraft.git
+cd VibeCraft
+git sparse-checkout set '/*' '!archive/eval-results'
+```
+
+(oppure `git sparse-checkout set --no-cone '/*' '!/archive'` per escludere tutta `archive/`; tieni [archive/README.md](archive/README.md) se ti serve il puntatore).
 
 **Stato documentato: `main`, 25 ottobre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
@@ -249,7 +257,11 @@ I prerequisiti dipendono da come lo installi:
 - **Via Docker** — Docker con Compose. Python e Qdrant sono nello stack; anche Ollama
   nei profili `cpu` e `gpu`.
 - **Nativa** — **Python 3.14**, [uv](https://docs.astral.sh/uv/), **Docker** (per il solo
-  Qdrant) e **[Ollama](https://ollama.com)**.
+  Qdrant) e **[Ollama](https://ollama.com)**. Il pin `requires-python >=3.14` non è perché
+  il codice usi feature post-3.12 (la suite passa anche su 3.12): su Windows un lock a
+  `>=3.12` biforca `onnxruntime` (1.20.1 vs 1.29.0) e gonfia il lockfile. Decisione
+  consapevole (S8 / [rag/adr/DISTRIBUTION.md](rag/adr/DISTRIBUTION.md)); uv scarica da sé
+  una CPython 3.14.
 
 ## Avvio rapido — Docker (consigliato)
 

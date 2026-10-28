@@ -56,7 +56,7 @@ from core.config import (
     TECH_MAX_CHUNKS,
     TECH_SCOPE_TAG_KEY,
 )
-from core.indexing import archive_feature, check_drift, check_index_integrity, docs_hashes, index_status
+from core.indexing import archive_feature, check_drift, docs_hashes
 from core.pipeline import (
     FINAL_PROMPT_CONSUMERS,
     InvalidDevTypeError,
@@ -980,23 +980,6 @@ async def pipeline_validate(req: ValidateRequest, project=Depends(get_project)):
     except (PipelineStorageError, ProjectError, OSError, UnicodeError) as exc:
         raise _gate_storage_error(exc) from exc
     return JSONResponse(result, status_code=503) if result['status'] == 'unavailable' else result
-
-
-@router.get("/api/index/status")
-async def api_index_status(project=Depends(get_project)):
-    """Segnala se l'indice Graph RAG è aggiornato rispetto ai documenti in docs/ (drift di
-    indicizzazione): confronta gli hash correnti con lo snapshot salvato dall'ultima build."""
-    return await run_in_threadpool(index_status, project=project)
-
-
-@router.get("/api/index/integrity")
-async def api_index_integrity(project=Depends(get_project)):
-    """Check economico di integrità dell'indice (zero embedding): manifest, hash dei
-    sorgenti, integrità degli artefatti in database/ e allineamento del conteggio Qdrant
-    col sidecar chunk. Riusa il client Qdrant del server se disponibile."""
-    return await run_in_threadpool(
-        check_index_integrity, state.get("qdrant"), lambda *_a, **_k: None
-        , project=project)
 
 
 @router.post("/api/pipeline/canvas/dry-run")

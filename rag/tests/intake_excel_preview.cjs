@@ -1,18 +1,17 @@
-// Il codice reale della preview inline (in /static/pages/intake.js, era nel template), senza browser né dipendenze.
+// Il codice reale della preview inline (mdToHtml in /static/shared.js), senza browser né dipendenze.
 // Uso: node tests/intake_excel_preview.cjs
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const template = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
-// escapeHtml e inlineMd sono quelle di /static/shared.js, che la pagina carica in <head>.
+// escapeHtml, inlineMd, excelText, mdToHtml vivono in shared.js (R7).
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
 const sharedFunction = name => shared.slice(shared.indexOf(`function ${name}(`),
   shared.indexOf('\n}\n', shared.indexOf(`function ${name}(`)) + 3);
-const escapeCode = sharedFunction('escapeHtml') + sharedFunction('inlineMd');
-const code = template.slice(template.indexOf('    function excelText('), template.indexOf('    function formatDate('));
+const code = sharedFunction('escapeHtml') + sharedFunction('inlineMd')
+  + sharedFunction('excelText') + sharedFunction('mdToHtml');
 const context = vm.createContext({});
-vm.runInContext(escapeCode + code, context);
+vm.runInContext(code, context);
 
 // Uscita di core/intake_excel.py: escape backslash, entità per gli spazi di bordo, <br> per LF.
 const md = [

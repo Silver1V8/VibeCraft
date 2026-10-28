@@ -36,6 +36,7 @@ from core.config import (  # noqa: E402
     LLM_SETTINGS,
     OLLAMA_URL,
     QDRANT_URL,
+    SERVER_BIND_IS_LOCAL,
     SERVER_HOST,
     SERVER_PORT,
 )
@@ -235,6 +236,39 @@ def controlla_porta() -> None:
         ok("Porta del server", f"{SERVER_HOST}:{SERVER_PORT} libera")
 
 
+def controlla_proxy_deploy() -> None:
+    """Checklist deploy dietro reverse proxy (SECURITY_SURFACE.md §4 #2 / R11).
+
+    Su bind loopback non c'e' nulla da segnalare. Su bind aperto (LAN/0.0.0.0) il
+    bypass localhost di require_api_key diventa pericoloso se un proxy fa apparire
+    ogni client come 127.0.0.1: serve API key + X-Forwarded-For onorato da uvicorn.
+    Mai bloccante: e' un avviso di postura, non un prerequisito per avviare in locale.
+    """
+    if SERVER_BIND_IS_LOCAL:
+        ok("Bind / proxy", f"{SERVER_HOST} (loopback: bypass localhost di require_api_key ok)")
+        return
+    api_key = os.environ.get("VIBECRAFT_API_KEY")
+    forwarded = os.environ.get("FORWARDED_ALLOW_IPS") or os.environ.get("UVICORN_FORWARDED_ALLOW_IPS")
+    pezzi = []
+    if not api_key:
+        pezzi.append("imposta VIBECRAFT_API_KEY (senza chiave ogni client dietro proxy "
+                     "eredita il bypass localhost)")
+    if not forwarded:
+        pezzi.append("configura uvicorn --forwarded-allow-ips (o ProxyHeadersMiddleware) "
+                     "così X-Forwarded-For non è fidato alla cieca")
+    pezzi.append("aggiungi a VIBECRAFT_ALLOWED_HOSTS gli Host che il proxy inoltra")
+    pezzi.append("OpenAPI è già spento su bind non-loopback (VIBECRAFT_ENABLE_OPENAPI=1 "
+                 "solo per debug)")
+    if pezzi and (not api_key or not forwarded):
+        avviso("Bind / proxy",
+               f"VIBECRAFT_HOST={SERVER_HOST} non è loopback. Prima di esporre: "
+               + "; ".join(pezzi) + ". Dettaglio: SECURITY_SURFACE.md §4 #2.")
+    else:
+        ok("Bind / proxy",
+           f"VIBECRAFT_HOST={SERVER_HOST} con API key e forwarded-allow-ips dichiarati; "
+           "verifica comunque Host e Sec-Fetch-Site dietro il proxy.")
+
+
 def controlla_progetti() -> None:
     from core.projects import ProjectRegistry, ProjectError
     try:
@@ -255,7 +289,8 @@ def main() -> int:
     print("VibeCraft — preflight\n")
     for controllo in (controlla_python, controlla_qdrant, controlla_ollama,
                       controlla_spazio, controlla_modello_embedding,
-                      controlla_gpu, controlla_libreoffice, controlla_porta, controlla_progetti):
+                      controlla_gpu, controlla_libreoffice, controlla_porta,
+                      controlla_proxy_deploy, controlla_progetti):
         controllo()
 
     simboli = {"ok": "  OK  ", "avviso": " AVVISO", "errore": " ERRORE"}

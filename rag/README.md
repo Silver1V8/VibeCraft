@@ -1087,6 +1087,10 @@ una generazione: vanno misurate separatamente.
 | Variabile | Default | Ambito |
 |---|---|---|
 | `VIBECRAFT_ASK_MAX_ACTIVE` | 8 | Richieste `/ask` attive per processo; eccesso 429 |
+| `VIBECRAFT_CPU_GET_RATE_LIMIT` | `EMBED_CONCURRENCY * 15` | Hit/minuto (finestra) per IP su `/api/retrieve`, `/api/code/search`, `/api/graph/semantic-map`; eccesso 429 |
+| `VIBECRAFT_CPU_GET_WINDOW_SECONDS` | 60 | Finestra del rate-limit GET CPU |
+| `VIBECRAFT_DISABLE_OPENAPI` | unset | `1` spegne `/docs` `/redoc` `/openapi.json` anche su loopback |
+| `VIBECRAFT_ENABLE_OPENAPI` | unset | `1` riapre OpenAPI anche su bind non-loopback (debug) |
 | `VIBECRAFT_LLM_CONCURRENCY` | 2 | Generazioni `/ask` contemporanee per processo |
 | `VIBECRAFT_LLM_QUEUE_TIMEOUT_SECONDS` | 30 | Attesa massima dello slot di generazione |
 | `VIBECRAFT_ASK_TIMEOUT_SECONDS` | Timeout Ollama + 60 | Scadenza della pipeline; un thread già avviato termina prima di restituire capacità |
@@ -1154,13 +1158,18 @@ All'avvio/reload il reader confronta manifest e hash degli artefatti usando il
 validatore storage esistente. Per NPY controlla indice e hash registrati; questo
 controllo non equivale a una nuova scansione profonda di tutti i byte dei vettori.
 
-### Limiti verificati e prossima misura
+### Limiti verificati e envelope supportato
+
+**Envelope operativo dichiarato (P0–P2 software):** un writer designato + N reader
+locali sulla stessa macchina (`VIBECRAFT_INDEX_MODE=immutable`), senza claim di
+throughput, TTFT o capacità oltre i limiti configurabili sopra. La matrice HTTP
+reale k=1/4/8 e il confronto uno-vs-due reader con Qwen (**P3**) **non sono ancora
+eseguiti**; fino a quella misura le «repliche locali opt-in» restano software
+verificato in isolation, non un envelope di carico pubblicato.
 
 Con Ollama 0.34.4 e il modello locale qwen3.5:9b, il motore impone un solo slot per
 l'architettura qwen35: richieste HTTP sovrapposte non producono inferenze parallele.
 Le [prove reali](../archive/adr/horizontal-bench/preflight-20260928/README.md) lo documentano.
-La matrice applicativa k=1,4,8 e il confronto tra uno e due reader non sono ancora
-eseguiti; nessun miglioramento di throughput o TTFT è dichiarato.
 
 Le repliche su host diversi richiedono un meccanismo verificato di distribuzione
 delle versioni e di conservazione delle collection ancora in uso. Le lease locali

@@ -6,7 +6,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
 from api.deps import (get_project, require_snapshot, ensure_shared_resources, require_api_key,
-                      run_in_threadpool_until_complete, state, logger)
+                      require_cpu_get_rate_limit, run_in_threadpool_until_complete, state, logger)
 from core import graph_ops
 from core.config import ROLE
 
@@ -64,8 +64,8 @@ async def graph_impact(
             "project_id": project.id, "index_version": snap.version}
 
 
-@reader_router.get("/api/graph/semantic-map")
-@router.get("/api/graph/semantic-map")
+@reader_router.get("/api/graph/semantic-map", dependencies=[Depends(require_cpu_get_rate_limit)])
+@router.get("/api/graph/semantic-map", dependencies=[Depends(require_cpu_get_rate_limit)])
 async def graph_semantic_map(request: Request):
     """Semantic Map: proietta i CHUNK (sezioni) in 2D per prossimità semantica (PCA via
     SVD sui vettori densi bge-m3 in Qdrant). Le community e i nodi 'ponte' sono calcolati

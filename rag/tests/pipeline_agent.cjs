@@ -8,6 +8,13 @@ const { t } = require('./i18n_stub.cjs');
 const html = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
 const errorHelper = shared.slice(shared.indexOf('function apiErrorMessage('), shared.indexOf('/* ──────────── THEME VAR'));
+const sharedNorm = shared.replace(/\r\n/g, '\n');
+const parseNdjsonStream = vm.runInNewContext(
+  sharedNorm.slice(sharedNorm.indexOf('async function parseNdjsonStream('),
+    sharedNorm.indexOf('\n}\n', sharedNorm.indexOf('async function parseNdjsonStream(')) + 3)
+    + '; parseNdjsonStream',
+  {TextDecoder},
+);
 const functions = html.slice(html.indexOf('    async function fetchFinalPrompt('), html.indexOf('    function getFeatureName('))
   + html.slice(html.indexOf('    function gateApiError('), html.indexOf('    /* ──────────── ESECUZIONE CON CLAUDE AGENT SDK'))
   + html.slice(html.indexOf('    function openPointsSummary('), html.indexOf('    /* ──────────── STEP 4:'))
@@ -29,6 +36,7 @@ async function check(mode, unavailable = false, event = null, blockStatus = null
     warnings:[{code:'unreviewed_corpus_changes',message:'Pertinenza non rivalutata',changed:['other.md']}]};
   const context = vm.createContext({sessionRevision: 0, t,
     URLSearchParams, TextDecoder, featureName: 'feat', devType: 'frontend',
+    parseNdjsonStream,
     window: { _finalPrompt: mode === 'agentic' ? '' : 'PROMPT ESTERNO', __VIBECRAFT_AGENT_API_KEY__: 'synthetic' },
     document: { getElementById: id => nodes[id],createElement:()=>({textContent:'',appendChild(){}}) },
     toast: message => errors.push(message), confirmDialog: async () => true,
