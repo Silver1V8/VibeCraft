@@ -4191,6 +4191,13 @@ confine per due falsi allarmi. Diventa la scelta solo se anche il 27b non passa 
 unanimi 24/24**: sotto è una regressione del giudice, sopra e con negativi 7/7 è un giudice
 che passa e il modo (b) entra nelle tabelle.
 
+**Riaperta il 2026-10-29 con `qwen3.8:27b`** al posto del `qwen3.5:27b` previsto: **21/24**,
+negativi ancora **5/7**, unanimi 24/24, e 1 negativo mancato (05·2) contro gli 0 del 9b.
+Non passa, e come schermo fa peggio. Il 07·2 cade sullo stesso distrattore del 9b e di
+nimble. Il giudice resta il 9b. Per l'ordine fissato qui, la prossima scelta è il provider
+remoto: va presa come decisione, perché il corpus esce dalla macchina
+([evidenze](../eval-results/attribution_qwen38_20261029/evidence/METHOD.md)).
+
 ## Bilancio
 
 | | |

@@ -1793,7 +1793,7 @@ una riga ciascuna — per esteso, con la condizione di riapertura, in `AUDIT.md`
 | 10 | primo avvio | **Fuori perimetro** | la prima installazione esterna |
 | 11 | `requires-python` | **Resta `>=3.14`**, `ruff` `py314` | la biforcazione di `onnxruntime` sparisce, o il README promette pip |
 | 12 | R25 | Accettato; la guardia è il notturno, scritto in `DISTRIBUTION.md` | un alert notturno dopo un incrementale, o ≥1 incrementale reale a settimana |
-| 13 | R29 | Giudice come schermo; prossimo tentativo `qwen3.5:27b` locale; remoto no | un secondo modello in `ollama list` → `eval.attribution --repeats 3` contro 20/24 |
+| 13 | R29 | Giudice come schermo; prossimo tentativo `qwen3.5:27b` locale; remoto no | un secondo modello in `ollama list` → `eval.attribution --repeats 3` contro 20/24. **Riaperta il 2026-10-29**: `qwen3.8:27b` 21/24, negativi 5/7, 1 negativo mancato, non passa; resta il 9b, il remoto è da decidere |
 
 Lavoro che nasce da S8: **uno**, R16, nelle impostazioni del repository. Constatazioni fuori
 da qui: tre — l'esito di `release.yml`, la visibilità del pacchetto GHCR, l'applicazione del
