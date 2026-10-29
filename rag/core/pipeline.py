@@ -6,11 +6,11 @@ parametri espliciti; l'orchestrazione async/I-O resta nei route handler (api/)."
 import json
 import re
 from pathlib import Path
-from core.projects import _unlinked, code_scopes, is_code_scope_name
+from core.projects import ProjectError, _unlinked, code_scopes, is_code_scope_name
 
 from core import llm, retrieval, spec_format
 from core.open_points import REPORT_INSTRUCTIONS, RESEARCH_INSTRUCTIONS
-from core.config import CHANGES_DIR, CODE_DIR, DOCS_DIR, RAG_DIR, SERVER_BASE_URL, TECH_QUERY_TEMPLATE
+from core.config import CHANGES_DIR, CODE_DIR, DOCS_DIR, RAG_DIR, SERVER_BASE_URL, TECH_QUERY_TEMPLATE, TECH_SCOPE_TAG_KEY
 
 # Le 7 sezioni obbligatorie del REASONS Canvas (copertura strutturale e confidence).
 CANVAS_SECTIONS = ("Requirements", "Entities", "Approach", "Structure", "Operations", "Norms", "Safeguards")
@@ -182,6 +182,60 @@ def build_tech_query(dev_type: str, template: str = TECH_QUERY_TEMPLATE, *, proj
     # replace() e non format(): il template è testo libero scritto a mano nel config e
     # un'eventuale graffa di troppo non deve far esplodere la generazione del canvas.
     return template.replace("{dev_type}", readable)
+
+
+def canvas_dry_run(query: str, dev_type: str, *, graph, qdrant, embed_model, colbert_store,
+                   project, collection_name) -> dict:
+    """Sorgenti (con punteggi dense/sparse/ColBERT/autorità) e documenti normativi che il
+    Canvas riceverebbe per `query`, senza generare nulla.
+
+    Rispecchia i DUE rami del contesto governato (dominio + tecnico per dev_type): mostrarne
+    uno solo farebbe promettere al dry-run un contesto diverso da quello che il canvas
+    riceve davvero. Ogni sorgente porta il ramo da cui viene. Sincrono (embedding) → threadpool."""
+    branches = [("normativo", query, None)]
+    tech_query = build_tech_query(dev_type, project=project)
+    if tech_query:
+        branches.append(("tecnico", tech_query,
+                         retrieval.scope_tag_filter(TECH_SCOPE_TAG_KEY, dev_type_tag_variants(dev_type))))
+
+    sources, doc_ids = [], []
+    for label, q, query_filter in branches:
+        try:
+            results = retrieval.hybrid_search(q, 6, query_filter=query_filter, qdrant=qdrant,
+                                              embed_model=embed_model, colbert_store=colbert_store,
+                                              project=project, collection_name=collection_name)
+        except Exception as exc:
+            raise retrieval.RetrievalUnavailable("Retrieval non disponibile.") from exc
+        sources += [
+            {"doc_id": r["doc_id"], "section": r.get("section", ""), "branch": label,
+             "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
+             "colbert_score": r["colbert_score"], "authority": r["authority"]}
+            for r in results
+        ]
+        for d in retrieval.select_governed_docs(q, graph=graph, results=results):
+            if d not in doc_ids:
+                doc_ids.append(d)
+
+    def live_doc_path(doc_id: str) -> Path | None:
+        # doc_id viene dall'indice: dentro docs/ del progetto, mai fuori (stesso
+        # controllo di routes_retrieval). Fuori o illeggibile → 0 caratteri, non 500.
+        try:
+            docs_root = _unlinked(project.docs_dir)
+            path = _unlinked(project.docs_dir / doc_id)
+        except (ProjectError, ValueError, OSError):
+            return None
+        return path if path.is_relative_to(docs_root) else None
+
+    governed = []
+    for d in doc_ids:
+        p = live_doc_path(d)
+        governed.append({
+            "doc_id": d,
+            "authority": round(retrieval._authority_weight(graph.nodes[d]) if d in graph else 0.0, 3),
+            "classification": graph.nodes[d].get("classification", "") if d in graph else "",
+            "chars": len(p.read_text(encoding="utf-8")) if p is not None and p.exists() else 0,
+        })
+    return {"sources": sources, "governed_docs": governed}
 
 
 def save_dev_type(folder: Path, dev_type: str, *, project=None) -> None:

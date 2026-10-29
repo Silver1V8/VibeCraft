@@ -7,8 +7,8 @@ from pydantic import model_validator
 
 from core import pipeline, retrieval
 from core.open_points import Text, _unique_keys, read_report
-from core.pipeline_gate import (Check, Contract, Digest, Record, ProvidedSource,
-                                ValidationSources, content_hash)
+from core.pipeline_gate import (Check, Contract, Digest, Record, ProvidedSource, SourceState,
+                                ValidationSources, content_hash, evaluate_gate)
 
 COVERAGE_RULES = frozenset({'scenari_insufficienti', 'caso_negativo_mancante'})
 
@@ -178,3 +178,25 @@ def validation_context(question, snap, doc_hashes, *, qdrant, embed_model, max_c
         return '\n\n'.join(s.text_supplied for s in provided), sources
     except Exception as exc:
         raise ValidationUnavailable(f'Costruzione del contesto fallita: {exc}') from exc
+
+
+def gate_payload(contract: Contract | None, record, sources: SourceState, issues: list, *,
+                 retry_reference_valid: bool = True) -> dict:
+    """Risposta del gate per un contratto (o la sua assenza) e l'eventuale validazione.
+
+    `sources` è lo stato corrente del corpus: lo calcola il chiamante dallo snapshot, e su
+    fonti illeggibili passa SourceState() vuoto con il problema già in `issues`."""
+    decision = evaluate_gate(contract, record, sources, issues,
+                             retry_reference_valid=retry_reference_valid).model_dump()
+    if contract is None:
+        return dict(feature_folder=record.feature if record else None, spec_hash=None,
+                    validation_id=record.validation_id if record else None, gate=decision,
+                    point_decisions=None, structural_findings=[], comparison=None, execution_enforced=True)
+    structural, _, findings = structural_check(contract)
+    return dict(feature_folder=contract.feature, spec_hash=contract.spec.hash,
+                validation_id=record.validation_id if record else None, gate=decision,
+                structural=structural, structural_findings=findings,
+                point_decisions=point_states(contract), execution_enforced=True,
+                comparison=(dict(validation_id=record.validation_id,
+                    **{name: dict(current=getattr(contract, name).text, validated=getattr(record.contract, name).text)
+                       for name in ('canvas', 'spec')}) if record and record.feature == contract.feature else None))
