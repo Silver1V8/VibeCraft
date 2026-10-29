@@ -1,0 +1,43 @@
+diff --git a/rag/eval/results/sidecar_20260915/sandbox/process_workload-before-fix2.py b/rag/eval/results/sidecar_20260915/evidence/process_workload.py
+index 766b9a3..0f9bc86 100644
+--- a/rag/eval/results/sidecar_20260915/sandbox/process_workload-before-fix2.py
++++ b/rag/eval/results/sidecar_20260915/evidence/process_workload.py
+@@ -200,7 +200,7 @@ def _bootstrap(paths: dict, *, self_check: bool = False) -> int:
+     try:
+         if self_check:
+             _save(paths["output"] / "phase1d-bootstrap-selfcheck.json",
+-                  {"at_utc": _utc(), "pid": os.getpid(), "self_check": True})
++                  {"at_utc": _utc(), "pid": os.getpid(), "ppid": os.getppid(), "self_check": True})
+             return 0
+         sys.path.insert(0, str(paths["rag"]))
+         from core.indexing import incremental_index
+@@ -280,11 +280,14 @@ def run(paths: dict) -> int:
+         original_bytes = target.read_bytes()
+         original = original_bytes.decode("utf-8")
+         assert "VarianteA" in original and "VarianteB" not in original, "fixture delta non pronta"
+-        before = hashlib.sha256(original.encode()).hexdigest()
++        before = hashlib.sha256(original_bytes).hexdigest()
+         changed = original.replace("VarianteA", "VarianteB")
+-        assert len(changed) == len(original), "delta deve preservare la lunghezza"
+-        target.write_text(changed, encoding="utf-8")
+-        after = hashlib.sha256(target.read_bytes()).hexdigest()
++        changed_bytes = changed.encode("utf-8")
++        assert len(changed_bytes) == len(original_bytes), "delta deve preservare la lunghezza in byte"
++        target.write_bytes(changed_bytes)
++        written = target.read_bytes()
++        assert len(written) == len(original_bytes), "delta scritto con lunghezza byte errata"
++        after = hashlib.sha256(written).hexdigest()
+         assert after != before, "hash delta invariato"
+         _event(payload, "delta_start", path="prenotazioni.md", before_sha256=before, after_sha256=after)
+         status, queued = _http("POST", "/api/reindex")
+@@ -364,8 +367,9 @@ def main() -> int:
+         child_metadata = json.loads(metadata.read_text(encoding="utf-8")) if metadata.exists() else {}
+         assert child.returncode == 0 and child.pid > 0 and not stdout and not stderr, (child.returncode, stdout, stderr)
+         assert child_metadata.get("pid", 0) > 0 and child_metadata.get("self_check") is True, child_metadata
++        assert child_metadata["pid"] == child.pid or child_metadata.get("ppid") == child.pid, (child.pid, child_metadata)
+         print(json.dumps({"validated_checkout": str(paths["checkout"]), "popen_pid": child.pid,
+-                          "bootstrap_pid": child_metadata["pid"]}))
++                          "bootstrap_pid": child_metadata["pid"], "bootstrap_ppid": child_metadata["ppid"]}))
+         return 0
+     return _bootstrap(paths, self_check=args.self_check) if args.bootstrap else run(paths)
+ 

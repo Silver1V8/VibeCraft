@@ -25,6 +25,7 @@ indicizzare.
 | [`RESIDUI.md`](../../archive/adr/RESIDUI.md) | backlog derivato dall'audit, chiuso; stessa cartella |
 | [`DISTRIBUTION.md`](DISTRIBUTION.md) | il piano di distribuzione: numeri, forcelle e decisioni sul packaging |
 | [`EVOLUZIONE.md`](../../archive/adr/EVOLUZIONE.md) | piano di evoluzione del settembre 2026, in archive |
+| [`ANALISI_COMPETITIVA.md`](../../archive/adr/ANALISI_COMPETITIVA.md) | confronto del 13 settembre 2026 con le alternative gestite (grafi managed, pipeline GraphRAG cloud, SaaS di enterprise search): matrice, SWOT, break-even; in archive, numeri e raccomandazioni di quella data |
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | la proposta di pipeline Docling alternativa al pilot Granite, con configurazione e criteri di valutazione |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |
