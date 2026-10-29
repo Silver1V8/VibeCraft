@@ -4,12 +4,10 @@ handler orchestrano I/O e concorrenza (async/threadpool/streaming) e iniettano l
 di runtime dallo stato (api.deps) nelle funzioni pure di core.pipeline / core.retrieval."""
 import functools
 import logging
-from datetime import datetime, timedelta, timezone
 from contextlib import nullcontext, contextmanager
 from uuid import uuid4
 import json
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -310,7 +308,7 @@ def _verified_runs(req, record, prompt, stream, attempt, retry, details, project
         yield _verification_event(result, current, attempts_left if retry_possible else 0)
         if not retry_possible:
             return
-        if blocked := _budget_block(req.runner):
+        if blocked := llm.budget_block(req.runner):
             yield json.dumps(dict(type='retry_blocked', attempt_id=current, detail=blocked),
                              ensure_ascii=False) + '\n'
             return
@@ -340,28 +338,6 @@ def _verified_runs(req, record, prompt, stream, attempt, retry, details, project
         yield from next_stream
 
 
-# Runner il cui costo finisce nel budget Claude giornaliero (llm_settings.budget): solo
-# `claude` spende sull'account Anthropic e riporta total_cost_usd. `local` (Ollama) è
-# gratuito; codex/cursor fatturano su account propri e non riportano un costo.
-_BUDGETED_RUNNERS = frozenset({'claude'})
-
-
-def _budget_block(runner: str) -> str | None:
-    """Messaggio di rifiuto se il runner è a pagamento e il budget del giorno è esaurito."""
-    if runner not in _BUDGETED_RUNNERS or (hit := llm.budget_exhausted()) is None:
-        return None
-    spent, threshold = hit
-    return (f'Budget Claude giornaliero esaurito (spesa {spent:.2f} USD, soglia {threshold:.2f} USD): '
-            'i run del runner claude riprendono dopo la mezzanotte UTC. Usa il runner locale '
-            'o alza llm_settings.budget.daily_usd.')
-
-
-def _seconds_to_utc_midnight() -> int:
-    now = datetime.now(timezone.utc)
-    return max(1, int((now.replace(hour=0, minute=0, second=0, microsecond=0)
-                       + timedelta(days=1) - now).total_seconds()))
-
-
 def _finished_recorder(attempt_details, project=None):
     def finished(outcome):
         project_store(project).append_event('execution_finished', **attempt_details,
@@ -381,9 +357,9 @@ async def agent_run(req: AgentRunRequest, project=Depends(get_project)):
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
     # Budget prima di gate e journal: il rifiuto non è un esito del contratto. 429 come le
     # altre quote del server (/ask), con Retry-After fino all'azzeramento del contatore.
-    if blocked := await run_in_threadpool(_budget_block, req.runner):
+    if blocked := await run_in_threadpool(llm.budget_block, req.runner):
         raise HTTPException(status_code=429, detail=blocked,
-                            headers={'Retry-After': str(_seconds_to_utc_midnight())})
+                            headers={'Retry-After': str(llm.seconds_to_utc_midnight())})
     feature = _safe_slug(req.feature) if req.feature else None
     attempt = 'attempt-' + uuid4().hex
 
@@ -822,25 +798,15 @@ def _gate_storage_error(exc):
 
 
 def _gate_payload(contract, record, issues=(), *, retry_reference_valid=True, project=None):
+    """Stato delle fonti dallo snapshot (qui: dipende dal runtime), poi core.pipeline_validation."""
     issues = list(issues)
-    if contract is None:
-        return dict(feature_folder=record.feature if record else None, spec_hash=None, validation_id=record.validation_id if record else None,
-                    gate=gate.evaluate_gate(None, record, gate.SourceState(), issues, retry_reference_valid=retry_reference_valid).model_dump(),
-                    point_decisions=None, structural_findings=[], comparison=None, execution_enforced=True)
-    try:
-        sources = _validation_source_state(project=project)
-    except (validation.ValidationUnavailable, ProjectError, OSError) as exc:
-        sources = gate.SourceState()
-        issues.append(gate.AvailabilityIssue(code="sources_unavailable", message=_public_error(exc), action="operator_action"))
-    structural, _, findings = validation.structural_check(contract)
-    return dict(feature_folder=contract.feature, spec_hash=contract.spec.hash,
-                validation_id=record.validation_id if record else None,
-                gate=gate.evaluate_gate(contract, record, sources, issues, retry_reference_valid=retry_reference_valid).model_dump(),
-                structural=structural, structural_findings=findings,
-                point_decisions=validation.point_states(contract), execution_enforced=True,
-                comparison=(dict(validation_id=record.validation_id,
-                    **{name: dict(current=getattr(contract, name).text, validated=getattr(record.contract, name).text)
-                       for name in ('canvas', 'spec')}) if record and record.feature == contract.feature else None))
+    sources = gate.SourceState()
+    if contract is not None:
+        try:
+            sources = _validation_source_state(project=project)
+        except (validation.ValidationUnavailable, ProjectError, OSError) as exc:
+            issues.append(gate.AvailabilityIssue(code="sources_unavailable", message=_public_error(exc), action="operator_action"))
+    return validation.gate_payload(contract, record, sources, issues, retry_reference_valid=retry_reference_valid)
 
 
 @router.get("/api/pipeline/gate")
@@ -983,13 +949,9 @@ async def pipeline_validate(req: ValidateRequest, project=Depends(get_project)):
 
 @router.post("/api/pipeline/canvas/dry-run")
 async def pipeline_canvas_dry_run(req: CanvasGenerateRequest, project=Depends(get_project)):
-    """Dry-run del Canvas: mostra le sorgenti che verrebbero recuperate (con punteggi
-    dense/sparse/ColBERT/autorità) e i documenti normativi che verrebbero iniettati,
-    SENZA generare nulla — così si ispeziona il contesto prima di spendere token.
-
-    Rispecchia i DUE rami di _governed_context (dominio + tecnico per dev_type): mostrarne
-    uno solo farebbe promettere al dry-run un contesto diverso da quello che il canvas
-    riceve davvero. Ogni sorgente porta il ramo da cui viene.
+    """Dry-run del Canvas (core.pipeline.canvas_dry_run): sorgenti e documenti normativi che
+    verrebbero iniettati, SENZA generare nulla — così si ispeziona il contesto prima di
+    spendere token.
 
     read-only per davvero (SECURITY_SURFACE.md, riga #22 della matrice §2): NON crea la cartella della
     feature (create=False, il default) — se non esiste ancora semplicemente non c'è
@@ -1007,52 +969,9 @@ async def pipeline_canvas_dry_run(req: CanvasGenerateRequest, project=Depends(ge
     def work() -> dict:
         if snap is None or snap.graph is None or state.get("qdrant") is None or state.get("embed_model") is None:
             raise retrieval.RetrievalUnavailable("Retrieval non disponibile: risorse di ricerca assenti.")
-        graph = snap.graph
-        search = functools.partial(retrieval.hybrid_search, qdrant=state["qdrant"],
-                                   embed_model=state["embed_model"], colbert_store=snap.colbert_store, project=project, collection_name=snap.collection_name)
-        branches: list[tuple[str, str, Any]] = [("normativo", query, None)]
-        tech_query = pipeline.build_tech_query(dev_type, project=project)
-        if tech_query:
-            branches.append(("tecnico", tech_query,
-                             retrieval.scope_tag_filter(TECH_SCOPE_TAG_KEY,
-                                                        pipeline.dev_type_tag_variants(dev_type))))
-
-        sources, doc_ids = [], []
-        for label, q, query_filter in branches:
-            try:
-                results = search(q, 6, query_filter=query_filter)
-            except Exception as exc:
-                raise retrieval.RetrievalUnavailable("Retrieval non disponibile.") from exc
-            sources += [
-                {"doc_id": r["doc_id"], "section": r.get("section", ""), "branch": label,
-                 "dense_score": r["dense_score"], "sparse_score": r["sparse_score"],
-                 "colbert_score": r["colbert_score"], "authority": r["authority"]}
-                for r in results
-            ]
-            for d in retrieval.select_governed_docs(q, graph=graph, results=results):
-                if d not in doc_ids:
-                    doc_ids.append(d)
-
-        def live_doc_path(doc_id: str) -> Path | None:
-            # doc_id viene dall'indice: dentro docs/ del progetto, mai fuori (stesso
-            # controllo di routes_retrieval). Fuori o illeggibile → 0 caratteri, non 500.
-            try:
-                docs_root = _unlinked(project.docs_dir)
-                path = _unlinked(project.docs_dir / doc_id)
-            except (ProjectError, ValueError, OSError):
-                return None
-            return path if path.is_relative_to(docs_root) else None
-
-        governed = []
-        for d in doc_ids:
-            p = live_doc_path(d)
-            governed.append({
-                "doc_id": d,
-                "authority": round(retrieval._authority_weight(graph.nodes[d]) if d in graph else 0.0, 3),
-                "classification": graph.nodes[d].get("classification", "") if d in graph else "",
-                "chars": len(p.read_text(encoding="utf-8")) if p is not None and p.exists() else 0,
-            })
-        return {"sources": sources, "governed_docs": governed}
+        return pipeline.canvas_dry_run(query, dev_type, graph=snap.graph, qdrant=state["qdrant"],
+                                       embed_model=state["embed_model"], colbert_store=snap.colbert_store,
+                                       project=project, collection_name=snap.collection_name)
 
     data = await _pipeline_retrieval(work)
     return {"feature_folder": folder.name, "query_preview": query[:300], **data}

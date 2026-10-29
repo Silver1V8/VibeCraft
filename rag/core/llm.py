@@ -17,7 +17,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import httpx2
@@ -241,6 +241,29 @@ def budget_exhausted() -> tuple[float, float] | None:
     except Exception:
         logger.warning("Budget guard non applicabile ai run agente.", exc_info=True)
         return None
+
+
+# Runner il cui costo finisce nel budget Claude giornaliero (llm_settings.budget): solo
+# `claude` spende sull'account Anthropic e riporta total_cost_usd. `local` (Ollama) è
+# gratuito; codex/cursor fatturano su account propri e non riportano un costo.
+BUDGETED_RUNNERS = frozenset({'claude'})
+
+
+def budget_block(runner: str) -> str | None:
+    """Messaggio di rifiuto se il runner è a pagamento e il budget del giorno è esaurito."""
+    if runner not in BUDGETED_RUNNERS or (hit := budget_exhausted()) is None:
+        return None
+    spent, threshold = hit
+    return (f'Budget Claude giornaliero esaurito (spesa {spent:.2f} USD, soglia {threshold:.2f} USD): '
+            'i run del runner claude riprendono dopo la mezzanotte UTC. Usa il runner locale '
+            'o alza llm_settings.budget.daily_usd.')
+
+
+def seconds_to_utc_midnight() -> int:
+    """Retry-After del rifiuto per budget: il contatore si azzera al cambio di giorno UTC."""
+    now = datetime.now(timezone.utc)
+    return max(1, int((now.replace(hour=0, minute=0, second=0, microsecond=0)
+                       + timedelta(days=1) - now).total_seconds()))
 
 
 def _budget_fallback(provider: str, model: str, settings: LLMSettings) -> tuple[str, str]:
