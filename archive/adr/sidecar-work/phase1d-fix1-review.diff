@@ -1,0 +1,111 @@
+diff --git a/rag/eval/results/sidecar_20260915/sandbox/process_workload-before-fix1.py b/rag/eval/results/sidecar_20260915/evidence/process_workload.py
+index 4a53c92..766b9a3 100644
+--- a/rag/eval/results/sidecar_20260915/sandbox/process_workload-before-fix1.py
++++ b/rag/eval/results/sidecar_20260915/evidence/process_workload.py
+@@ -73,7 +73,7 @@ def validate_paths(checkout_arg: str, output_arg: str, *, allow_output_exists: b
+     if raw_checkout.is_symlink() or raw_checkout.parent.is_symlink():
+         raise RuntimeError("checkout o sandbox non puo essere un link")
+     checkout = raw_checkout.resolve(strict=True)
+-    run = checkout.parent.parent
++    run = Path(__file__).resolve().parent.parent
+     expected = run / "sandbox" / "experiment"
+     if checkout != expected.resolve(strict=True):
+         raise RuntimeError("checkout deve essere esattamente <run>/sandbox/experiment")
+@@ -194,10 +194,14 @@ def _require_completed(job: dict, *, noop: bool | None = None, delta: bool = Fal
+         assert job.get("published_token") == result.get("version"), (job, result)
+ 
+ 
+-def _bootstrap(paths: dict) -> int:
++def _bootstrap(paths: dict, *, self_check: bool = False) -> int:
+     stop = threading.Event()
+     old = _install_stop_handlers(stop)
+     try:
++        if self_check:
++            _save(paths["output"] / "phase1d-bootstrap-selfcheck.json",
++                  {"at_utc": _utc(), "pid": os.getpid(), "self_check": True})
++            return 0
+         sys.path.insert(0, str(paths["rag"]))
+         from core.indexing import incremental_index
+         from core.writer_lock import writer_lock
+@@ -220,7 +224,7 @@ def run(paths: dict) -> int:
+                               "readiness_timeout_seconds": READY_TIMEOUT_SECONDS,
+                "job_timeout_seconds": JOB_TIMEOUT_SECONDS}, "events": [], "results": {},
+                "_started_monotonic": time.monotonic()}
+-    original = None
++    original_bytes = None
+     server = None
+     server_thread = None
+     old_handlers = _install_stop_handlers(stop)
+@@ -269,11 +273,12 @@ def run(paths: dict) -> int:
+         status, queued = _http("POST", "/api/reindex")
+         assert status == 202 and queued.get("job_id"), queued
+         noop = _wait_job(queued["job_id"], stop)
+-        _require_completed(noop, noop=True)
+         payload["results"]["noop"] = noop
++        _require_completed(noop, noop=True)
+         _event(payload, "noop_ready", job_id=queued["job_id"])
+         target = paths["docs"] / "prenotazioni.md"
+-        original = target.read_text(encoding="utf-8")
++        original_bytes = target.read_bytes()
++        original = original_bytes.decode("utf-8")
+         assert "VarianteA" in original and "VarianteB" not in original, "fixture delta non pronta"
+         before = hashlib.sha256(original.encode()).hexdigest()
+         changed = original.replace("VarianteA", "VarianteB")
+@@ -285,8 +290,8 @@ def run(paths: dict) -> int:
+         status, queued = _http("POST", "/api/reindex")
+         assert status == 202 and queued.get("job_id"), queued
+         delta = _wait_job(queued["job_id"], stop)
+-        _require_completed(delta, delta=True)
+         payload["results"]["delta"] = delta
++        _require_completed(delta, delta=True)
+         _event(payload, "delta_ready", job_id=queued["job_id"])
+         payload["status"] = "completed"
+         exit_code = 0
+@@ -318,11 +323,17 @@ def run(paths: dict) -> int:
+                     server_thread.join(timeout=5)
+                 payload["server_thread_alive"] = server_thread.is_alive()
+             _event(payload, "shutdown_end")
+-        if original is not None:
+-            (paths["docs"] / "prenotazioni.md").write_text(original, encoding="utf-8")
+-            payload["source_restored"] = True
++        if original_bytes is not None:
++            target = paths["docs"] / "prenotazioni.md"
++            target.write_bytes(original_bytes)
++            payload["source_restored"] = target.read_bytes() == original_bytes
+             payload["index_final_state"] = "modified_by_delta; no restore requested"
+         payload["fingerprint_final"] = _tree_fingerprint(paths["docs"], paths["code"])
++        if (not payload.get("source_restored", True)
++                or payload["fingerprint_final"] != payload.get("fingerprint_initial")):
++            payload["status"] = "failed"
++            payload["restore_error"] = "sorgenti finali diversi dal fingerprint iniziale"
++            exit_code = 1
+         _restore_stop_handlers(old_handlers)
+         for key, value in old_env.items():
+             if value is None:
+@@ -342,14 +353,21 @@ def main() -> int:
+     args = parser.parse_args()
+     paths = validate_paths(args.checkout, args.output_dir,
+                            allow_output_exists=args.bootstrap or args.self_check)
+-    if args.self_check:
+-        child = subprocess.Popen([sys.executable, "-B", "-c", "import os; print(os.getpid())"],
++    if args.self_check and not args.bootstrap:
++        metadata = paths["output"] / "phase1d-bootstrap-selfcheck.json"
++        if metadata.exists():
++            raise RuntimeError(f"metadata self-check gia presente: {metadata}")
++        child = subprocess.Popen([sys.executable, "-B", str(Path(__file__).resolve()), "--bootstrap", "--self-check",
++                                  "--checkout", str(paths["checkout"]), "--output-dir", str(paths["output"])],
+                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+         stdout, stderr = child.communicate()
+-        assert child.returncode == 0 and child.pid > 0 and stdout.strip().isdigit() and not stderr, (child.returncode, stdout, stderr)
+-        print(json.dumps({"validated_checkout": str(paths["checkout"]), "child_pid": child.pid}))
++        child_metadata = json.loads(metadata.read_text(encoding="utf-8")) if metadata.exists() else {}
++        assert child.returncode == 0 and child.pid > 0 and not stdout and not stderr, (child.returncode, stdout, stderr)
++        assert child_metadata.get("pid", 0) > 0 and child_metadata.get("self_check") is True, child_metadata
++        print(json.dumps({"validated_checkout": str(paths["checkout"]), "popen_pid": child.pid,
++                          "bootstrap_pid": child_metadata["pid"]}))
+         return 0
+-    return _bootstrap(paths) if args.bootstrap else run(paths)
++    return _bootstrap(paths, self_check=args.self_check) if args.bootstrap else run(paths)
+ 
+ 
+ if __name__ == "__main__":
