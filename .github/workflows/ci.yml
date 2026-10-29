@@ -24,11 +24,11 @@ jobs:
     # delete_collection — e senza servizio si auto-saltavano SEMPRE qui: la semantica
     # reale di Qdrant era verificata solo da chi aveva Docker acceso in locale (A8).
     # Immagine pinnata come ogni altra versione di questo repo, e allineata al client
-    # (qdrant-client==1.19.0 in uv.lock): un server piu' nuovo del client e' un'altra
+    # (qdrant-client==1.20.0 in uv.lock): un server piu' nuovo del client e' un'altra
     # variabile, e non e' quella che questo job vuole misurare.
     services:
       qdrant:
-        image: qdrant/qdrant:v1.19.0
+        image: qdrant/qdrant:v1.20.0
         ports:
           - 6333:6333
 

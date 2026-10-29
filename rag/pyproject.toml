@@ -10,9 +10,9 @@ authors = [{ name = "Valerio Silvestre", email = "silvestre.valerio@gmail.com" }
 license = "Apache-2.0"
 requires-python = ">=3.14"
 dependencies = [
-    "aiohttp==3.14.3",
+    "aiohttp==3.14.5",
     "beautifulsoup4>=4.15.0",
-    "claude-agent-sdk==0.2.144",
+    "claude-agent-sdk==0.2.174",
     # Conversione dell'intake (core/intake_convert.py), SENZA l'extra [vlm]: niente Granite
     # e niente binari GPL di `av`. Il pin di docling non pinna la catena (docling-parse si è
     # già mosso sotto un pin fermo, EVOLUZIONE.md): la famiglia è fissata alle versioni
@@ -22,16 +22,16 @@ dependencies = [
     "docling-core==2.95.0",
     "docling-ibm-models==4.0.2",
     "docling-parse==7.18.0",
-    "fastapi==0.141.1",
+    "fastapi==0.162.0",
     "flagembedding==1.4.2",
     "h2==4.4.1",
     "httpx>=0.28.1",
     "httpx2>=2.9.1",
     "markdownify>=1.2.3",
-    "markitdown[docx,outlook,pdf,pptx,xls,xlsx]==0.1.7",
-    "mcp==2.1.0",
+    "markitdown[docx,outlook,pdf,pptx,xls,xlsx]==0.1.9",
+    "mcp==2.3.0",
     "networkx>=3.6.1",
-    "numpy==2.5.2",
+    "numpy==2.5.4",
     # Lettori di documenti di core/chunking.read_document. Dichiarate ENTRAMBE:
     # pypdf non c'era (i PDF venivano indicizzati vuoti, vedi AUDIT A19) e openpyxl
     # arrivava solo come transitiva di markitdown, cioe' funzionava per fortuna.
@@ -42,9 +42,9 @@ dependencies = [
     "pydantic>=2.13.4",
     "pypdf>=6.1.3",
     "python-docx>=1.2.0",
-    "python-dotenv==1.2.3",
+    "python-dotenv==1.2.4",
     "pyyaml>=6.0.3",
-    "qdrant-client==1.19.0",
+    "qdrant-client==1.20.0",
     # PINNATA di proposito. Con l'indice CUDA ristretto per piattaforma (tool.uv.sources)
     # torch arriva da DUE registri: cu126 su linux/win-amd64, PyPI altrove. Senza pin uv
     # risolve ogni ramo per conto suo e macOS finiva su 2.14.0 mentre tutti gli altri
@@ -59,9 +59,9 @@ dependencies = [
     "torchvision==0.28.0",
     "tree-sitter>=0.26.0",
     "tree-sitter-javascript>=0.25.0",
-    "tree-sitter-language-pack==1.15.8",
+    "tree-sitter-language-pack==1.22.1",
     "tree-sitter-typescript>=0.23.2",
-    "uvicorn==0.52.4",
+    "uvicorn==0.54.0",
 ]
 
 [dependency-groups]
@@ -74,6 +74,13 @@ dev = [
     "pypdfium2>=5.13.0",
     "ruff>=0.16.5",
 ]
+
+[tool.uv]
+# rapidocr 3.10.0 ha tolto COMMON_LANG_ALIASES, che docling 2.126.0 importa per l'OCR: il PDF
+# scansionato ripiega su MarkItDown e non estrae nulla (2026-10-26, tests/test_intake_convert.py).
+# Docling dichiara rapidocr<4, quindi senza vincolo `uv lock --upgrade` lo riprende. Da togliere
+# quando si alza la famiglia docling a una versione compatibile con rapidocr 3.10.
+constraint-dependencies = ["rapidocr==3.9.2"]
 
 [tool.uv.sources]
 # L'indice CUDA vale SOLO dove le sue wheel esistono davvero. Il marcatore non è
