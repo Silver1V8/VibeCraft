@@ -190,7 +190,7 @@ per l'importazione PDF richiedono spazio aggiuntivo:
 | | |
 |---|---|
 | `bge-m3` (embedding) | 4,3 GB, caricato alla prima operazione che lo richiede |
-| `qwen3.5:9b` (LLM locale) | 6,6 GB, via Ollama |
+| `qwen3.5:9b` (LLM locale) | 6,6 GB, via Ollama; la variante `qwen3.5:9b-text` usata dalla configurazione ne riusa i pesi |
 | Spazio disco consigliato | ~20 GB |
 
 **Una GPU NVIDIA cambia molto le cose.** Misurato su una RTX 3070 Ti contro la CPU della
@@ -234,8 +234,10 @@ docker run --rm python:3.14-slim python -c "import secrets; print('VIBECRAFT_API
 # 1. Servizi di supporto
 docker compose --profile cpu up -d qdrant ollama
 
-# 2. Il modello LLM (6,6 GB, una volta sola)
+# 2. Il modello LLM (6,6 GB, una volta sola), poi la variante che usa rag_config.yaml:
+#    stessi pesi senza il proiettore vision, nessun download in più.
 docker compose exec ollama ollama pull qwen3.5:9b
+docker compose exec ollama sh -c "ollama show --modelfile qwen3.5:9b | awk '/^FROM/ && ++n==2 {next} 1' > /tmp/qwen-text.Modelfile && ollama create qwen3.5:9b-text -f /tmp/qwen-text.Modelfile"
 
 # 3. Avvia la console: funziona anche senza indice.
 docker compose --profile cpu up -d
@@ -258,12 +260,13 @@ non richiede Python installato sull'host.
 | `host-ollama` | `qdrant` | `app-host-ollama` |
 
 Per **GPU**, sostituisci `cpu` con `gpu`, `ollama` con `ollama-gpu` nei nomi dei
-servizi e `app-cpu` con `app-gpu`. Il download diventa
-`docker compose exec ollama-gpu ollama pull qwen3.5:9b`.
+servizi e `app-cpu` con `app-gpu`. I due comandi del passo 2 diventano
+`docker compose exec ollama-gpu ...`, identici per il resto.
 Serve NVIDIA Container Toolkit configurato per Docker.
 
 Per **Ollama sull'host**, usa `--profile host-ollama`, avvia solo `qdrant` al passo 1,
-esegui `ollama pull qwen3.5:9b` sull'host e indicizza con `app-host-ollama`.
+esegui sull'host i due comandi del passo 3 dell'installazione nativa (`ollama pull` e la
+creazione di `qwen3.5:9b-text`) e indicizza con `app-host-ollama`.
 Ollama deve essere raggiungibile dal container tramite `host.docker.internal:11434`.
 
 **Indicizzazione e avvio sono indipendenti.** Dopo l'avvio puoi creare un
@@ -305,8 +308,12 @@ python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32
 # 2. Qdrant (vector store), su 127.0.0.1:6333
 docker compose up -d qdrant
 
-# 3. Il modello LLM locale (6,6 GB — è il download più lungo)
+# 3. Il modello LLM locale (6,6 GB — è il download più lungo), poi la variante senza
+#    proiettore vision che usa rag_config.yaml (stessi pesi, nessun download).
+#    Su Windows: da Git Bash o WSL.
 ollama pull qwen3.5:9b
+ollama show --modelfile qwen3.5:9b | awk '/^FROM/ && ++n==2 {next} 1' > qwen-text.Modelfile
+ollama create qwen3.5:9b-text -f qwen-text.Modelfile
 
 # 4. Dipendenze Python
 cd rag

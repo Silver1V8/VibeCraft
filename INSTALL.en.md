@@ -82,7 +82,7 @@ Details and limits: [agent runner](rag/README.md#runner-dellagente-claude-ollama
 | | |
 |---|---|
 | `bge-m3` (embedding) | 4.3 GB, loaded on the first operation that needs it |
-| `qwen3.5:9b` (local LLM) | 6.6 GB, via Ollama |
+| `qwen3.5:9b` (local LLM) | 6.6 GB, via Ollama; the `qwen3.5:9b-text` variant the config uses reuses its weights |
 | Recommended disk space | ~20 GB |
 
 **An NVIDIA GPU changes a lot.** Measured on an RTX 3070 Ti against the CPU of the same machine:
@@ -116,8 +116,10 @@ docker run --rm python:3.14-slim python -c "import secrets; print('VIBECRAFT_API
 # 1. Support services
 docker compose --profile cpu up -d qdrant ollama
 
-# 2. The LLM model (6.6 GB, once)
+# 2. The LLM model (6.6 GB, once), then the variant rag_config.yaml uses:
+#    same weights without the vision projector, nothing more to download.
 docker compose exec ollama ollama pull qwen3.5:9b
+docker compose exec ollama sh -c "ollama show --modelfile qwen3.5:9b | awk '/^FROM/ && ++n==2 {next} 1' > /tmp/qwen-text.Modelfile && ollama create qwen3.5:9b-text -f /tmp/qwen-text.Modelfile"
 
 # 3. Start the console: it works even without an index.
 docker compose --profile cpu up -d
@@ -137,9 +139,9 @@ Step 0 creates `.env`: if the file already exists, keep its contents and add onl
 | `gpu` | `qdrant ollama-gpu` | `app-gpu` |
 | `host-ollama` | `qdrant` | `app-host-ollama` |
 
-For **GPU**, replace `cpu` with `gpu`, `ollama` with `ollama-gpu` in service names, and `app-cpu` with `app-gpu`. The download becomes `docker compose exec ollama-gpu ollama pull qwen3.5:9b`. NVIDIA Container Toolkit must be configured for Docker.
+For **GPU**, replace `cpu` with `gpu`, `ollama` with `ollama-gpu` in service names, and `app-cpu` with `app-gpu`. The two commands of step 2 become `docker compose exec ollama-gpu ...`, otherwise identical. NVIDIA Container Toolkit must be configured for Docker.
 
-For **Ollama on the host**, use `--profile host-ollama`, start only `qdrant` at step 1, run `ollama pull qwen3.5:9b` on the host, and index with `app-host-ollama`. Ollama must be reachable from the container via `host.docker.internal:11434`.
+For **Ollama on the host**, use `--profile host-ollama`, start only `qdrant` at step 1, run on the host the two commands of step 3 of the native install (`ollama pull` and creating `qwen3.5:9b-text`), and index with `app-host-ollama`. Ollama must be reachable from the container via `host.docker.internal:11434`.
 
 **Indexing and startup are independent.** After start you can create a project, import from Intake, and start indexing from the console. `run --rm` runs the CLI in a temporary container with the same volumes; for a new project add `--project <id>`. The console shell does not require an index; retrieval and corpus-based generation do.
 
@@ -167,8 +169,12 @@ python -c "import secrets; print('VIBECRAFT_API_KEY=' + secrets.token_urlsafe(32
 # 2. Qdrant (vector store), on 127.0.0.1:6333
 docker compose up -d qdrant
 
-# 3. The local LLM model (6.6 GB — the longest download)
+# 3. The local LLM model (6.6 GB — the longest download), then the variant without the
+#    vision projector that rag_config.yaml uses (same weights, no download).
+#    On Windows: from Git Bash or WSL.
 ollama pull qwen3.5:9b
+ollama show --modelfile qwen3.5:9b | awk '/^FROM/ && ++n==2 {next} 1' > qwen-text.Modelfile
+ollama create qwen3.5:9b-text -f qwen-text.Modelfile
 
 # 4. Python dependencies
 cd rag

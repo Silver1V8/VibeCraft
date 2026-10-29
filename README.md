@@ -50,6 +50,8 @@ The golden set contains **adversarial** cases, built on purpose: in each one a l
 | Authority nearly off (α 0.1) | 0.690 | 0.862 | 0.948 | 0.983 | **0 of 5** |
 | **Authority calibrated (α 0.3), in production** | **0.741** | 0.862 | **0.966** | **1.000** | **4 of 5** |
 
+Latest check, 29 October 2026, same 58 cases on the current corpus: recall@1 0.707 · recall@2 0.828 · recall@5 0.948 · recall@10 0.983, adversarial at rank 1 still 4 of 5. The table above is the S11 comparison, kept with the date it was measured.
+
 α was not picked by gut feeling: a joint grid of 2,160 points, 5-fold × 5 seeds, with the winner confirmed held out. And sometimes the measurement said no: full multiplication (α 1), the one the governing rule prescribed, cost 15 points of recall@5. The rule was amended, not the numbers. Full story in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) (Italian) and in the `authority:` block of [rag_config.yaml](rag/rag_config.yaml).
 
 **Answers are grounded in sources, not guaranteed.** Citations, partial results, and open points still need checking, and retrieval does not promise it found everything the corpus contains.
@@ -73,7 +75,7 @@ The golden set contains **adversarial** cases, built on purpose: in each one a l
 | **`/ask`** | hybrid retrieval (dense + lexical + ColBERT rerank) re-weighted by authority, plus the code that implements the retrieved sections |
 | **Pipeline** | Explore → Canvas → Propose → Validate → Archive, grounded in normative documents; the canvas learns from archived reviews |
 | **Intake & Import** | local conversion with preview and staging review: Docling for PDF, Excel read directly, MarkItDown, LibreOffice for DOC/PPT |
-| **Maps** | graph map, Semantic Map, and Impact Ripple over the corpus and the indexed code |
+| **Maps** | graph map, Semantic Map, and Impact Ripple over the corpus and the indexed code, from the rule to the backend endpoint to the frontend page that calls it |
 | **Projects** | separate projects with their own folders, indexes, and Qdrant namespaces |
 | **Agents** | Claude Code and Ollama built in; Codex and Cursor via prompt export and external MCP |
 | **MCP** | read-only local server: retrieval, code search, graph queries |
@@ -102,6 +104,8 @@ docker run --rm python:3.14-slim python -c "import secrets; print('VIBECRAFT_API
 
 docker compose --profile cpu up -d qdrant ollama
 docker compose exec ollama ollama pull qwen3.5:9b      # 6.6 GB, once
+# The variant the config uses: same weights without the vision projector, nothing to download
+docker compose exec ollama sh -c "ollama show --modelfile qwen3.5:9b | awk '/^FROM/ && ++n==2 {next} 1' > /tmp/qwen-text.Modelfile && ollama create qwen3.5:9b-text -f /tmp/qwen-text.Modelfile"
 docker compose --profile cpu up -d
 ```
 
@@ -121,7 +125,7 @@ NVIDIA GPU, Ollama on the host, native install, the ready-made GHCR image, updat
 |---|---|
 | Download | about **11 GB**: `bge-m3` 4.3 GB + `qwen3.5:9b` 6.6 GB, plus the Docling models for PDF |
 | Recommended disk | ~20 GB |
-| NVIDIA GPU | optional, but it changes a lot: embedding at 46 chunks/s versus **1 chunk/s** on CPU |
+| NVIDIA GPU | optional, but it changes a lot: embedding at 46 chunks/s versus **1 chunk/s** on CPU. A full reindex unloads the local LLM to make room, and it reloads on the next question |
 | Full indexing (612 items) | ~13 s with a GPU, **~10 min** on CPU |
 
 Without a GPU everything works. Reindexing becomes something to do calmly, but questions stay usable: query embedding costs about a second, inside the ~30 s the local LLM needs to answer anyway.
@@ -169,7 +173,7 @@ No, and be wary of any system that tells you otherwise. Answers carry their sour
 
 [Apache-2.0](LICENSE). The model weights downloaded at runtime (`bge-m3`, `qwen3.5`) each have their own license: check it before commercial use.
 
-<sub>Documented status: `main`, 28 October 2026.</sub>
+<sub>Documented status: `main`, 29 October 2026.</sub>
 
 </details>
 
@@ -208,6 +212,8 @@ Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una 
 | Autorità quasi spenta (α 0,1) | 0,690 | 0,862 | 0,948 | 0,983 | **0 su 5** |
 | **Autorità calibrata (α 0,3), in produzione** | **0,741** | 0,862 | **0,966** | **1,000** | **4 su 5** |
 
+Ultimo controllo, 29 ottobre 2026, stessi 58 casi sul corpus attuale: recall@1 0,707 · recall@2 0,828 · recall@5 0,948 · recall@10 0,983, avversariali al primo posto ancora 4 su 5. La tabella sopra è il confronto S11, conservato con la data in cui è stato misurato.
+
 α non è stato scelto a intuito: griglia congiunta di 2.160 punti, 5-fold × 5 seed, con il vincitore confermato fuori campione. E a volte la misura ha detto di no: la moltiplicazione piena (α 1), quella che la norma prescriveva, costava 15 punti di recall@5. Si è emendata la norma, non i numeri. Storia completa in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) e nel blocco `authority:` di [rag_config.yaml](rag/rag_config.yaml).
 
 **Le risposte sono ancorate alle fonti, non garantite.** Citazioni, risultati parziali e punti aperti restano da verificare, e il retrieval non promette di aver trovato tutto ciò che il corpus contiene.
@@ -231,7 +237,7 @@ Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una 
 | **`/ask`** | retrieval ibrido (denso + lessicale + rerank ColBERT) ripesato per autorità, più il codice che implementa le sezioni recuperate |
 | **Pipeline** | Explore → Canvas → Propose → Validate → Archive, ancorata ai documenti normativi; il canvas impara dalle review archiviate |
 | **Intake & Import** | conversione locale con anteprima e review in staging: Docling per i PDF, Excel letto direttamente, MarkItDown, LibreOffice per DOC/PPT |
-| **Mappe** | mappa del grafo, Semantic Map e Impact Ripple sul corpus e sul codice indicizzato |
+| **Mappe** | mappa del grafo, Semantic Map e Impact Ripple sul corpus e sul codice indicizzato, dalla norma all'endpoint del backend fino alla pagina del frontend che lo chiama |
 | **Progetti** | progetti separati con cartelle, indici e namespace Qdrant propri |
 | **Agenti** | Claude Code e Ollama integrati; Codex e Cursor con export del prompt e MCP esterno |
 | **MCP** | server locale di sola lettura: retrieval, ricerca nel codice, interrogazione del grafo |
@@ -260,6 +266,8 @@ docker run --rm python:3.14-slim python -c "import secrets; print('VIBECRAFT_API
 
 docker compose --profile cpu up -d qdrant ollama
 docker compose exec ollama ollama pull qwen3.5:9b      # 6,6 GB, una volta sola
+# La variante che usa la configurazione: stessi pesi senza proiettore vision, nessun download
+docker compose exec ollama sh -c "ollama show --modelfile qwen3.5:9b | awk '/^FROM/ && ++n==2 {next} 1' > /tmp/qwen-text.Modelfile && ollama create qwen3.5:9b-text -f /tmp/qwen-text.Modelfile"
 docker compose --profile cpu up -d
 ```
 
@@ -279,7 +287,7 @@ GPU NVIDIA, Ollama sull'host, installazione nativa, immagine pronta su GHCR, agg
 |---|---|
 | Download | circa **11 GB**: `bge-m3` 4,3 GB + `qwen3.5:9b` 6,6 GB, più i modelli Docling per i PDF |
 | Disco consigliato | ~20 GB |
-| GPU NVIDIA | facoltativa, ma cambia molto: embedding a 46 chunk/s contro **1 chunk/s** su CPU |
+| GPU NVIDIA | facoltativa, ma cambia molto: embedding a 46 chunk/s contro **1 chunk/s** su CPU. Un reindex completo scarica l'LLM locale per farsi spazio, e l'LLM si ricarica alla domanda successiva |
 | Indicizzazione completa (612 elementi) | ~13 s con GPU, **~10 min** su CPU |
 
 Senza GPU funziona tutto. Reindicizzare diventa un'operazione da fare con calma, ma le domande restano usabili: l'embedding della query costa circa un secondo, dentro i ~30 s che l'LLM locale impiega comunque a rispondere.
@@ -329,6 +337,6 @@ No, e diffida di qualunque sistema che ti dica il contrario. Le risposte portano
 
 [Apache-2.0](LICENSE). I pesi dei modelli scaricati a runtime (`bge-m3`, `qwen3.5`) hanno ciascuno la propria licenza: verificala prima di un uso commerciale.
 
-<sub>Stato documentato: `main`, 28 ottobre 2026.</sub>
+<sub>Stato documentato: `main`, 29 ottobre 2026.</sub>
 
 </details>
