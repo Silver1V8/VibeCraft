@@ -1,0 +1,16 @@
+# qwen3.5:9b senza proiettore vision (mmproj), per models.ollama in rag_config.yaml.
+# vibecraft non manda immagini; il proiettore riserva ~1,15 GB di VRAM che su 8 GB spingono
+# il layer di output sulla CPU. Stessi pesi del tag ufficiale: nessuna copia su disco.
+#
+# Ricrea (dopo `ollama pull qwen3.5:9b`, che cambia il digest del blob):
+#   1. `ollama show --modelfile qwen3.5:9b` → copia la PRIMA riga FROM (i pesi; la seconda è
+#      il proiettore) al posto di quella qui sotto
+#   2. `ollama create qwen3.5:9b-text -f rag/scripts/Modelfile.qwen35-text`
+FROM C:\Users\Silve\.ollama\models\blobs\sha256-02d45dc1cf451ba2475ac33b301c2dd8f985abe4c182ce04a1f2f5bf0260278d
+TEMPLATE {{ .Prompt }}
+RENDERER qwen3.5
+PARSER qwen3.5
+PARAMETER presence_penalty 1.5
+PARAMETER temperature 1
+PARAMETER top_k 20
+PARAMETER top_p 0.95

@@ -9,7 +9,12 @@ llm_settings:
   # Modelli specifici per provider
   models:
     anthropic: "claude-sonnet-5"
-    ollama: "qwen3.5:9b" # generazione recente, 6.6GB: sta interamente negli 8GB di VRAM di una 3070 Ti
+    # qwen3.5:9b SENZA proiettore vision (2026-10-29): stessi pesi, ma l'mmproj riservava
+    # ~1,15 GB di VRAM e spingeva il layer di output sulla CPU (32/33 layer, 88/12 GPU/CPU).
+    # Senza: 100% GPU sulla 3070 Ti a num_ctx 16384, generazione 58,7 → 77,3 tok/s, prompt
+    # 2.503 → 3.141 tok/s. vibecraft non manda immagini. Si ricrea con
+    # rag/scripts/Modelfile.qwen35-text (vedi l'intestazione del file).
+    ollama: "qwen3.5:9b-text"
 
   # Thinking dei modelli Ollama che lo supportano (qwen3.5). false = disattivato: la pipeline
   # vuole risposte deterministiche e complete, e col thinking attivo il modello spende
