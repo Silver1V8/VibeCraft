@@ -401,7 +401,7 @@ GRAPH_TRUST_RELATION_NATURE: dict[str, str] = {
             "PART_OF": "structural", "MENTIONS": "structural",
             "IMPLEMENTS": "inferred", "REFERENCES": "inferred",
             "DEPENDS_ON": "inferred", "READS": "inferred",
-            "WRITES": "inferred", "EXECUTES": "inferred",
+            "WRITES": "inferred", "EXECUTES": "inferred", "CALLS": "inferred",
         }
     ).items()
 }

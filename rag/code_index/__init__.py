@@ -235,6 +235,25 @@ def _extract(suffix: str, text: str, stem: str, rel: str = "",
     return []
 
 
+def _with_http_calls(tuples: list[tuple], text: str, suffix: str) -> list[tuple]:
+    """Aggiunge attrs.http_calls ai simboli JS/TS che fanno chiamate HTTP con path letterale,
+    qualunque estrattore li abbia prodotti (ts, React). Chi le ha già (HttpClient Angular,
+    con le sue regole) resta com'è."""
+    from code_index.ts import http_calls_by_symbol
+    calls = http_calls_by_symbol(text, suffix)
+    if not calls:
+        return tuples
+    out = []
+    for tup in tuples:
+        meta = dict(tup[3]) if len(tup) > 3 else {}
+        attrs = dict(meta.get("attrs") or {})
+        if tup[1] in calls and "http_calls" not in attrs:
+            attrs["http_calls"] = calls[tup[1]]
+            tup = (*tup[:3], {**meta, "attrs": attrs})
+        out.append(tup)
+    return out
+
+
 def source_files(root: Path, excluded_dirs=frozenset()) -> list[Path]:
     """Collect confined source files before parsers can follow auxiliary file paths."""
     for component in (root, *root.parents):
@@ -272,7 +291,10 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except Exception:
             continue
-        for tup in _extract(path.suffix, text, path.stem, rel, code_dir):
+        tuples = _extract(path.suffix, text, path.stem, rel, code_dir)
+        if path.suffix in (".js", ".ts", ".tsx", ".jsx"):
+            tuples = _with_http_calls(tuples, text, path.suffix)
+        for tup in tuples:
             kind, name, snippet = tup[0], tup[1], tup[2]
             meta = tup[3] if len(tup) > 3 else {}
             symbols.append({
@@ -317,6 +339,11 @@ def collect_code_symbols(code_dir: Path) -> list[dict]:
         from code_index.csharp import resolve_ef
         resolve_ef(symbols)
 
+    # Ponte frontend->backend: chiamate HTTP con path letterale -> endpoint con route.
+    if any((s.get("attrs") or {}).get("http_calls") for s in symbols):
+        from code_index.frontend import resolve_http_calls
+        resolve_http_calls(symbols)
+
     # Riferimenti incrociati degli script (source, dotnet build su .csproj,
     # sqlcmd su .sql): risolti sui percorsi relativi, best-effort.
     if any(t.startswith("run:") for s in symbols for _, t in s["links"]):
@@ -347,7 +374,7 @@ def razor_report() -> dict:
 # Relazioni spec<->codice che dipendono dal CONTENUTO (versione) di un simbolo: vanno
 # rimosse e ricalcolate quando il simbolo o lo spazio dei documenti cambia. NON toccano
 # altri tipi di arco (es. MENTIONS doc->entità), che appartengono ai nodi-documento.
-_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES", "DEPENDS_ON", "READS", "WRITES", "EXECUTES")
+_CODE_LINK_RELATIONS = ("IMPLEMENTS", "REFERENCES", "DEPENDS_ON", "READS", "WRITES", "EXECUTES", "CALLS")
 
 
 def add_symbol_nodes(G, symbols: list[dict]) -> None:

@@ -245,6 +245,37 @@ def csharp_symbols(text: str, stem: str, suffix: str) -> list[tuple]:
             visit_type(node)  # gestisce da sé i tipi annidati: non si ridiscende
         else:
             stack.extend(reversed(node.children))
+    return out + _minimal_api_endpoints(text)
+
+
+# Minimal API (ASP.NET Core 6+): gli endpoint non sono attributi su metodi ma chiamate in
+# Program.cs — `var g = app.MapGroup("/api/x")` poi `g.MapGet("/{id}", ...)`. Senza questo
+# un backend minimal API non aveva NESSUN endpoint nel grafo (5a, 2026-10-29). Limiti:
+# gruppi concatenati in un'unica espressione e MapMethods/MapFallback non sono riconosciuti.
+_MAP_GROUP_RE = re.compile(r'\b(\w+)\s*=\s*(\w+)\s*\.\s*MapGroup\(\s*"([^"]*)"')
+_MAP_VERB_RE = re.compile(r'\b(\w+)\s*\.\s*Map(Get|Post|Put|Delete|Patch)\(\s*"([^"]*)"')
+
+
+def _join_route(prefix: str, path: str) -> str:
+    return "/" + "/".join(p for p in f"{prefix}/{path}".split("/") if p)
+
+
+def _minimal_api_endpoints(text: str) -> list[tuple]:
+    """Endpoint `METHOD /route` con il prefisso dei MapGroup risolto (anche annidati, se
+    dichiarati prima dell'uso come nel codice reale). attrs method/route servono a
+    frontend.resolve_http_calls per abbinare le chiamate del frontend."""
+    prefixes: dict[str, str] = {}
+    for var, parent, path in _MAP_GROUP_RE.findall(text):
+        prefixes[var] = _join_route(prefixes.get(parent, ""), path)
+    out, seen = [], set()
+    for m in _MAP_VERB_RE.finditer(text):
+        receiver, verb, path = m.groups()
+        method, route = verb.upper(), _join_route(prefixes.get(receiver, ""), path)
+        name = f"{method} {route}"
+        if name not in seen:
+            seen.add(name)
+            out.append(("endpoint", name, text[max(0, m.start() - 40):m.start() + _CONTEXT_SPAN],
+                        {"attrs": {"method": method, "route": route}}))
     return out
 
 
