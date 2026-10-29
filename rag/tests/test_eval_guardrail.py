@@ -188,3 +188,32 @@ def test_promote_rejects_bad_indices(tmp_path):
     # nessuna modifica ai file su errore
     assert len(eval_run.load_candidates(candidates)) == 3
     assert len(yaml.safe_load(golden.read_text(encoding="utf-8"))["cases"]) == 1
+
+# ---------------------------------------------------------------------------
+# 429 del rate-limit CPU (2026-10-28): l'eval aspetta Retry-After invece di fallire
+# ---------------------------------------------------------------------------
+
+def test_http_retriever_waits_retry_after_on_429(monkeypatch):
+    import httpx2
+    import pytest
+
+    calls, sleeps = [], []
+    monkeypatch.setattr(eval_run.time, "sleep", sleeps.append)
+
+    def handler(request):
+        calls.append(request.url.params["q"])
+        if len(calls) < 3:
+            return httpx2.Response(429, headers={"Retry-After": "7"})
+        return httpx2.Response(200, json={"results": [{"doc_id": "x"}]})
+
+    with httpx2.Client(transport=httpx2.MockTransport(handler)) as client:
+        assert eval_run.http_retriever("http://t", client)("q1", 5) == [{"doc_id": "x"}]
+    assert calls == ["q1"] * 3 and sleeps == [7.0, 7.0]
+
+    # 429 persistente: dopo max_waits l'errore torna al chiamante, niente attesa infinita
+    def always_429(request):
+        return httpx2.Response(429, headers={"Retry-After": "1"})
+
+    with httpx2.Client(transport=httpx2.MockTransport(always_429)) as client:
+        with pytest.raises(httpx2.HTTPStatusError):
+            eval_run.get_rate_limited(client, "http://t/api/retrieve", {"q": "q"}, max_waits=2)

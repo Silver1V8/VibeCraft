@@ -40,6 +40,7 @@ import yaml
 
 from core.config import EVAL_MULTIHOP_MIN_RECALL, EVAL_MULTIHOP_REQUIRE_GRAPH_EXACT
 from core.eval_metrics import evaluate_case, result_matches
+from eval.run import get_rate_limited
 
 for _s in (sys.stdout, sys.stderr):  # emoji/à/-> safe su console Windows (cp1252)
     try:
@@ -289,9 +290,7 @@ def main() -> int:
     try:
         with httpx2.Client(timeout=180, headers=headers) as client:
             def retrieve_fn(q: str, k: int) -> list[dict]:
-                resp = client.get(f"{a.url}/api/retrieve", params={"q": q, "k": k})
-                resp.raise_for_status()
-                return resp.json()["results"]
+                return get_rate_limited(client, f"{a.url}/api/retrieve", {"q": q, "k": k}).json()["results"]
 
             def graph_fn(q: str, target: str | None) -> dict:
                 params = {"q": q}

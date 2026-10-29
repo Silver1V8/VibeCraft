@@ -644,6 +644,7 @@ def test_eval_cli_measures_only_selected_project(projects, monkeypatch):
         def get(self, url, **kwargs):
             assert kwargs['params']['q'] == 'Own question'
             class Response:
+                status_code = 200
                 def raise_for_status(self):
                     pass
                 def json(self):

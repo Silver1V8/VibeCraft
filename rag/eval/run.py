@@ -19,6 +19,7 @@ import argparse
 import os
 import json
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -109,12 +110,25 @@ def print_candidates(candidates: list[dict]) -> None:
         print()
 
 
+def get_rate_limited(client: httpx2.Client, url: str, params: dict, *, max_waits: int = 10) -> httpx2.Response:
+    """GET che aspetta il Retry-After dei 429 di require_cpu_get_rate_limit.
+
+    Dal 2026-10-28 /api/retrieve ammette EMBED_CONCURRENCY*15 hit/min per IP: le 58 query del
+    golden set lo superano, e senza attesa l'eval notturna usciva con errore come se fosse una
+    regressione (senza registrare alcun alert)."""
+    for _ in range(max_waits):
+        resp = client.get(url, params=params)
+        if resp.status_code != 429:
+            break
+        time.sleep(float(resp.headers.get("Retry-After", "1")))
+    resp.raise_for_status()
+    return resp
+
+
 def http_retriever(url: str, client: httpx2.Client):
     """Costruisce una retrieve_fn(query, k) che interroga GET /api/retrieve del server."""
     def retrieve(query: str, k: int) -> list[dict]:
-        resp = client.get(f"{url}/api/retrieve", params={"q": query, "k": k})
-        resp.raise_for_status()
-        return resp.json()["results"]
+        return get_rate_limited(client, f"{url}/api/retrieve", {"q": query, "k": k}).json()["results"]
     return retrieve
 
 
