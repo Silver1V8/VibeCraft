@@ -320,7 +320,7 @@ oltre a `require_api_key` del router.
 | 25 | GET | `/api/pipeline/status` | require_api_key | query | Sì | read-only | Basso | nessuna |
 | 26 | GET | `/api/pipeline/file` | require_api_key | query | Sì | read-only (whitelist file) | Basso | nessuna |
 | 27 | POST | `/api/pipeline/file/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (file whitelisted in `changes/<slug>`) | Medio | **anti-x-site** |
-| 28 | POST | `/api/reindex` | require_api_key **+ require_gitlab_token** (no-op se env non set) | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **scrive Qdrant** (incrementale) — o full rebuild solo con body `{"full":true}` | **Alto** | **anti-x-site** |
+| 28 | POST | `/api/reindex` | require_api_key **+ require_gitlab_token** (no-op se env non set) | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | **scrive Qdrant** (incrementale) — o full rebuild solo con body `{"full":true}`; dal 2026-10-29 il full, se la VRAM libera è sotto soglia, scarica i modelli di Ollama (`keep_alive: 0`, si ricaricano alla generazione successiva) | **Alto** | **anti-x-site** |
 | 29 | GET | `/api/reindex` | require_api_key | query | Sì | read-only (lista job) | Basso | nessuna |
 | 30 | GET | `/api/reindex/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 31 | GET | `/api/index/versions` | require_api_key | assente | Sì | read-only (lista versioni) | Basso | nessuna |
@@ -359,7 +359,7 @@ oltre a `require_api_key` del router.
 | 63 | GET | `/api/projects/{project_id}` | require_api_key | path | Sì | read-only (metadata e stato indice del progetto richiesto) | Basso | nessuna |
 | 64 | POST | `/api/projects` | require_api_key | JSON Pydantic | No (preflight) | scrive registry e cartelle del nuovo UUID; reader rifiutato | Medio | **anti-x-site** |
 | 65 | POST | `/api/projects/register` | require_api_key | JSON Pydantic | No (preflight) | legge manifest e scrive registry; path host arbitrario solo con bind locale, altrimenti root canonica senza link strettamente sotto PROJECTS_DIR, verificata prima del manifest; reader rifiutato | Medio | **anti-x-site + confinement managed-root remoto** |
-| 66 | POST | `/api/index/reindex` | require_api_key | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | avvia il job incrementale o full del progetto selezionato dalla console; nessun token webhook richiesto; non montata nel reader | **Alto** | **anti-x-site** |
+| 66 | POST | `/api/index/reindex` | require_api_key | **JSON opz.** (`Request` grezza) | **Sì (bodyless)** | avvia il job incrementale o full del progetto selezionato dalla console; nessun token webhook richiesto; non montata nel reader; il full può scaricare i modelli di Ollama dalla VRAM come in #28 | **Alto** | **anti-x-site** |
 | 67 | POST | `/api/pipeline/dev-types` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (crea `code/<nome>`; nome a singolo componente `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`, nomi riservati Windows rifiutati, idempotente case-insensitive) | Basso | **anti-x-site** |
 | 68 | GET | `/api/health/deps` | require_api_key | assente | Sì | read-only (ping Qdrant/Ollama per l'indicatore della shell; crea il client Qdrant condiviso se manca, senza modello di embedding; `ollama` è `null` se non è il provider attivo) | Basso | nessuna |
 | 69 | GET | `/api/ask/thread` | require_api_key | assente | Sì | read-only (thread corto per-progetto sotto `database/ask/thread.json`; missing/corrupt → thread vuoto) | Basso | nessuna |

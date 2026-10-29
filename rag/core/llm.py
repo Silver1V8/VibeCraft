@@ -332,6 +332,28 @@ def _extract_ollama_text(payload: dict) -> str:
     return text
 
 
+def unload_ollama_models(timeout: float = 30.0) -> list[str]:
+    """Scarica dalla VRAM i modelli che Ollama tiene caricati (keep_alive 0) e ne restituisce
+    i nomi. Serve al full rebuild: con OLLAMA_KEEP_ALIVE=-1 l'LLM non lascia mai la GPU e
+    l'embedding del job ripiegava sempre su CPU (2026-10-29: 431 MB liberi contro 3072, build
+    da ~2 a ~30 min). Il modello si ricarica da solo alla prossima generazione. Best-effort:
+    Ollama assente o in errore non fa fallire il job, si resta sulla CPU come prima."""
+    unloaded: list[str] = []
+    try:
+        with urllib.request.urlopen(f"{OLLAMA_URL.rstrip('/')}/api/ps", timeout=timeout) as response:
+            names = [m["name"] for m in json.loads(response.read().decode()).get("models") or []]
+        for name in names:
+            req = urllib.request.Request(
+                OLLAMA_GENERATE_URL, data=json.dumps({"model": name, "keep_alive": 0}).encode("utf-8"),
+                headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=timeout) as response:
+                response.read()
+            unloaded.append(name)
+    except Exception:
+        logger.warning("Impossibile scaricare i modelli di Ollama prima del rebuild.", exc_info=True)
+    return unloaded
+
+
 def _ollama_generate(model: str, prompt: str, timeout: float) -> str:
     data = json.dumps(_ollama_payload(model, prompt)).encode("utf-8")
     req = urllib.request.Request(
