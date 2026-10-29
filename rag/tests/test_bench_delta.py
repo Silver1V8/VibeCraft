@@ -84,6 +84,8 @@ def test_guard_rejects_operational_collection_before_writes(tmp_path, monkeypatc
         'paths:\n  docs_dir: "./docs"\n  codebase_dir: "./code"\n'
         'vector_database:\n  collection_name: "vibecraft_events"\n', encoding="utf-8")
     monkeypatch.setattr(delta, "RESULTS", results)
+    # Lab R9 può lasciare VIBECRAFT_BENCH_COLLECTION_PREFIX=vibecraft_ nel processo.
+    monkeypatch.delenv("VIBECRAFT_BENCH_COLLECTION_PREFIX", raising=False)
     output = results / "run" / "out"
     with pytest.raises(ValueError, match="collection"):
         delta.validate_paths(str(checkout), str(output))
@@ -157,7 +159,11 @@ def test_restore_reinstates_source_and_database_bytes_after_exception(tmp_path, 
     monkeypatch.setattr(core.writer_lock, "writer_lock", lock)
 
     class Qdrant:
+        def get_aliases(self):
+            # Nessun alias: restore usa il nome collection diretto (no swap).
+            return types.SimpleNamespace(aliases=[])
         def recover_snapshot(self, **kwargs):
+            assert kwargs["collection_name"] == "sidecar_0628_test"
             assert source.read_bytes() == b"VarianteA\r\n"
             assert artifact.read_bytes() == b"v1"
             return True
@@ -221,6 +227,8 @@ def test_run_restores_real_files_when_sample_job_raises(tmp_path, monkeypatch):
             return types.SimpleNamespace(collections=[])
         def get_aliases(self):
             return types.SimpleNamespace(aliases=[])
+        def update_collection_aliases(self, **_kwargs):
+            return True
         def create_snapshot(self, **_kwargs):
             return types.SimpleNamespace(name="baseline.snapshot")
         def recover_snapshot(self, **_kwargs):
@@ -260,7 +268,8 @@ def test_run_restores_real_files_when_sample_job_raises(tmp_path, monkeypatch):
     import api.deps
     import core.indexing
     import core.writer_lock
-    monkeypatch.setattr(api.deps, "reload_index_state", lambda: "v1")
+    # project= è passato dal restore post-e54ee77 (bench progetti ordinari).
+    monkeypatch.setattr(api.deps, "reload_index_state", lambda **_k: "v1")
     monkeypatch.setattr(core.indexing, "check_index_integrity", lambda **_k: {"ok": True})
 
     @contextmanager

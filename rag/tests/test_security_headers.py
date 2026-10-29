@@ -68,7 +68,8 @@ def test_json_api_has_security_headers(client):
     ("/static/shared.css", "text/css"),
     ("/static/vendor/mermaid.min.js", "text/javascript"),   # mount StaticFiles
     ("/static/vendor/vis.min.css", "text/css"),
-    ("/static/favicon.svg", "image/svg+xml"),
+    ("/static/favicon.png", "image/png"),
+    ("/static/logo-vc.png", "image/png"),
 ])
 def test_static_assets_have_headers_and_correct_mime(client, path, mime):
     """Con `nosniff` un <script> servito con MIME sbagliato verrebbe bloccato: ogni asset

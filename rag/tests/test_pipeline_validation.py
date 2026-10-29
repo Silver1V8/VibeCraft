@@ -304,7 +304,7 @@ def test_decision_records_observed_activity_not_client_claim(env, monkeypatch):
     assert result['active_attempt_ids'] == [attempt]
     assert unscoped in result['observed_metadata']['unscoped_active_attempt_ids']
     assert result['origin_verified'] is False
-    assert result['observed_metadata']['activity_scope'].startswith('process:')
+    assert result['observed_metadata']['activity_scope'] == 'shared-disk'
 
 
 def test_sdk_activity_is_removed_when_query_fails(monkeypatch):

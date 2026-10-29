@@ -40,6 +40,8 @@
     let mapData = null;
     let selectedNode = '';      // nodo del pannello di destra (doc_id, entità o simbolo)
     let highlightedDup = null;  // coppia simile evidenziata sulla mappa
+    let lastMapStatusKey = null; // per rinfrescare lo status al cambio lingua
+    let lastMapStatusParams = null;
 
     // Solo i gruppi più grandi hanno un colore proprio: la palette ne ha 10 e oltre si
     // ripetevano (gruppo 0 e 10 dello stesso verde). Gli altri e i documenti isolati
@@ -49,13 +51,18 @@
       return community >= 0 && community < MAX_COLORED_COMMUNITIES ? colors[community] : muted;
     }
     function communityLabel(community) {
-      if (community < 0) return 'senza gruppo';
-      return mapData?.communities?.find(c => c.id === community)?.label || `gruppo ${community + 1}`;
+      if (community < 0) return t('analysis.map.noGroup');
+      return mapData?.communities?.find(c => c.id === community)?.label || t('analysis.map.groupN', { n: community + 1 });
+    }
+
+    function setMapStatus(key, params) {
+      lastMapStatusKey = key;
+      lastMapStatusParams = params || null;
+      document.getElementById('map-status').textContent = t(key, params);
     }
 
     async function loadSemanticMap() {
-      const status = document.getElementById('map-status');
-      status.textContent = 'Caricamento…';
+      setMapStatus('analysis.map.loading');
       try {
         const res = await fetch('/api/graph/semantic-map');
         if (!res.ok) {
@@ -64,24 +71,31 @@
           throw new Error(apiErrorMessage(error.detail, 'HTTP ' + res.status));
         }
         const data = await res.json();
-        if (!Array.isArray(data.points)) throw new Error('Dati della mappa non validi. Premi Ricarica.');
+        if (!Array.isArray(data.points)) throw new Error(t('analysis.map.invalidData'));
         mapData = data;
         highlightedDup = null;
         if (!mapData.points || mapData.points.length === 0) {
-          status.textContent = mapData.note || 'Nessun documento da proiettare.';
+          const note = mapData.note || t('analysis.map.noDocs');
+          lastMapStatusKey = null;
+          document.getElementById('map-status').textContent = note;
           drawSemanticMap();
           return;
         }
         // I punti sono SEZIONI: prima l'etichetta diceva "384 documenti" per 50 documenti.
         const documents = mapData.documents ?? new Set(mapData.points.map(p => p.doc_id)).size;
         const pairs = (mapData.duplicates || []).length;
-        status.textContent = `${mapData.points.length} sezioni di ${documents} documenti · `
-          + `${pairs} ${pairs === 1 ? 'coppia simile' : 'coppie simili'}`;
+        setMapStatus('analysis.map.status', {
+          sections: mapData.points.length,
+          documents,
+          pairs,
+          pairLabel: pairs === 1 ? t('analysis.map.pairOne') : t('analysis.map.pairMany'),
+        });
         drawSemanticMap();
         renderLegend();
         renderDuplicates();
       } catch (e) {
-        status.textContent = '❌ ' + e.message;
+        lastMapStatusKey = null;
+        document.getElementById('map-status').textContent = '❌ ' + e.message;
       }
     }
 
@@ -141,15 +155,20 @@
       const communities = Object.keys(sizes).map(Number).filter(c => c >= 0 && c < MAX_COLORED_COMMUNITIES).sort((a, b) => a - b);
       const parts = communities.map(c => {
         const info = mapData?.communities?.find(x => x.id === c);
-        const detail = `${info?.documents ?? '?'} documenti, ${sizes[c]} sezioni`
-          + (info?.entities?.length ? ` · entità più citate: ${info.entities.join(', ')}` : '');
+        const detail = t('analysis.map.legendDetail', {
+          docs: info?.documents ?? '?',
+          sections: sizes[c],
+          entities: info?.entities?.length
+            ? t('analysis.map.legendEntities', { list: info.entities.join(', ') })
+            : '',
+        });
         return `<span title="${escapeHtml(detail)}"><i class="dot" style="background:${communityColors[c]}"></i> ${escapeHtml(communityLabel(c))}</span>`;
       });
       if (Object.keys(sizes).some(c => Number(c) < 0 || Number(c) >= MAX_COLORED_COMMUNITIES)) {
-        parts.push(`<span><i class="dot" style="background:${mutedNode}"></i> altri gruppi o nessuno</span>`);
+        parts.push(`<span><i class="dot" style="background:${mutedNode}"></i> ${escapeHtml(t('analysis.map.legendOther'))}</span>`);
       }
-      parts.push('<span><i class="dot" style="background:#fff"></i> documento ponte (anello bianco)</span>');
-      parts.push(`<span style="color:${dupTextColor}">— — coppia simile</span>`);
+      parts.push(`<span><i class="dot" style="background:#fff"></i> ${escapeHtml(t('analysis.map.legendBridge'))}</span>`);
+      parts.push(`<span style="color:${dupTextColor}">${escapeHtml(t('analysis.map.legendDup'))}</span>`);
       document.getElementById('map-legend').innerHTML = parts.join('');
     }
 
@@ -163,10 +182,12 @@
       if (!dups.length) { el.innerHTML = ''; return; }
       const row = (d, i) => `<button type="button" data-click="highlightDuplicate" data-arg="${i}" aria-pressed="${i === highlightedDup}">`
         + `• ${escapeHtml(d.a)} ↔ ${escapeHtml(d.b)} <span style="color:${mutedText}">(sim ${d.sim})</span></button>`;
-      el.innerHTML = '<b>Sezioni molto simili in documenti diversi</b> (clicca per vederle sulla mappa):'
+      el.innerHTML = `<b>${escapeHtml(t('analysis.map.dupsTitle'))}</b> ${escapeHtml(t('analysis.map.dupsHint'))}`
         + dups.slice(0, DUPS_VISIBLE).map(row).join('')
-        + (dups.length > DUPS_VISIBLE ? `<details><summary>Mostra le altre ${dups.length - DUPS_VISIBLE}</summary>`
-          + dups.slice(DUPS_VISIBLE).map((d, i) => row(d, i + DUPS_VISIBLE)).join('') + '</details>' : '');
+        + (dups.length > DUPS_VISIBLE
+          ? `<details><summary>${escapeHtml(t('analysis.map.dupsMore', { n: dups.length - DUPS_VISIBLE }))}</summary>`
+            + dups.slice(DUPS_VISIBLE).map((d, i) => row(d, i + DUPS_VISIBLE)).join('') + '</details>'
+          : '');
     }
 
     function highlightDuplicate(index) {
@@ -196,7 +217,8 @@
           tip.style.display = 'block';
           tip.style.left = (e.clientX - r.left + 12) + 'px';
           tip.style.top = (e.clientY - r.top + 12) + 'px';
-          tip.innerHTML = `${escapeHtml(p.id)}<br><span style="color:${mutedText}">${escapeHtml(communityLabel(p.community))}${p.is_bridge ? ' · PONTE' : ''}</span>`;
+          const bridge = p.is_bridge ? t('analysis.map.bridgeTag') : '';
+          tip.innerHTML = `${escapeHtml(p.id)}<br><span style="color:${mutedText}">${escapeHtml(communityLabel(p.community))}${bridge}</span>`;
           canvas.style.cursor = 'pointer';
         } else { tip.style.display = 'none'; canvas.style.cursor = 'default'; }
       });
@@ -236,10 +258,11 @@
       const node = document.getElementById('node-search').value.trim();
       const status = document.getElementById('rel-status');
       const list = document.getElementById('node-relations');
-      if (!node) { status.textContent = 'Scegli un nodo.'; return; }
-      status.textContent = 'Lettura…';
+      if (!node) { status.textContent = t('analysis.node.choose'); return; }
+      status.textContent = t('analysis.node.reading');
       try {
         // target esplicito: il backend non deve indovinare il nodo dal testo della domanda.
+        // q resta in italiano: è input del router lessicale, non testo UI.
         const res = await fetch('/api/graph/query?q=' + encodeURIComponent('relazioni di ' + node)
           + '&target=' + encodeURIComponent(node));
         if (!res.ok) {
@@ -248,11 +271,11 @@
         }
         const d = await res.json();
         const rows = [...(d.out || []).map(e => ['→', e.relation, e.to]), ...(d.in || []).map(e => ['←', e.relation, e.from])];
-        status.textContent = `· ${rows.length}`;
+        status.textContent = t('analysis.node.relCount', { n: rows.length });
         list.innerHTML = rows.length
-          ? rows.map(([dir, rel, other]) => `<li><span class="rel">${dir} ${escapeHtml(rel || 'collegato a')}</span>`
+          ? rows.map(([dir, rel, other]) => `<li><span class="rel">${dir} ${escapeHtml(rel || t('analysis.node.linkedTo'))}</span>`
               + `<button type="button" data-click="selectNode" data-arg="${escapeHtml(other)}">${escapeHtml(other)}</button></li>`).join('')
-          : '<li><span class="rel">Nessuna relazione diretta.</span></li>';
+          : `<li><span class="rel">${escapeHtml(t('analysis.node.noRelations'))}</span></li>`;
       } catch (e) {
         status.textContent = '❌ ' + e.message;
         list.innerHTML = '';
@@ -264,8 +287,8 @@
       const node = document.getElementById('node-search').value.trim();
       const depth = document.getElementById('ripple-depth').value;
       const status = document.getElementById('ripple-status');
-      if (!node) { status.textContent = 'Scegli un nodo.'; return; }
-      status.textContent = 'Calcolo…';
+      if (!node) { status.textContent = t('analysis.node.choose'); return; }
+      status.textContent = t('analysis.node.computing');
       try {
         const res = await fetch(`/api/graph/impact?node=${encodeURIComponent(node)}&depth=${depth}`);
         if (!res.ok) {
@@ -273,7 +296,10 @@
           throw new Error(apiErrorMessage(err.detail, 'HTTP ' + res.status));
         }
         const data = await res.json();
-        status.textContent = `· ${data.nodes.length - 1} nodi toccati · per anello: ${data.rings.slice(1).join(', ') || '0'}`;
+        status.textContent = t('analysis.node.impactStatus', {
+          n: data.nodes.length - 1,
+          rings: data.rings.slice(1).join(', ') || '0',
+        });
         lastImpactData = data;
         drawRipple(data);
       } catch (e) {
@@ -361,7 +387,7 @@
           const mutedText = themeVar('--muted-text', '#4dbf6e');
           tip.style.display = 'block';
           tip.style.left = (mx + 12) + 'px'; tip.style.top = (my + 12) + 'px';
-          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${escapeHtml(best.type)}${best.kind ? ' · ' + escapeHtml(best.kind) : ''} · anello ${best.ring}</span>`;
+          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${escapeHtml(best.type)}${best.kind ? ' · ' + escapeHtml(best.kind) : ''} · ${escapeHtml(t('analysis.node.ringN', { n: best.ring }))}</span>`;
           canvas.style.cursor = 'pointer';
         } else { tip.style.display = 'none'; canvas.style.cursor = 'default'; }
       });
@@ -382,6 +408,22 @@
     window.addEventListener('resize', () => { drawSemanticMap(); if (lastImpactData) drawRipple(lastImpactData); });
     loadSemanticMap();
     loadNodeList();
+
+    window.onLangChange = function () {
+      document.title = t('analysis.docTitle');
+      if (lastMapStatusKey) setMapStatus(lastMapStatusKey, lastMapStatusParams);
+      renderLegend();
+      renderDuplicates();
+      if (selectedNode) {
+        loadRelations();
+        if (lastImpactData) {
+          document.getElementById('ripple-status').textContent = t('analysis.node.impactStatus', {
+            n: lastImpactData.nodes.length - 1,
+            rings: lastImpactData.rings.slice(1).join(', ') || '0',
+          });
+        }
+      }
+    };
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */

@@ -1,5 +1,0 @@
-{
-  "independent_tables": false,
-  "markdown": "## Sheet\n\nGriglia del foglio: coordinate originali, celle vuote conservate. Le righe mancanti fra i blocchi sono vuote; le intestazioni sono dati.\n\n### A1:E2\n\n| Riga | A | B | C | D | E |\n| --- | --- | --- | --- | --- | --- |\n| 1 | Voce | Euro |  | Persona | Anni |\n| 2 | A | 12 |  | Ada | 30 |",
-  "verdict": "NON_APPLICARE"
-}

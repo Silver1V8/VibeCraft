@@ -38,7 +38,8 @@ DEFAULT_ASK_CACHE_SIZE = 256
 
 # Chiave: progetto, versione, strategia, top_k, bfs_depth, hash domanda e impostazioni.
 # Authority/retrieval possono cambiare senza promuovere un nuovo indice.
-AskCacheKey = tuple[str, str, str, int, int, str, str]
+# Opzionale 8° elemento: fingerprint del filo /ask (solo se non vuoto) — append/reset ⇒ miss.
+AskCacheKey = tuple
 
 _WHITESPACE_RE = re.compile(r"\s+")
 
@@ -63,20 +64,28 @@ def max_size_from_env() -> int:
 
 def make_key(index_version: str | float | None, retrieval_strategy: str,
              top_k: int, bfs_depth: int, question: str, *, project_id: str = "legacy",
-             project_settings: dict | None = None) -> AskCacheKey:
+             project_settings: dict | None = None,
+             thread_fingerprint: str = "") -> AskCacheKey:
     """Chiave della risposta a `question` sull'indice `index_version`.
 
     La domanda è normalizzata (trim, lowercase, spazi collassati) prima dell'hash SHA-256:
     due formulazioni identiche a meno di maiuscole e spaziatura condividono la voce. Il
     digest tiene la chiave di dimensione fissa e non trattiene il testo della domanda.
     `index_version` è stringificata perché nel layout legacy (senza `database/CURRENT`) è
-    l'mtime float del grafo."""
+    l'mtime float del grafo.
+
+    `thread_fingerprint` (VC-3): quando il filo è attivo e non vuoto entra nella chiave così
+    un append/reset non può servire la risposta del turno precedente. Vuoto / use_thread=false
+    ⇒ stessa forma a 7 elementi di prima (hit-rate invariata sui bench isolati)."""
     normalized = _WHITESPACE_RE.sub(" ", question.strip().lower())
     digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     # Settings are captured in the request's context, independently of CURRENT.
     settings = {name: (project_settings or {}).get(name, {}) for name in ("authority", "retrieval")}
     settings_digest = hashlib.sha256(json.dumps(settings, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-    return (project_id, str(index_version), retrieval_strategy, int(top_k), int(bfs_depth), digest, settings_digest)
+    base = (project_id, str(index_version), retrieval_strategy, int(top_k), int(bfs_depth),
+            digest, settings_digest)
+    fp = (thread_fingerprint or "").strip()
+    return base + (fp,) if fp else base
 
 
 class AskCache:
@@ -114,6 +123,16 @@ class AskCache:
     def clear(self) -> None:
         with self._lock:
             self._entries.clear()
+
+    def drop_project(self, project_id: str) -> int:
+        """Remove every entry keyed by ``project_id`` (first tuple element). Returns count."""
+        if not isinstance(project_id, str) or not project_id:
+            return 0
+        with self._lock:
+            doomed = [key for key in self._entries if key and key[0] == project_id]
+            for key in doomed:
+                del self._entries[key]
+            return len(doomed)
 
     def __len__(self) -> int:
         with self._lock:

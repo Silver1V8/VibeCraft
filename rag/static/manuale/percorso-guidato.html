@@ -92,6 +92,11 @@ main section:first-child h1{page-break-before:avoid}
 figure,table{page-break-inside:avoid}
 body{font-size:11pt}
 }
+
+.lang-switch{display:flex;align-items:center;gap:.45rem;margin:0 0 .9rem;font-size:.8rem}
+.lang-switch a{color:var(--tenue);text-decoration:none;padding:.15rem .35rem;border-radius:4px}
+.lang-switch a:hover{background:var(--accento-tenue);color:var(--accento)}
+.lang-switch a[aria-current=page]{color:var(--accento);font-weight:600}
 </style>
 </head>
 <body>
@@ -99,7 +104,12 @@ body{font-size:11pt}
 <nav aria-label="Indice del manuale">
   <h1>La console all&#x27;opera</h1>
   <p class="sottotitolo">Percorso guidato · un caso reale seguito dall&#x27;inizio alla fine</p>
-  <label class="sr" for="cerca" hidden>Cerca nell'indice</label>
+    <p class="lang-switch" role="navigation" aria-label="Language">
+    <a href="percorso-guidato.html" data-set-lang="it" hreflang="it" aria-current="page">IT</a>
+    <span aria-hidden="true">|</span>
+    <a href="percorso-guidato.en.html" data-set-lang="en" hreflang="en">EN</a>
+  </p>
+<label class="sr" for="cerca" hidden>Cerca nell'indice</label>
   <input id="cerca" type="search" placeholder="Cerca nell'indice…  (/)" autocomplete="off">
   <ol><li class="l1"><a href="#1-un-corpus-di-norme-e-una-domanda-che-costa-tempo">1. Un corpus di norme e una domanda che costa tempo</a></li><li class="l2"><a href="#di-che-cosa-parlano-questi-documenti">Di che cosa parlano questi documenti</a></li><li class="l2"><a href="#che-cosa-contengono-come-documenti">Che cosa contengono, come documenti</a></li><li class="l2"><a href="#la-domanda">La domanda</a></li><li class="l2"><a href="#che-cosa-vedremo">Che cosa vedremo</a></li><li class="l1"><a href="#2-che-cosa-serve-per-partire-senza-indorare-la-pillola">2. Che cosa serve per partire, senza indorare la pillola</a></li><li class="l2"><a href="#quello-che-gira-sulla-tua-macchina">Quello che gira sulla tua macchina</a></li><li class="l2"><a href="#i-tempi-misurati">I tempi, misurati</a></li><li class="l2"><a href="#quello-che-il-sistema-produce">Quello che il sistema produce</a></li><li class="l2"><a href="#dove-sta-il-lavoro-vero">Dove sta il lavoro vero</a></li><li class="l1"><a href="#3-niente-entra-senza-che-qualcuno-l-abbia-guardato">3. Niente entra senza che qualcuno l&#x27;abbia guardato</a></li><li class="l2"><a href="#il-percorso-di-un-documento">Il percorso di un documento</a></li><li class="l2"><a href="#che-cosa-successo-davvero-con-un-pdf">Che cosa è successo davvero con un PDF</a></li><li class="l2"><a href="#perch-conta-per-chi-deve-decidere">Perché conta per chi deve decidere</a></li><li class="l2"><a href="#il-caso-peggiore-gestito-meglio">Il caso peggiore è gestito meglio</a></li><li class="l1"><a href="#4-la-domanda-seguita-passo-per-passo">4. La domanda, seguita passo per passo</a></li><li class="l2"><a href="#quanto-ci-mette-e-a-fare-cosa">Quanto ci mette, e a fare cosa</a></li><li class="l2"><a href="#che-cosa-ha-risposto">Che cosa ha risposto</a></li><li class="l2"><a href="#poi-ha-fatto-la-cosa-che-non-ci-aspettavamo">Poi ha fatto la cosa che non ci aspettavamo</a></li><li class="l2"><a href="#perch-questo-il-blocco-che-conta">Perché questo è il blocco che conta</a></li><li class="l1"><a href="#5-perch-queste-fonti-e-in-quest-ordine">5. Perché queste fonti, e in quest&#x27;ordine</a></li><li class="l2"><a href="#i-numeri-veri-di-quella-risposta">I numeri veri di quella risposta</a></li><li class="l2"><a href="#che-cosa-ha-spostato-la-classifica">Che cosa ha spostato la classifica</a></li><li class="l2"><a href="#che-cosa-significa-in-pratica">Che cosa significa in pratica</a></li><li class="l2"><a href="#gli-altri-due-contributi">Gli altri due contributi</a></li><li class="l2"><a href="#e-il-codice">E il codice?</a></li><li class="l1"><a href="#6-quando-il-sistema-dice-di-no">6. Quando il sistema dice di no</a></li><li class="l2"><a href="#perch-il-comportamento-pi-importante-del-sistema">Perché è il comportamento più importante del sistema</a></li><li class="l2"><a href="#che-cosa-mostra-la-diagnostica">Che cosa mostra la diagnostica</a></li><li class="l2"><a href="#un-dettaglio-tecnico-che-conviene-conoscere">Un dettaglio tecnico che conviene conoscere</a></li><li class="l2"><a href="#che-cosa-dire-a-chi-valuta">Che cosa dire a chi valuta</a></li><li class="l1"><a href="#7-vedere-la-struttura-di-quello-che-si-caricato">7. Vedere la struttura di quello che si è caricato</a></li><li class="l2"><a href="#due-famiglie-e-tredici-sezioni-che-non-appartengono-a-nessuna">Due famiglie, e tredici sezioni che non appartengono a nessuna</a></li><li class="l2"><a href="#i-cinque-documenti-che-tengono-insieme-il-resto">I cinque documenti che tengono insieme il resto</a></li><li class="l2"><a href="#le-sezioni-gemelle-e-cosa-rivelano-davvero">Le sezioni gemelle, e cosa rivelano davvero</a></li><li class="l2"><a href="#seguire-le-relazioni">Seguire le relazioni</a></li><li class="l1"><a href="#8-dalla-domanda-al-lavoro">8. Dalla domanda al lavoro</a></li><li class="l2"><a href="#il-colloquio">Il colloquio</a></li><li class="l2"><a href="#il-documento-di-progettazione">Il documento di progettazione</a></li><li class="l2"><a href="#perch-quel-passaggio-il-punto-di-tutta-la-sezione">Perché quel passaggio è il punto di tutta la sezione</a></li><li class="l2"><a href="#il-controllo-che-non-costa-niente">Il controllo che non costa niente</a></li><li class="l2"><a href="#la-specifica-e-il-prompt">La specifica e il prompt</a></li><li class="l1"><a href="#9-il-momento-in-cui-il-sistema-ha-detto-di-no">9. Il momento in cui il sistema ha detto di no</a></li><li class="l2"><a href="#i-motivi-parola-per-parola">I motivi, parola per parola</a></li><li class="l2"><a href="#il-primo-una-domanda-lasciata-in-sospeso">Il primo: una domanda lasciata in sospeso</a></li><li class="l2"><a href="#il-secondo-un-controllo-che-non-ha-potuto-dare-un-verdetto">Il secondo: un controllo che non ha potuto dare un verdetto</a></li><li class="l2"><a href="#perch-questo-il-blocco-pi-convincente-del-documento">Perché questo è il blocco più convincente del documento</a></li><li class="l2"><a href="#il-resto-del-percorso">Il resto del percorso</a></li><li class="l1"><a href="#10-come-si-misura-che-funzioni">10. Come si misura che funzioni</a></li><li class="l2"><a href="#che-cosa-abbiamo-misurato">Che cosa abbiamo misurato</a></li><li class="l2"><a href="#che-cosa-non-misura-e-va-detto">Che cosa non misura, e va detto</a></li><li class="l2"><a href="#il-controllo-che-blocca">Il controllo che blocca</a></li><li class="l2"><a href="#la-seconda-misura-quanto-erano-fedeli-i-contratti">La seconda misura: quanto erano fedeli i contratti</a></li><li class="l2"><a href="#il-limite-onesto">Il limite onesto</a></li><li class="l1"><a href="#11-che-cosa-non-fa-e-come-pu-sbagliare">11. Che cosa non fa, e come può sbagliare</a></li><li class="l2"><a href="#i-modi-in-cui-pu-sbagliare">I modi in cui può sbagliare</a></li><li class="l2"><a href="#quello-che-non-fa-e-non-previsto-che-faccia">Quello che non fa, e non è previsto che faccia</a></li><li class="l2"><a href="#quello-che-dipende-da-come-viene-installato">Quello che dipende da come viene installato</a></li><li class="l2"><a href="#la-frase-da-non-dire-in-una-demo">La frase da non dire in una demo</a></li><li class="l1"><a href="#12-che-cosa-serve-per-adottarlo">12. Che cosa serve per adottarlo</a></li><li class="l2"><a href="#che-problema-risolve-in-una-riga">Che problema risolve, in una riga</a></li><li class="l2"><a href="#quando-conviene-e-quando-no">Quando conviene, e quando no</a></li><li class="l2"><a href="#i-costi-raccolti">I costi, raccolti</a></li><li class="l2"><a href="#chi-serve">Chi serve</a></li><li class="l2"><a href="#le-decisioni-da-prendere-prima">Le decisioni da prendere prima</a></li><li class="l2"><a href="#da-dove-partire">Da dove partire</a></li></ol>
   <p id="vuoto" hidden>Nessuna voce corrisponde.</p>
@@ -398,7 +408,7 @@ body{font-size:11pt}
 <p><strong>I giudizi affidati al modello sono giudizi.</strong> La verifica di disallineamento e il controllo di fedeltà dei contratti segnalano dove guardare; non dimostrano niente. E possono non dare alcun verdetto: nel blocco 9 la validazione semantica è risultata indisponibile due volte di seguito.</p>
 <p><strong>Il grafo vede solo le relazioni dichiarate.</strong> Se due documenti sono legati nella realtà ma nessuno dei due lo scrive, quel legame non esiste per il sistema. La qualità del grafo è la qualità dei metadati, non una proprietà magica del testo.</p>
 <h2 id="quello-che-non-fa-e-non-previsto-che-faccia">Quello che non fa, e non è previsto che faccia<a class="permalink" href="#quello-che-non-fa-e-non-previsto-che-faccia" aria-label="Collegamento a questa sezione">#</a></h2>
-<ul><li><strong>Non conosce ciò che non è stato caricato.</strong> Niente Internet, niente cultura generale.</li><li><strong>Non ricorda le conversazioni</strong>: ogni domanda è indipendente, non si può dire «e quindi?».</li><li><strong>Non cerca attraverso più progetti insieme.</strong></li><li><strong>Non cancella e non rinomina</strong> dall&#x27;interfaccia: nessuna eliminazione di progetti o documenti approvati, nessun annullamento di un&#x27;archiviazione.</li><li><strong>Non ha permessi per utente</strong>: chi raggiunge la console vede tutti i progetti registrati. La separazione è dei dati, non degli accessi.</li></ul>
+<ul><li><strong>Non conosce ciò che non è stato caricato.</strong> Niente Internet, niente cultura generale.</li><li><strong>Non ricorda le conversazioni</strong>: ogni domanda è indipendente, non si può dire «e quindi?».</li><li><strong>Non cerca attraverso più progetti insieme.</strong></li><li><strong>Non cancella i documenti già approvati</strong> dall&#x27;interfaccia (si rimuovono dal filesystem) e non annulla un&#x27;archiviazione; i progetti invece si possono rinominare (solo il nome visualizzato) ed eliminare (destroy o unregister).</li><li><strong>Non ha permessi per utente</strong>: chi raggiunge la console vede tutti i progetti registrati. La separazione è dei dati, non degli accessi.</li></ul>
 <p>L&#x27;ultimo punto merita un&#x27;enfasi per chi valuta: <strong>la console non è pensata per essere esposta a una platea ampia con dati riservati diversi per ruolo.</strong> Nasce per girare in locale o su una rete controllata.</p>
 <h2 id="quello-che-dipende-da-come-viene-installato">Quello che dipende da come viene installato<a class="permalink" href="#quello-che-dipende-da-come-viene-installato" aria-label="Collegamento a questa sezione">#</a></h2>
 <p>Un elenco breve ma importante, perché determina cosa funziona davvero:</p>
@@ -443,6 +453,32 @@ body{font-size:11pt}
 </main>
 </div>
 <script src="/static/manuale.js"></script>
+<script>
+(function(){
+  var KEY='vibecraft-lang';
+  var files={it:'percorso-guidato.html',en:'percorso-guidato.en.html'};
+  var pageLang=document.documentElement.getAttribute('lang')||'it';
+  document.querySelectorAll('[data-set-lang]').forEach(function(a){
+    a.addEventListener('click',function(e){
+      e.preventDefault();
+      var lang=a.getAttribute('data-set-lang');
+      try{localStorage.setItem(KEY,lang);}catch(err){}
+      location.href=files[lang]+(location.hash||'');
+    });
+  });
+  try{
+    var pref=localStorage.getItem(KEY);
+    if((pref==='en'||pref==='it')&&pref!==pageLang){
+      var target=files[pref];
+      var name=location.pathname.split('/').pop()||'';
+      if(target&&name!==target){
+        location.replace(target+(location.hash||''));
+      }
+    }
+  }catch(err){}
+})();
+</script>
+
 
 </body>
 </html>

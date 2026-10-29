@@ -1,1430 +1,0 @@
-2026-09-21 15:39:59,688 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:39:59,705 INFO api.deps: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 8806.17it/s]
-2026-09-21 15:40:01,995 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:01,998 INFO api.deps: Connessione a Qdrant (server mode): http://127.0.0.1:16333 ...
-2026-09-21 15:40:02,046 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,047 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,061 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,061 INFO api.deps: Stato alias Qdrant (riconciliazione): aligned (expected=sidecar_0628_code_n100_npy, actual=sidecar_0628_code_n100_npy, repaired=False)
-2026-09-21 15:40:02,064 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,067 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,067 INFO api.deps: Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...
-2026-09-21 15:40:02,084 INFO api.deps: Grafo caricato: 100 nodi, 0 archi.
-2026-09-21 15:40:02,084 INFO api.deps: Multivettori ColBERT caricati: 0 chunk. Chunk sidecar: 0 sezioni. Simboli codice: 100.
-2026-09-21 15:40:02,084 INFO api.deps: Caricamento descrizioni regole dai file spec...
-2026-09-21 15:40:02,084 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:02,085 INFO api.deps: Server pronto.
-2026-09-21 15:40:02,212 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-2026-09-21 15:40:02,761 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,779 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,785 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,823 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:02,967 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:03,095 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots?wait=true "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2464.34it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.57it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.55it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4253.86it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.90it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.88it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5660.33it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.53it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3449.26it/s]
-2026-09-21 15:40:04,111 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.41it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.40it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6605.20it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.94it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.93it/s]
-2026-09-21 15:40:04,788 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:04,793 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:04,807 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:04,829 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:04,832 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:04,837 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,126 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,170 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:05,305 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,354 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,357 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,362 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,402 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,403 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:05,417 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6472.69it/s]
-2026-09-21 15:40:05,551 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~1 -0.
-2026-09-21 15:40:05,551 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 8514.03it/s]
-2026-09-21 15:40:07,803 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:07,812 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:07,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:07,854 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.89it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.89it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5242.88it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.70it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.69it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1233.98it/s]
-2026-09-21 15:40:08,651 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 1 modificati → 1 simboli (ri)estratti.
-2026-09-21 15:40:08,652 INFO core.indexing: 🔗 Code-link ricalcolati per 1 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:40:08,799 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134007
-2026-09-21 15:40:08,799 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:40:08,799 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134007.
-2026-09-21 15:40:08,799 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:40:09,384 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.42it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.42it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2803.68it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.17it/s]
-2026-09-21 15:40:09,813 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:09,821 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:09,838 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:09,863 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:09,866 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:09,874 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,172 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,216 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:10,357 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,405 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,408 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,414 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,450 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,450 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:10,465 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3243.85it/s]
-2026-09-21 15:40:10,621 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~10 -0.
-2026-09-21 15:40:10,621 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6822.13it/s]
-2026-09-21 15:40:12,822 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:12,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:12,855 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:12,858 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.06it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.06it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5461.33it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.30it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.30it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3869.28it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.60it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.59it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4177.59it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.65it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.64it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5229.81it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.44it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.43it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3754.97it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.75it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.74it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3294.82it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.99it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.99it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5607.36it/s]
-2026-09-21 15:40:15,792 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 10 modificati → 10 simboli (ri)estratti.
-2026-09-21 15:40:15,793 INFO core.indexing: 🔗 Code-link ricalcolati per 10 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 15:40:15,943 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134012
-2026-09-21 15:40:15,944 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:40:15,944 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134012.
-2026-09-21 15:40:15,944 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:40:16,545 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.51it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.50it/s]
-2026-09-21 15:40:16,789 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:16,792 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:16,798 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:16,840 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:16,841 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:16,856 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,172 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,216 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:17,351 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,407 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,412 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,416 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,445 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,449 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:17,452 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2876.75it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.87it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.86it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6543.38it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:40:18,251 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~100 -0.
-2026-09-21 15:40:18,252 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.66s/it]Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.66s/it]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 6919.31it/s]
-2026-09-21 15:40:21,002 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:21,013 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:21,017 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:21,021 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4660.34it/s]
-pre tokenize:   0%|          | 0/9 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 9/9 [00:00<00:00, 661.26it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.76it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.75it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1577.99it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.29it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.29it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6132.02it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.71it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.71it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5210.32it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.44it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.42it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6096.37it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/9 [00:00<?, ?it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.72it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.71it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4258.18it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.35it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.34it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5890.88it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.38it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.37it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5540.69it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.19it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.18it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4108.04it/s]
-
-Inference Embeddings:  11%|█         | 1/9 [00:01<00:15,  1.92s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.25it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.23it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2739.58it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.46it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.44it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5370.43it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.11it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.10it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3968.12it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.66it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.65it/s]
-
-Inference Embeddings:  22%|██▏       | 2/9 [00:03<00:12,  1.85s/it][Apre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6159.04it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.33it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.32it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2205.21it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.60it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.59it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5899.16it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.49it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.47it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4963.67it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.18it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.16it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2811.20it/s]
-
-Inference Embeddings:  33%|███▎      | 3/9 [00:05<00:11,  1.89s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.24it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.23it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5282.50it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.97it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.96it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5729.92it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.12it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.11it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5115.00it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.77it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.76it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5548.02it/s]
-
-Inference Embeddings:  44%|████▍     | 4/9 [00:07<00:09,  1.89s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.85it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.84it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4306.27it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.70it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.68it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4519.72it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.48it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.47it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3949.44it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.83it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.83it/s]
-
-Inference Embeddings:  56%|█████▌    | 5/9 [00:09<00:07,  1.90s/it][Apre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1191.56it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.61it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.60it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4665.52it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.21it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.20it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5159.05it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.46it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.45it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4922.89it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.49it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.48it/s]
-
-Inference Embeddings:  67%|██████▋   | 6/9 [00:11<00:05,  1.88s/it][Apre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4310.69it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.29it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.28it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6374.32it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.93it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.91it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4588.95it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.86it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.86it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5533.38it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Inference Embeddings:  78%|███████▊  | 7/9 [00:12<00:03,  1.81s/it][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.77it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.77it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3371.63it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.84it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.82it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6393.76it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.25it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.23it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4963.67it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.68it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.68it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4928.68it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Inference Embeddings:  89%|████████▉ | 8/9 [00:14<00:01,  1.78s/it][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.73it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.72it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4934.48it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.51it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.50it/s]
-
-Inference Embeddings: 100%|██████████| 9/9 [00:15<00:00,  1.40s/it][AInference Embeddings: 100%|██████████| 9/9 [00:15<00:00,  1.70s/it]
-2026-09-21 15:40:38,665 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 100 modificati → 100 simboli (ri)estratti.
-2026-09-21 15:40:38,665 INFO core.indexing: 🔗 Code-link ricalcolati per 100 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 15:40:38,782 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134021
-2026-09-21 15:40:38,782 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:40:38,782 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134021.
-2026-09-21 15:40:38,782 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:40:39,086 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 15:40:39,315 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:39,316 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6307.22it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.63it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.62it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5966.29it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.89it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.87it/s]
-2026-09-21 15:40:40,057 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,061 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,064 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,094 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,105 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,108 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,408 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,456 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:40,629 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,700 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,701 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,715 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,762 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,762 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:40,767 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4691.62it/s]
-2026-09-21 15:40:40,907 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.47it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6875.91it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.81it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.79it/s]
-2026-09-21 15:40:41,480 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,483 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,488 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,509 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,532 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,543 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,862 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:41,907 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:42,048 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:42,105 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:42,122 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:42,136 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:42,159 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:42,166 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:42,182 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5440.08it/s]
-2026-09-21 15:40:42,314 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~1 -0.
-2026-09-21 15:40:42,314 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6062.84it/s]
-2026-09-21 15:40:44,462 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:44,474 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:44,479 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:44,496 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.89it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.88it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5809.29it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.93it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.92it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5966.29it/s]
-2026-09-21 15:40:45,238 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 1 modificati → 1 simboli (ri)estratti.
-2026-09-21 15:40:45,238 INFO core.indexing: 🔗 Code-link ricalcolati per 1 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:40:45,364 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134044
-2026-09-21 15:40:45,365 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:40:45,365 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134044.
-2026-09-21 15:40:45,365 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:40:45,937 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.53it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.53it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6523.02it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.51it/s]
-2026-09-21 15:40:46,477 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,480 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,484 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,507 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,532 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,532 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,861 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:46,904 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:47,046 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:47,106 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:47,122 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:47,122 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:47,153 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:47,169 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:47,172 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3606.45it/s]
-2026-09-21 15:40:47,329 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~10 -0.
-2026-09-21 15:40:47,329 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5928.01it/s]
-2026-09-21 15:40:49,556 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:49,569 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:49,573 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:49,590 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.07it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.07it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5121.25it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.01it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.00it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4696.87it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.20it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.19it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3415.56it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.70it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.69it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5461.33it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.06it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.05it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4804.47it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.94it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.94it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5405.03it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.83it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.80it/s]
-2026-09-21 15:40:52,624 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 10 modificati → 10 simboli (ri)estratti.
-2026-09-21 15:40:52,625 INFO core.indexing: 🔗 Code-link ricalcolati per 10 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3721.65it/s]
-2026-09-21 15:40:52,755 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134049
-2026-09-21 15:40:52,756 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:40:52,757 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134049.
-2026-09-21 15:40:52,757 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:40:53,265 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.34it/s]
-2026-09-21 15:40:53,595 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:53,608 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:53,612 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:53,635 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:53,652 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:53,667 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:53,982 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,027 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:40:54,154 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,205 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,233 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,233 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,258 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,262 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:54,277 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5533.38it/s]
-2026-09-21 15:40:54,543 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~100 -0.
-2026-09-21 15:40:54,544 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5373.24it/s]
-Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.14s/it]Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.14s/it]
-2026-09-21 15:40:56,705 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:40:56,717 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:40:56,720 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:40:56,723 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/9 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 9/9 [00:00<00:00, 1156.59it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5171.77it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.23it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.22it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6043.67it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.00it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.99it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5011.12it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.87it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.87it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5440.08it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.96it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.95it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4975.45it/s]
-Inference Embeddings:   0%|          | 0/9 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.03it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.01it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5398.07it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.04it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.02it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2244.14it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.79it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.78it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6512.89it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.87it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.85it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2761.23it/s]
-Inference Embeddings:  11%|█         | 1/9 [00:01<00:14,  1.78s/it]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.33it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.32it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3990.77it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.18it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.17it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6232.25it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.00it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.00it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4681.14it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.02it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.01it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5504.34it/s]
-Inference Embeddings:  22%|██▏       | 2/9 [00:03<00:12,  1.83s/it]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.89it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.87it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6186.29it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.24it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.24it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3816.47it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.96it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.95it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3320.91it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.35it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.34it/s]
-Inference Embeddings:  33%|███▎      | 3/9 [00:05<00:10,  1.78s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4860.14it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.48it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.47it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3533.53it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.48it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.48it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6297.75it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.14it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.13it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6204.59it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.71it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.69it/s]
-Inference Embeddings:  44%|████▍     | 4/9 [00:07<00:08,  1.76s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 521.23it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.37it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.35it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4993.22it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.76it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.75it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5249.44it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.17it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.16it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6250.83it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.71it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.70it/s]
-Inference Embeddings:  56%|█████▌    | 5/9 [00:08<00:06,  1.74s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4599.02it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.97it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.96it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6307.22it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.37it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.36it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2928.98it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.17it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.16it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6668.21it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  67%|██████▋   | 6/9 [00:10<00:05,  1.77s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.62it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.61it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5115.00it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.54it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.54it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5607.36it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.12it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.11it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4963.67it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.39it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.38it/s]
-Inference Embeddings:  78%|███████▊  | 7/9 [00:12<00:03,  1.80s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6413.31it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.78it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.77it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3847.99it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.48it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.47it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6326.25it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.83it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.82it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2786.91it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  89%|████████▉ | 8/9 [00:14<00:01,  1.78s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.39it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.38it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5599.87it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.78it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.76it/s]
-Inference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.40s/it]Inference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.64s/it]
-2026-09-21 15:41:13,549 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 100 modificati → 100 simboli (ri)estratti.
-2026-09-21 15:41:13,550 INFO core.indexing: 🔗 Code-link ricalcolati per 100 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4614.20it/s]
-2026-09-21 15:41:13,672 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134056
-2026-09-21 15:41:13,673 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:41:13,673 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134056.
-2026-09-21 15:41:13,673 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:41:14,237 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.34it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3898.05it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.59it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.58it/s]
-2026-09-21 15:41:14,949 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:14,951 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:14,955 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:14,979 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:14,982 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:14,987 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,299 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,341 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:15,483 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,561 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,561 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,567 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,598 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,602 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:15,607 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4981.36it/s]
-2026-09-21 15:41:15,739 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.55it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.54it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5761.41it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.32it/s]
-2026-09-21 15:41:16,369 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,373 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,376 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,398 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,401 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,418 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,713 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,758 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:16,921 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,981 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:16,984 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:17,000 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:17,015 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:17,026 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:17,029 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3106.89it/s]
-2026-09-21 15:41:17,168 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~1 -0.
-2026-09-21 15:41:17,168 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6037.59it/s]
-2026-09-21 15:41:19,404 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:41:19,412 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:19,417 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:19,420 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.67it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.66it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4490.69it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.26it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.25it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5629.94it/s]
-2026-09-21 15:41:20,362 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 1 modificati → 1 simboli (ri)estratti.
-2026-09-21 15:41:20,362 INFO core.indexing: 🔗 Code-link ricalcolati per 1 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 15:41:20,493 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134119
-2026-09-21 15:41:20,494 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:41:20,494 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134119.
-2026-09-21 15:41:20,494 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:41:21,075 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.61it/s]
-2026-09-21 15:41:21,353 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,359 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,361 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,392 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,403 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,418 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,732 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,779 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:21,934 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,991 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:21,995 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:22,011 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:22,033 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:22,036 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:22,059 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5548.02it/s]
-2026-09-21 15:41:22,187 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~10 -0.
-2026-09-21 15:41:22,187 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6253.45it/s]
-2026-09-21 15:41:24,356 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:41:24,390 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:24,419 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:24,435 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.68it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.67it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4443.12it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.82it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.81it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6043.67it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.57it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.56it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4681.14it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.50it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.49it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4258.18it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.74it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.72it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4206.92it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.68it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  3.68it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6241.52it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.92it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.91it/s]
-2026-09-21 15:41:27,560 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 10 modificati → 10 simboli (ri)estratti.
-2026-09-21 15:41:27,561 INFO core.indexing: 🔗 Code-link ricalcolati per 10 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4609.13it/s]
-2026-09-21 15:41:27,699 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134124
-2026-09-21 15:41:27,700 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:41:27,700 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134124.
-2026-09-21 15:41:27,700 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:41:28,263 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.59it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2674.94it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.52it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.51it/s]
-2026-09-21 15:41:28,835 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:28,838 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:28,869 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:28,869 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:28,884 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:28,888 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,202 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,247 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:29,374 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,426 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,434 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,449 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,479 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,480 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:29,497 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4999.17it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:41:29,805 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~100 -0.
-2026-09-21 15:41:29,805 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][AInference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.03s/it]Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.03s/it]
-Loading weights: 100%|██████████| 391/391 [00:00<00:00, 9244.49it/s]
-2026-09-21 15:41:31,845 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:41:31,871 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:31,874 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:31,877 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/9 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 9/9 [00:00<00:00, 1209.35it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4815.50it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.61it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.58it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6345.39it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.89it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.88it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5433.04it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.77it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.77it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3761.71it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.44it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.42it/s]
-Inference Embeddings:   0%|          | 0/9 [00:00<?, ?it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1896.16it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.81it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.80it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5714.31it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.17it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.16it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4718.00it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.27it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.26it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5899.16it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.57it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.56it/s]
-Inference Embeddings:  11%|█         | 1/9 [00:01<00:15,  1.91s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4624.37it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.72it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.70it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4202.71it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.37it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.36it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4373.62it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.83it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.83it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5165.40it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.38it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.37it/s]
-Inference Embeddings:  22%|██▏       | 2/9 [00:03<00:13,  1.88s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4258.18it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.65it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.64it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4266.84it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.43it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.42it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6374.32it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.82it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.81it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6009.03it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.57it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.54it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6132.02it/s]
-Inference Embeddings:  33%|███▎      | 3/9 [00:05<00:11,  1.85s/it]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.80it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.79it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5511.57it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.68it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.67it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6204.59it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.18it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.16it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4076.10it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.25it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.24it/s]
-Inference Embeddings:  44%|████▍     | 4/9 [00:07<00:08,  1.79s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4702.13it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.03it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.02it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3432.33it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.94it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.93it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4882.78it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.75it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.73it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5146.39it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.74it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.72it/s]
-Inference Embeddings:  56%|█████▌    | 5/9 [00:08<00:07,  1.75s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5915.80it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.55it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.54it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6096.37it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.50it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.49it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5652.70it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.09it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.08it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5077.85it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  67%|██████▋   | 6/9 [00:10<00:05,  1.72s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.86it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.84it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5077.85it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.71it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.69it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5433.04it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.62it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.61it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3233.85it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.23it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.22it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6204.59it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  78%|███████▊  | 7/9 [00:12<00:03,  1.72s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.69it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.67it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3751.61it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.48it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.48it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 139.49it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.23it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.22it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5825.42it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.31it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.30it/s]
-Inference Embeddings:  89%|████████▉ | 8/9 [00:13<00:01,  1.69s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5377.31it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.90it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.89it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5825.42it/s]
-Inference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.34s/it]Inference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.62s/it]
-2026-09-21 15:41:48,357 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 100 modificati → 100 simboli (ri)estratti.
-2026-09-21 15:41:48,358 INFO core.indexing: 🔗 Code-link ricalcolati per 100 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:41:48,489 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134131
-2026-09-21 15:41:48,489 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:41:48,489 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134131.
-2026-09-21 15:41:48,490 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:41:49,043 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.52it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.52it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6626.07it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.81it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.79it/s]
-2026-09-21 15:41:49,476 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,483 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,496 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,522 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,544 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,544 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,880 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:49,922 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:50,082 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,132 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,135 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,154 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,183 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,184 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,188 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3584.88it/s]
-2026-09-21 15:41:50,333 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.63it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3744.91it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.56it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.55it/s]
-2026-09-21 15:41:50,956 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,959 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,980 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,993 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,995 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:50,998 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,296 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,337 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:51,466 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,524 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,527 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,531 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,554 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,562 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:51,574 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3675.99it/s]
-2026-09-21 15:41:51,715 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~1 -0.
-2026-09-21 15:41:51,715 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6150.05it/s]
-2026-09-21 15:41:53,815 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:41:53,839 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:53,854 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:53,860 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.15it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.15it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5102.56it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.11it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.10it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5302.53it/s]
-2026-09-21 15:41:54,536 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 1 modificati → 1 simboli (ri)estratti.
-2026-09-21 15:41:54,536 INFO core.indexing: 🔗 Code-link ricalcolati per 1 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:41:54,665 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134153
-2026-09-21 15:41:54,665 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:41:54,666 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134153.
-2026-09-21 15:41:54,666 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:41:55,210 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.58it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.58it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6432.98it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.59it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.57it/s]
-2026-09-21 15:41:55,744 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:55,748 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:55,751 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:55,793 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:55,794 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:55,808 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,140 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,181 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:41:56,307 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,372 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,387 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,388 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,434 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,435 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:56,438 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2809.31it/s]
-2026-09-21 15:41:56,575 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~10 -0.
-2026-09-21 15:41:56,575 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 7097.54it/s]
-2026-09-21 15:41:58,701 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:41:58,731 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:41:58,734 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:41:58,763 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.54it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.53it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6114.15it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.95it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.93it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6355.01it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.89it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.88it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2847.46it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.13it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.12it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4476.31it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.49it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.47it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6523.02it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.36it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.36it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5577.53it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.79it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.79it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5133.79it/s]
-2026-09-21 15:42:01,897 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 10 modificati → 10 simboli (ri)estratti.
-2026-09-21 15:42:01,898 INFO core.indexing: 🔗 Code-link ricalcolati per 10 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-2026-09-21 15:42:02,045 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134158
-2026-09-21 15:42:02,045 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:42:02,046 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134158.
-2026-09-21 15:42:02,046 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:42:02,589 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.32it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.31it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6626.07it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.00it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.99it/s]
-2026-09-21 15:42:03,160 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,164 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,168 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,189 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,216 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,216 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,525 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,566 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:03,687 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,742 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,755 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,759 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,782 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,808 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:03,808 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3934.62it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:42:04,141 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~100 -0.
-2026-09-21 15:42:04,141 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.01s/it]Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.01s/it]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 8923.71it/s]
-2026-09-21 15:42:06,215 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:42:06,232 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:06,235 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:06,237 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/9 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 9/9 [00:00<00:00, 805.38it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6250.83it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.62it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.60it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5675.65it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.96it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.95it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4181.76it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.53it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.52it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1228.92it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.36it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.35it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5753.50it/s]
-Inference Embeddings:   0%|          | 0/9 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.26it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.24it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3806.08it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.54it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.52it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3847.99it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.19it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.18it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5216.80it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.26it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.24it/s]
-Inference Embeddings:  11%|█         | 1/9 [00:01<00:14,  1.78s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4266.84it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.13it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.12it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3236.35it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.08it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.07it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5023.12it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.15it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.13it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4744.69it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.97it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.95it/s]
-Inference Embeddings:  22%|██▏       | 2/9 [00:03<00:12,  1.80s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4957.81it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.13it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.13it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6213.78it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.88it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.87it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5489.93it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.86it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.84it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4624.37it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.53it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.51it/s]
-Inference Embeddings:  33%|███▎      | 3/9 [00:05<00:10,  1.77s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3545.48it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.39it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.39it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3956.89it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.74it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.74it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4194.30it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.53it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.51it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5489.93it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  44%|████▍     | 4/9 [00:07<00:08,  1.78s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.79it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.78it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3489.44it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.48it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.48it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6195.43it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.52it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.50it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6442.86it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.51it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.49it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3998.38it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  56%|█████▌    | 5/9 [00:08<00:07,  1.75s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.05it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.03it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3823.43it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.30it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.29it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5468.45it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.03it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.02it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 2933.08it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.92it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.90it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4240.95it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings:  67%|██████▋   | 6/9 [00:10<00:05,  1.74s/it]
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.96it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.94it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4940.29it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.19it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.18it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4181.76it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.75it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.74it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4466.78it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.93it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.92it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4798.97it/s]
-Inference Embeddings:  78%|███████▊  | 7/9 [00:12<00:03,  1.74s/it]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.55it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.54it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4660.34it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.27it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.25it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4315.13it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.03it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.02it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5343.06it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.37it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.36it/s]
-Inference Embeddings:  89%|████████▉ | 8/9 [00:13<00:01,  1.71s/it]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4578.93it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][A
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.19it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.16it/s]
-
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s][Apre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3432.33it/s]
-
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][AInference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.35s/it]Inference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.61s/it]
-2026-09-21 15:42:22,757 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 100 modificati → 100 simboli (ri)estratti.
-2026-09-21 15:42:22,758 INFO core.indexing: 🔗 Code-link ricalcolati per 100 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.34it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.33it/s]
-2026-09-21 15:42:22,889 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134206
-2026-09-21 15:42:22,890 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:42:22,890 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134206.
-2026-09-21 15:42:22,890 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:42:23,210 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 15:42:23,433 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:23,433 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6462.72it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.60it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5059.47it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.09it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.08it/s]
-2026-09-21 15:42:24,099 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,106 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,122 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,146 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,153 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,168 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,497 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,545 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:24,703 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,762 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,777 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,793 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,817 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,823 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:24,841 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4588.95it/s]
-2026-09-21 15:42:24,985 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.00it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.97it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4156.89it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.56it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.54it/s]
-2026-09-21 15:42:25,608 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:25,624 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:25,628 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:25,658 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:25,668 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:25,672 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:25,979 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,022 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:26,155 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,216 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,217 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,231 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,257 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,264 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:26,278 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3775.25it/s]
-2026-09-21 15:42:26,425 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~1 -0.
-2026-09-21 15:42:26,425 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5405.76it/s]
-2026-09-21 15:42:28,590 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:42:28,625 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:28,653 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:28,657 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.93it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.92it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5146.39it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.16it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.14it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3956.89it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:42:29,488 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 1 modificati → 1 simboli (ri)estratti.
-2026-09-21 15:42:29,488 INFO core.indexing: 🔗 Code-link ricalcolati per 1 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.25it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.23it/s]
-2026-09-21 15:42:29,615 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134228
-2026-09-21 15:42:29,615 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:42:29,615 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134228.
-2026-09-21 15:42:29,615 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:42:29,941 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 15:42:30,148 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:30,152 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5322.72it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.87it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.85it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5957.82it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.95it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.94it/s]
-2026-09-21 15:42:30,820 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:30,823 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:30,828 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:30,850 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:30,854 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:30,870 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,190 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,237 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:31,372 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,434 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,449 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,450 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,480 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,484 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:31,496 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5127.51it/s]
-2026-09-21 15:42:31,639 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~10 -0.
-2026-09-21 15:42:31,639 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 6438.08it/s]
-2026-09-21 15:42:33,789 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:42:33,802 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:33,808 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:33,816 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.13it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  4.13it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5210.32it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.33it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.33it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5683.34it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.83it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.83it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3675.99it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.94it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.93it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6472.69it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.46it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.45it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4559.03it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.18it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.17it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3912.60it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.96it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.94it/s]
-2026-09-21 15:42:36,722 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 10 modificati → 10 simboli (ri)estratti.
-2026-09-21 15:42:36,722 INFO core.indexing: 🔗 Code-link ricalcolati per 10 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6393.76it/s]
-2026-09-21 15:42:36,865 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134233
-2026-09-21 15:42:36,865 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:42:36,866 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134233.
-2026-09-21 15:42:36,866 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:42:37,403 INFO api.deps: Entità indicizzate (0): []
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.48it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.47it/s]
-2026-09-21 15:42:37,688 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:37,701 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:37,704 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:37,728 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:37,732 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:37,761 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,074 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,117 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:38,248 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,300 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,326 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,326 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,359 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,371 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:38,386 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4624.37it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]2026-09-21 15:42:38,680 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 0 modificati, 0 cancellati, 0 invariati (saltati). Codice: +0 ~100 -0.
-2026-09-21 15:42:38,680 INFO core.indexing: Caricamento modello embedding: BAAI/bge-m3 ...
-
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s][AInference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.06s/it]Inference Embeddings: 100%|██████████| 1/1 [00:02<00:00,  2.06s/it]
-Loading weights: 100%|██████████| 391/391 [00:00<00:00, 10376.62it/s]
-2026-09-21 15:42:40,774 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 15:42:40,785 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:40,788 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:40,809 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/9 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 9/9 [00:00<00:00, 1168.69it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6017.65it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.72it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.71it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6710.89it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.44it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.44it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5607.36it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.24it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.23it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5729.92it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/9 [00:00<?, ?it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.83it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.81it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3527.59it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.88it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.86it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5874.38it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.28it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.27it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5966.29it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.85it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.84it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5533.38it/s]
-
-Inference Embeddings:  11%|█         | 1/9 [00:01<00:13,  1.74s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.67it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.67it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5041.23it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.47it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.46it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5152.71it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.74it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.73it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6523.02it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.29it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.28it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6096.37it/s]
-
-Inference Embeddings:  22%|██▏       | 2/9 [00:03<00:12,  1.74s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.30it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.29it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6462.72it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.28it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.27it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5178.15it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.02it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.01it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6123.07it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.36it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.34it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5197.40it/s]
-
-Inference Embeddings:  33%|███▎      | 3/9 [00:05<00:10,  1.75s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.90it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.90it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5447.15it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.82it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.80it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3809.54it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.15it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.14it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4519.72it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.13it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.13it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5983.32it/s]
-
-Inference Embeddings:  44%|████▍     | 4/9 [00:06<00:08,  1.74s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.94it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.94it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5652.70it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.06it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.04it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6114.15it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.63it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.62it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6335.81it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.16it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.15it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6026.30it/s]
-
-Inference Embeddings:  56%|█████▌    | 5/9 [00:08<00:06,  1.71s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.06it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.05it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6204.59it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.84it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.83it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6472.69it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.04it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.03it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4760.84it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.99it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.97it/s]
-
-Inference Embeddings:  67%|██████▋   | 6/9 [00:10<00:05,  1.70s/it][Apre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6195.43it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.84it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.82it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3248.88it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.11it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.09it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6159.04it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.92it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.91it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4766.25it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.78it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.78it/s]
-
-Inference Embeddings:  78%|███████▊  | 7/9 [00:11<00:03,  1.69s/it][Apre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6393.76it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.11it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.02it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4128.25it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.66it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.65it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5745.62it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.48it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  7.46it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6105.25it/s]
-
-Inference Embeddings:  89%|████████▉ | 8/9 [00:13<00:01,  1.67s/it][AInference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.05it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  6.05it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 3241.35it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]
-Inference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.32s/it][AInference Embeddings: 100%|██████████| 9/9 [00:14<00:00,  1.57s/it]
-2026-09-21 15:42:57,239 INFO core.indexing: 🧩 Codice: 0 file rimossi, 0 nuovi, 100 modificati → 100 simboli (ri)estratti.
-2026-09-21 15:42:57,240 INFO core.indexing: 🔗 Code-link ricalcolati per 100 simboli toccati → 0 IMPLEMENTS; 0 entità orfane potate.
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.39it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.37it/s]
-2026-09-21 15:42:57,355 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T134240
-2026-09-21 15:42:57,356 INFO core.indexing: 🧾 Manifest aggiornato: 0 chunk, 100 nodi, 0 archi.
-2026-09-21 15:42:57,356 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T134240.
-2026-09-21 15:42:57,356 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 15:42:57,829 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 15:42:57,873 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:57,890 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6657.63it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.71it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.69it/s]
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5660.33it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.03it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  8.02it/s]
-2026-09-21 15:42:58,565 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,578 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,581 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,608 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,611 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,611 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,940 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 15:42:58,982 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 15:42:59,125 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,199 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,200 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_code_n100_npy/points/count "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,203 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,235 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,246 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,262 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 15:42:59,526 INFO api.deps: Shutdown: rilascio risorse.

@@ -159,11 +159,21 @@ def test_native_metadata_preserves_export_and_installation(projects, monkeypatch
     _, a, _ = projects
     monkeypatch.setattr(runners.shutil, "which", lambda name: name)
     monkeypatch.setattr(runners.urllib.request, "urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(OSError()))
+    # Forza prova scrittura negativa: list_runners non deve aprire Codex solo perché which ok.
+    monkeypatch.setattr(runners, "write_isolation_ok", lambda runner: False)
+    monkeypatch.setattr(
+        runners, "probe_write_isolation",
+        lambda runner, force=False: __import__("native_sandbox").ProbeResult(
+            runner, False, "mocked write isolation fail"))
     for metadata in runners.list_runners(project=a):
-        if metadata["id"] in ("codex", "cursor"):
+        if metadata["id"] == "cursor":
             assert metadata["installed"] and metadata["export_available"]
             assert not metadata["available"]
             assert metadata["unavailable_code"] == "native_read_isolation_unverified"
+        if metadata["id"] == "codex":
+            assert metadata["installed"] and metadata["export_available"]
+            assert not metadata["available"]
+            assert metadata["unavailable_code"] == "native_write_isolation_unverified"
 
 
 @pytest.mark.parametrize("relative", [".git/config", ".env.local", "secrets/token", "credentials.json", "id_rsa"])
@@ -634,6 +644,7 @@ def test_eval_cli_measures_only_selected_project(projects, monkeypatch):
         def get(self, url, **kwargs):
             assert kwargs['params']['q'] == 'Own question'
             class Response:
+                status_code = 200
                 def raise_for_status(self):
                     pass
                 def json(self):

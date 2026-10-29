@@ -1,3 +1,5 @@
+Italiano | [English](README.en.md)
+
 # ADR — Architecture Decision Records
 
 Decisioni architetturali significative del progetto, con contesto,
@@ -39,5 +41,6 @@ l'attribuzione dei tempi di scrittura e il recupero dei reload interrotti.
 Verifica d'integrazione: 1.767 test passati su Windows (5 saltati per pesi Docling
 assenti), 438 su Linux (9 saltati per Git assente, coperti su Windows).
 Il risparmio di memoria è misurato; i delta numerosi di piccoli documenti possono
-rallentare. Batching limitato studiato, sharding e ColBERT su Qdrant non attivati.
+rallentare. R9 (2026-10-28): batch encode COW default 12, gate `--real-delta`
+docs N=100 k=100 mediana ready ~83.5s → ~38.1s. Sharding e ColBERT su Qdrant non attivati.
 Per aggiornare un indice esistente seguire la [procedura operativa](../README.md#artefatti-dellindice-formati-sicuri-ispezionabili-e-versionati-bluegreen).

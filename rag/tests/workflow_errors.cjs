@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { t } = require('./i18n_stub.cjs');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8');
 const intake = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
 const pipeline = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
@@ -15,7 +16,7 @@ async function check(status, detail, polling = false) {
     nodes[id] = { value: id === 'gen-descrizione' ? 'Request A' : '1', textContent: '', innerHTML: '', appendChild(row) { nodes[row.id] = row; } };
   }
   let call = 0;
-  const context = vm.createContext({ URLSearchParams, Promise, Math,
+  const context = vm.createContext({ URLSearchParams, Promise, Math, t,
     FormData: class { append() {} },
     setTimeout: fn => fn(),
     document: { getElementById: id => nodes[id], createElement: () => ({ innerHTML: '' }) },

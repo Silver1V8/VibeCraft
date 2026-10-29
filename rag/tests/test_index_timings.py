@@ -29,6 +29,9 @@ def test_document_writes_accumulate_in_save_hash_not_embedding(monkeypatch, tmp_
         (docs_dir / f"spec{number}.md").write_text(_spec(marker), encoding="utf-8")
     clock = [0.0]
     monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
+    # Default R9 (batch=12): l'incrementale COW raggruppa i due doc piccoli in
+    # una sola encode(); il full progressive resta per-documento.
+    monkeypatch.delenv("VIBECRAFT_COW_ENCODE_BATCH", raising=False)
 
     def delay(owner, name, seconds):
         operation = getattr(owner, name)
@@ -52,7 +55,40 @@ def test_document_writes_accumulate_in_save_hash_not_embedding(monkeypatch, tmp_
 
     timings = result["phase_timings_seconds"]
     assert timings["save_hash"] == 17  # two document writes plus final artifacts
+    if mode == "incremental":
+        assert timings["parsing_embedding"] == 3  # una encode() batched (R9)
+        assert sum(timings.values()) == clock[0] == 20
+    else:
+        assert timings["parsing_embedding"] == 6  # due encode() per-doc (full)
+        assert sum(timings.values()) == clock[0] == 23
+
+
+def test_incremental_encode_batch_off_keeps_per_doc_embedding_timing(monkeypatch, tmp_path):
+    """Con VIBECRAFT_COW_ENCODE_BATCH=0 l'incrementale resta una encode() per doc."""
+    docs_dir, _ = _wire_tmp_index(monkeypatch, tmp_path)
+    for number, marker in enumerate(("ALPHA", "BETA")):
+        (docs_dir / f"spec{number}.md").write_text(_spec(marker), encoding="utf-8")
+    clock = [0.0]
+    monkeypatch.setattr(index.time, "perf_counter", lambda: clock[0])
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "0")
+
+    def delay(owner, name, seconds):
+        operation = getattr(owner, name)
+
+        def wrapped(*args, **kwargs):
+            result = operation(*args, **kwargs)
+            clock[0] += seconds
+            return result
+
+        monkeypatch.setattr(owner, name, wrapped)
+
+    delay(index, "_encode_chunks_to_points", 3)
+    delay(index.ColbertWriter, "add_document", 5)
+    delay(index, "save_artifacts", 7)
+    result = index.incremental_index(qdrant=StatefulFakeQdrant(), embed_model=StubEmbed())
+    timings = result["phase_timings_seconds"]
     assert timings["parsing_embedding"] == 6
+    assert timings["save_hash"] == 17
     assert sum(timings.values()) == clock[0] == 23
 
 

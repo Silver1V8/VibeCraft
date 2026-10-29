@@ -1,6 +1,0 @@
-{"stage": "validate", "file": "validate-1", "status": 200, "started_at": "2026-09-15T07:30:49.031125+00:00", "seconds": 27.443}
-{"stage": "modify", "file": "modify-1", "status": 200, "started_at": "2026-09-15T07:31:30.453406+00:00", "seconds": 0.036}
-{"stage": "run", "file": "run-1", "status": 409, "started_at": "2026-09-15T07:31:30.688941+00:00", "seconds": 0.057}
-{"stage": "validate", "file": "validate-2", "status": 503, "started_at": "2026-09-15T07:31:34.278758+00:00", "seconds": 13.883}
-{"stage": "validate", "file": "validate-3", "status": 200, "started_at": "2026-09-15T07:32:39.473947+00:00", "seconds": 7.646}
-{"stage": "run", "file": "run-2", "status": 200, "started_at": "2026-09-15T07:32:56.281346+00:00", "seconds": 35.576}

@@ -52,7 +52,8 @@ def test_create_project_layout_and_unique_ids(tmp_path):
     for project in (a, b):
         assert project.root.name == project.id
         for relative in ("code", "docs", "changes", "database", "database/staging",
-                         "database/versions", "database/pipeline", "database/eval"):
+                         "database/versions", "database/pipeline", "database/eval",
+                         "database/ask"):
             assert (project.root / relative).is_dir()
         assert not (project.database_dir / "CURRENT").exists()
         assert not (project.database_dir / "models").exists()
@@ -93,6 +94,8 @@ def test_corrupt_registry_is_never_overwritten(tmp_path, payload):
     store.registry_path.write_text(payload, encoding="utf-8")
     before = store.registry_path.read_bytes()
     for action in (store.list, lambda: store.create("New"),
+                   lambda: store.rename("any-id", "New"),
+                   lambda: store.delete("any-id"),
                    lambda: ProjectRegistry(store.projects_dir)):
         with pytest.raises(ProjectError) as error:
             action()
@@ -182,7 +185,9 @@ def test_v1_legacy_requires_explicit_migration(tmp_path):
     ]}), encoding="utf-8")
     registry_before = store.registry_path.read_bytes()
     for action in (lambda: store.get("legacy"), lambda: store.create("Other"),
-                   lambda: store.register(manifest(tmp_path / "external"))):
+                   lambda: store.register(manifest(tmp_path / "external")),
+                   lambda: store.rename("legacy", "Renamed"),
+                   lambda: store.delete("legacy")):
         with pytest.raises(ProjectError) as error:
             action()
         assert error.value.code == "project_migration_required"
@@ -276,9 +281,305 @@ def test_reader_registry_is_read_only(tmp_path, monkeypatch):
         reader.create("B")
     assert error.value.status_code == 409
     assert store.registry_path.read_bytes() == before
+    with pytest.raises(ProjectError) as error:
+        reader.rename(project.id, "Renamed")
+    assert error.value.status_code == 409
+    assert error.value.code == "read_only"
+    assert store.registry_path.read_bytes() == before
+    with pytest.raises(ProjectError) as error:
+        reader.delete(project.id)
+    assert error.value.status_code == 409
+    assert error.value.code == "read_only"
+    assert store.registry_path.read_bytes() == before
+    assert project.root.is_dir()
     missing = tmp_path / "reader absent"
     assert ProjectRegistry(missing).list() == []
     assert not missing.exists()
+
+
+def test_rename_updates_display_name_only(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Original")
+    other = store.create("Other")
+    root_before = project.root
+    collection_before = project.collection_name
+    renamed = store.rename(project.id, "  Nuovo nome  ")
+    assert renamed.id == project.id
+    assert renamed.root == root_before
+    assert renamed.collection_name == collection_before
+    assert renamed.name == "Nuovo nome"
+    assert store.get(project.id).name == "Nuovo nome"
+    assert yaml.safe_load((root_before / "project.yaml").read_text(encoding="utf-8"))["name"] == "Nuovo nome"
+    assert store.get(other.id) == other
+    assert [p.id for p in store.list()] == [project.id, other.id]
+
+
+def test_rename_allows_duplicate_display_names(tmp_path):
+    store = registry(tmp_path)
+    a, b = store.create("Alpha"), store.create("Beta")
+    renamed = store.rename(b.id, "Alpha")
+    assert renamed.name == "Alpha"
+    assert store.get(a.id).name == "Alpha"
+    assert {p.id for p in store.list()} == {a.id, b.id}
+
+
+def test_rename_rejects_empty_name_and_unknown_id(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Keep")
+    before = store.registry_path.read_bytes()
+    manifest_before = (project.root / "project.yaml").read_bytes()
+    for bad in ("", "   ", "\t"):
+        with pytest.raises(ProjectError) as error:
+            store.rename(project.id, bad)
+        assert error.value.status_code == 422
+        assert error.value.code == "invalid_project_name"
+        assert store.registry_path.read_bytes() == before
+        assert (project.root / "project.yaml").read_bytes() == manifest_before
+    with pytest.raises(ProjectError) as error:
+        store.rename("missing-project", "Nope")
+    assert error.value.status_code == 404
+    assert error.value.code == "project_not_found"
+    assert store.registry_path.read_bytes() == before
+
+
+def test_rename_is_idempotent_for_same_name(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Same")
+    before = store.registry_path.read_bytes()
+    again = store.rename(project.id, "Same")
+    assert again == project
+    assert store.registry_path.read_bytes() == before
+
+
+def test_rename_preserves_manifest_settings(tmp_path):
+    store = registry(tmp_path)
+    root = manifest(tmp_path / "external", settings={
+        "retrieval": {"governed_max_chunks": 3},
+    })
+    project = store.register(root)
+    renamed = store.rename(project.id, "External Renamed")
+    raw = yaml.safe_load((project.root / "project.yaml").read_text(encoding="utf-8"))
+    assert raw == {
+        "schema_version": 1,
+        "id": project.id,
+        "name": "External Renamed",
+        "settings": {"retrieval": {"governed_max_chunks": 3}},
+    }
+    assert renamed.settings["retrieval"]["governed_max_chunks"] == 3
+
+
+def test_rename_fails_closed_when_manifest_disagrees(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("A")
+    raw = yaml.safe_load((project.root / "project.yaml").read_text(encoding="utf-8"))
+    raw["name"] = "Desynced"
+    (project.root / "project.yaml").write_text(yaml.safe_dump(raw), encoding="utf-8")
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError):
+        store.rename(project.id, "Fixed")
+    assert store.registry_path.read_bytes() == before
+    assert yaml.safe_load((project.root / "project.yaml").read_text(encoding="utf-8"))["name"] == "Desynced"
+
+
+def test_delete_destroy_removes_managed_registry_and_tree(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Doomed")
+    other = store.create("Keep")
+    root = project.root
+    marker = root / "docs" / "note.md"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text("gone", encoding="utf-8")
+    result = store.delete(project.id)
+    assert result.mode == "destroy"
+    assert result.managed is True
+    assert result.cleanup == {"filesystem": "ok", "qdrant": "skipped"}
+    with pytest.raises(ProjectError) as error:
+        store.get(project.id)
+    assert error.value.status_code == 404
+    assert error.value.code == "project_not_found"
+    assert not root.exists()
+    assert store.get(other.id) == other
+    assert [p.id for p in store.list()] == [other.id]
+
+
+def test_delete_unregister_leaves_external_files(tmp_path):
+    store = registry(tmp_path)
+    root = manifest(tmp_path / "external-host", name="External Host")
+    (root / "docs").mkdir()
+    (root / "docs" / "keep.md").write_text("stay", encoding="utf-8")
+    project = store.register(root)
+    result = store.delete(project.id)
+    assert result.mode == "unregister"
+    assert result.managed is False
+    assert result.cleanup == {"filesystem": "skipped", "qdrant": "skipped"}
+    with pytest.raises(ProjectError) as error:
+        store.get(project.id)
+    assert error.value.code == "project_not_found"
+    assert (root / "docs" / "keep.md").read_text(encoding="utf-8") == "stay"
+    assert (root / "project.yaml").is_file()
+
+
+def test_unregister_managed_leaves_orphan_folder(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Orphan")
+    root = project.root
+    result = store.unregister(project.id)
+    assert result.mode == "unregister"
+    assert result.managed is True
+    assert result.cleanup == {"filesystem": "skipped", "qdrant": "skipped"}
+    assert root.is_dir()
+    # Orphan folder name stays taken; create picks the next readable id.
+    again = store.create("Orphan")
+    assert again.id != project.id
+    assert again.root != root
+    assert root.is_dir()
+    assert project.id in {child.name for child in store.projects_dir.iterdir()}
+
+
+def test_destroy_refused_for_external_root(tmp_path):
+    store = registry(tmp_path)
+    project = store.register(manifest(tmp_path / "external-safe", name="Safe"))
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError) as error:
+        store.delete(project.id, mode="destroy")
+    assert error.value.status_code == 422
+    assert error.value.code == "project_delete_mode"
+    assert store.registry_path.read_bytes() == before
+    assert project.root.is_dir()
+    assert store.get(project.id).id == project.id
+
+
+def test_delete_rejects_unknown_id_and_invalid_mode(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Stay")
+    before = store.registry_path.read_bytes()
+    with pytest.raises(ProjectError) as error:
+        store.delete("missing-project")
+    assert error.value.status_code == 404
+    assert error.value.code == "project_not_found"
+    with pytest.raises(ProjectError) as error:
+        store.delete(project.id, mode="trash")
+    assert error.value.status_code == 422
+    assert error.value.code == "project_delete_mode"
+    assert store.registry_path.read_bytes() == before
+    assert project.root.is_dir()
+
+
+def test_delete_refuses_when_writer_lock_busy(tmp_path):
+    from core.writer_lock import writer_lock
+
+    store = registry(tmp_path)
+    project = store.create("Busy")
+    before = store.registry_path.read_bytes()
+    with writer_lock(project=project, timeout_seconds=1):
+        with pytest.raises(ProjectError) as error:
+            store.delete(project.id)
+        assert error.value.status_code == 409
+        assert error.value.code == "project_busy"
+    assert store.registry_path.read_bytes() == before
+    assert store.get(project.id).id == project.id
+    assert project.root.is_dir()
+
+
+def test_delete_busy_check_hook_is_honored(tmp_path):
+    from core.projects import ProjectError as PE
+
+    store = registry(tmp_path)
+    project = store.create("Hooked")
+    before = store.registry_path.read_bytes()
+    seen = []
+
+    def busy(_project):
+        seen.append(_project.id)
+        raise PE("reindex running", status_code=409, code="project_busy")
+
+    with pytest.raises(ProjectError) as error:
+        store.delete(project.id, busy_check=busy)
+    assert error.value.code == "project_busy"
+    assert seen == [project.id]
+    assert store.registry_path.read_bytes() == before
+
+
+def test_delete_isolation_preserves_sibling_project(tmp_path):
+    store = registry(tmp_path)
+    a = store.create("Alpha")
+    b = store.create("Beta")
+    (a.root / "docs" / "a.md").parent.mkdir(parents=True, exist_ok=True)
+    (a.root / "docs" / "a.md").write_text("a", encoding="utf-8")
+    (b.root / "docs" / "b.md").parent.mkdir(parents=True, exist_ok=True)
+    (b.root / "docs" / "b.md").write_text("b", encoding="utf-8")
+    store.delete(a.id)
+    assert not a.root.exists()
+    assert (b.root / "docs" / "b.md").read_text(encoding="utf-8") == "b"
+    assert store.get(b.id).name == "Beta"
+
+
+def test_delete_destroy_drops_qdrant_prefix_only(tmp_path):
+    from types import SimpleNamespace
+
+    from core import qdrant_versions
+    from qdrant_client.models import CreateAliasOperation, DeleteAliasOperation
+
+    class _FakeQdrant:
+        def __init__(self, collections, aliases):
+            self.collections = set(collections)
+            self.aliases = dict(aliases)
+
+        def get_collections(self):
+            return SimpleNamespace(collections=[SimpleNamespace(name=n) for n in sorted(self.collections)])
+
+        def get_aliases(self):
+            return SimpleNamespace(aliases=[
+                SimpleNamespace(alias_name=a, collection_name=c) for a, c in sorted(self.aliases.items())
+            ])
+
+        def update_collection_aliases(self, change_aliases_operations):
+            for op in change_aliases_operations:
+                if isinstance(op, DeleteAliasOperation):
+                    self.aliases.pop(op.delete_alias.alias_name, None)
+                elif isinstance(op, CreateAliasOperation):
+                    self.aliases[op.create_alias.alias_name] = op.create_alias.collection_name
+
+        def delete_collection(self, collection_name):
+            self.collections.discard(collection_name)
+            for alias_name in [a for a, c in self.aliases.items() if c == collection_name]:
+                del self.aliases[alias_name]
+
+    store = registry(tmp_path)
+    a = store.create("Alpha")
+    b = store.create("Beta")
+    qdrant = _FakeQdrant(
+        collections=[a.collection_name + "__v1", b.collection_name + "__v1",
+                     a.collection_name + "__v2", "unrelated__v1"],
+        aliases={a.collection_name: a.collection_name + "__v1",
+                 b.collection_name: b.collection_name + "__v1"},
+    )
+    result = store.delete(a.id, qdrant=qdrant)
+    assert result.mode == "destroy"
+    assert result.cleanup["qdrant"] == "ok"
+    assert a.collection_name + "__v1" not in qdrant.collections
+    assert a.collection_name + "__v2" not in qdrant.collections
+    assert a.collection_name not in qdrant.aliases
+    assert b.collection_name + "__v1" in qdrant.collections
+    assert qdrant.aliases[b.collection_name] == b.collection_name + "__v1"
+    assert "unrelated__v1" in qdrant.collections
+    report = qdrant_versions.drop_project_qdrant_namespaces(qdrant, base=b.collection_name)
+    assert set(report["removed"]) == {b.collection_name + "__v1"}
+    assert report["errors"] == []
+    assert b.collection_name not in qdrant.aliases
+
+
+def test_delete_survives_corrupt_manifest(tmp_path):
+    store = registry(tmp_path)
+    project = store.create("Broken")
+    (project.root / "project.yaml").write_text("{", encoding="utf-8")
+    result = store.delete(project.id)
+    assert result.mode == "destroy"
+    assert result.cleanup["filesystem"] == "ok"
+    assert not project.root.exists()
+    with pytest.raises(ProjectError) as error:
+        store.get(project.id)
+    assert error.value.code == "project_not_found"
 
 
 def test_relative_projects_dir_is_rejected(tmp_path):
@@ -352,7 +653,7 @@ def test_linked_registry_storage_is_rejected(tmp_path):
     assert not list(outside.iterdir())
 
 
-@pytest.mark.parametrize("directory", ["versions", "pipeline", "eval"])
+@pytest.mark.parametrize("directory", ["versions", "pipeline", "eval", "ask"])
 def test_linked_database_subdirectories_are_rejected(tmp_path, directory):
     store = registry(tmp_path)
     project = store.create("A")

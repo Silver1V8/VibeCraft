@@ -66,14 +66,26 @@ usati per la prova; le correzioni non cancellano gli attriti osservati.
 
 ## Problemi aperti e rischi residui
 
-- **Coverage contraddittoria:** strutturalmente conforme, bloccante, non
-  riconosciuta. Due resoconti conformi su tre non bastano a dichiararla risolta.
-- **Controllo semantico sui resoconti:** rinviato. Prima serve un dato su quanti
-  resoconti contraddittori compaiano nell'uso reale; nessuna chiamata aggiuntiva ora.
-- **Modello dei rilievi:** kind confonde argomento, esistenza del difetto ed
-  effetto sul gate, causa comune dei tre attriti di design (punti aperti bloccanti,
-  associazione rilievo/accettazione, classificazione contraddittoria).
-  Prompt e separazione suggestions lo affrontano solo in parte.
+### Chiusi in R8 (follow-up qualità agentic)
+
+- **Coverage contraddittoria:** chiusa con detector strutturale su `message`
+  (`core/pipeline_validation.contradictory_coverage`). Un rilievo `topic=coverage`
+  che dichiara assenza di lacune rende il resoconto non conforme → validazione
+  `unavailable`, come `recommendation` nei findings. Nessuna seconda chiamata LLM.
+- **Modello dei rilievi:** chiuso con split `topic` (argomento) + `defect`
+  (`present` obbligatorio nei findings). L'effetto sul gate resta derivato
+  (`blocking` in `read_semantic`). `kind` è solo alias HTTP/UI di `topic`.
+- **Retention/GC:** chiusa. `pipeline_gate.validations_keep_per_feature` e
+  `events_keep_lines` (override env) ruotano validazioni concluse e `events.jsonl`
+  dopo scrittura; i record `running` non si eliminano.
+- **Registro esecuzioni:** chiuso con registry condiviso su disco
+  (`database/pipeline/activity/`, `activity_scope=shared-disk`). Un PID morto
+  viene purgato in `snapshot`; «zero active» non è più relativo a un solo processo.
+
+### Ancora aperti / consapevolmente parcheggiati
+
+- **Controllo semantico sui resoconti:** rinviato. Il detector R8 è euristico
+  sulla sola message; nessuna chiamata aggiuntiva LLM.
 - **Problema in suggestions o nella sintesi:** resta inascoltato. Non autorizza
   direttamente nulla, ma la sua omissione dai controlli può contribuire a un
   falso via libera. Rischio residuo accettato, non risolto.
@@ -199,7 +211,10 @@ dei dati con availability: una mappa vuota non deve nascondere un errore.
 I record decisione sono scritti dal server sotto
 `database/pipeline/decisions/<feature>/<decision_id>.json`; gli eventi sono
 sotto `database/pipeline/events.jsonl`, separati da `eval/results/history.jsonl`.
-Nessuna pulizia o rotazione automatica. Record locale corrotto è un guasto
+Retention R8: dopo ogni validazione conclusa si tengono le ultime N per feature
+(`pipeline_gate.validations_keep_per_feature`, default 20); dopo ogni append di
+`events.jsonl` si tengono le ultime M righe (`events_keep_lines`, default 2000).
+I record `running` non si eliminano. Record locale corrotto è un guasto
 operativo, record inesistente è assenza di validazione; non sono intercambiabili.
 
 ## Difetto del retrieval fuori scope
@@ -229,7 +244,7 @@ rimasti identici, verificati tramite SHA-256. Nessuna decisione o deroga inventa
 Due nuovi resoconti conformi su tre; il terzo è JSON malformato, non assenza
 verificata di contraddizioni. Nessun giudizio di affidabilità da questo campione.
 running→esito aggiorna lo stesso file, una rivalidazione ne crea uno nuovo.
-Nessuna retention introdotta.
+Retention introdotta nel follow-up R8 (vedi sopra).
 
 ## Associazioni esplicite — scelta emersa durante l’implementazione
 
@@ -280,10 +295,11 @@ Questo campo non modifica hash del contratto, decisioni o algoritmo del gate.
 Limite residuo accettato: la separazione NON garantisce che tutti i problemi
 finiscano nei findings. Un problema in suggestions o nella sintesi non autorizza
 direttamente nulla, ma resta inascoltato; la sua omissione dai controlli può
-contribuire a un falso via libera. Il rischio non è risolto. La coverage che
-descrive copertura completa resta strutturalmente conforme, bloccante e non
-riconosciuta dal parser: sarà misurata sui nuovi resoconti. Nessuna ricerca
-nella prosa per approvare e nessun secondo giudizio LLM introdotto.
+contribuire a un falso via libera. Il rischio non è risolto. Dal follow-up R8
+la coverage che dichiara assenza di lacune è riconosciuta come non conforme
+(detector strutturale su message); findings usano `topic`+`defect=present` e
+`kind` resta solo alias di uscita. Nessuna ricerca nella prosa per approvare e
+nessun secondo giudizio LLM introdotto.
 
 Tutti e sette gli attriti delle due prove sono raccolti nel registro unico sopra;
 i record originali `frictions.jsonl` restano nelle rispettive cartelle di evidenza.
@@ -317,11 +333,12 @@ i rilievi strutturali globali. Una lacuna senza riferimento resta bloccante.
 Non cercare mai un verdetto globale nella prosa o nelle citazioni.
 
 Il registro delle esecuzioni attive segue la durata della coroutine SDK, anche
-quando il consumatore HTTP si disconnette. È locale al processo (PID conservato
-in activity_scope); le esecuzioni senza feature sono registrate separatamente.
-Con più worker non rappresenta tutte le esecuzioni: prima di interpretare zero
-come assenza occorre un registro condiviso. La sovrapposizione temporale non
-certifica chi abbia chiamato l'endpoint. Nessuna telemetria o nuova dipendenza.
+quando il consumatore HTTP si disconnette. Dal follow-up R8 è un registry
+condiviso su disco (`database/pipeline/activity/<attempt_id>.json`) con
+`activity_scope=shared-disk`; il PID nel record serve solo a scartare processi
+morti. Le esecuzioni senza feature restano elencate separatamente. La
+sovrapposizione temporale non certifica chi abbia chiamato l'endpoint. Nessuna
+telemetria o nuova dipendenza.
 
 ## Ammissione, concorrenza e registro eventi
 
@@ -346,7 +363,7 @@ dalla prima lettura dello stream HTTP. execution_finished segue la coroutine
 SDK anche se il client si disconnette. Un crash del processo o un errore finale
 di storage lascia il tentativo senza conclusione: non equivale a completamento.
 L'errore finale è esposto nello stream e nel log server. Nessun retry automatico
-del modello. Nessuna pulizia/rotazione del journal.
+del modello. Il journal ha retention configurabile (R8: ultime N righe).
 
 `events.jsonl` contiene cinque tipi: validation_finished, execution_blocked,
 execution_started, execution_finished, open_point_decision_recorded. Ogni

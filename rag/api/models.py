@@ -29,6 +29,13 @@ class AskQuery(BaseModel):
     # graph_query non risolve i riferimenti in linguaggio naturale ("la specifica di
     # autenticazione" non contiene l'id "spec_auth_1.1.md"). Ignorato dal ramo "hybrid".
     target: str | None = Field(default=None, max_length=1000)
+    # Filo breve per-progetto (VC-3): default True continua il thread se non vuoto.
+    # `false` = comportamento storico isolato (né lettura né scrittura del thread).
+    # I bench/fixture devono passare use_thread=false (o reset) per non eredare turni.
+    use_thread: bool = True
+    # Se true, azzera il thread del progetto PRIMA di questa domanda (poi eventualmente
+    # continua se use_thread resta true).
+    reset_thread: bool = False
 
 
 class ExploreTurnRequest(BaseModel):

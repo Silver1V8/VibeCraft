@@ -1,3 +1,5 @@
+Italiano | [English](README.en.md)
+
 # Archivio
 
 Materiale storico di sviluppo: nessun codice a runtime lo legge, non entra nell'immagine
@@ -19,11 +21,13 @@ appesantire gli alberi che si consultano di continuo (`rag/adr/`, `rag/eval/resu
   in `rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md`.
 - `adr/horizontal-bench/` — le run del 28 settembre 2026. Una run nuova si scrive ancora
   sotto `rag/adr/horizontal-bench/`.
-- `eval-results/<run>/` — le run di valutazione con una cartella `evidence/` (~119 MB
-  totali), spostate dall'ex `rag/eval/results/<run>/`. Ogni run mantiene la propria
-  struttura interna invariata. `*/evidence/** -text` in `eval-results/.gitattributes`
-  preserva i byte originali e gli hash SHA-256 anche con `core.autocrlf` attivo, come
-  faceva `rag/eval/results/.gitattributes` per l'albero originale.
+- `eval-results/<run>/` — le run di valutazione spostate dall'ex `rag/eval/results/<run>/`.
+  Dal 2026-10-28 (R6) il **tip** tiene i resoconti (`.md`, CSV, script, patch) e toglie
+  dal working tree i blob pesanti (`.json` / `.jsonl` / `.log` / `.zip`, ~108 MiB): vedi
+  [`eval-results/HEAVY_REMOVED.md`](eval-results/HEAVY_REMOVED.md). I byte restano nella
+  history git; la ricetta `sparse-checkout` in [INSTALL.md](../INSTALL.md#prima-di-clonare) evita di
+  scaricarli nei clone nuovi. `*/evidence/** -text` in `eval-results/.gitattributes`
+  resta valida per i blob ancora presenti e per quelli ripristinati da history.
 
 ## Cosa NON è qui
 
@@ -44,11 +48,13 @@ di codice o commit restano testo, non link, come nell'originale.
 
 ## Archivio congelato
 
-Il contenuto è conservato come testimonianza, non per essere rieseguito: i file di
-evidenza sono byte per byte quelli originali (anche dove un loro link relativo interno
-non risolve più dalla nuova posizione) e gli script di riproduzione (`*.py`, `*.py.txt`)
-presuppongono la vecchia posizione `rag/eval/results/<run>/evidence/` — per esempio
-`Path(__file__).parents[4]` per arrivare a `rag/`, o run sorelle cercate accanto alla
-propria cartella. Per rieseguirli vanno riportati temporaneamente in quella posizione.
+Il contenuto è conservato come testimonianza, non per essere rieseguito. I resoconti
+e gli script rimasti nel tip sono byte per byte quelli originali (anche dove un link
+relativo interno non risolve più dalla nuova posizione). Gli script di riproduzione
+(`*.py`, `*.py.txt`) presuppongono la vecchia posizione
+`rag/eval/results/<run>/evidence/` — per esempio `Path(__file__).parents[4]` per
+arrivare a `rag/`, o run sorelle cercate accanto alla propria cartella. Per
+rieseguirli vanno riportati temporaneamente in quella posizione, e le evidence
+pesanti vanno ripristinate da history se servono (vedi `HEAVY_REMOVED.md`).
 Nuove run si generano in `rag/eval/results/`, non qui: per questo l'archivio non ha il
 `.gitignore` con la whitelist delle evidenze che regola quell'albero.

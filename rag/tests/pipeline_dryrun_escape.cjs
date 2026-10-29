@@ -7,6 +7,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { t } = require('./i18n_stub.cjs');
 
 const template = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
 const shared = fs.readFileSync(path.join(__dirname, '../static/shared.js'), 'utf8').replace(/\r\n/g, '\n');
@@ -25,8 +26,21 @@ const HOSTILE = '<img src=x onerror=alert(1)>';
 function makeContext(response) {
   const els = {};
   const el = id => (els[id] ||= { id, innerHTML: '', value: '', disabled: false, focus() {},
-    classList: { add() {}, remove() {} } });
+    // Specchio minimo di DOMTokenList: add/remove (storico) + contains/toggle
+    // usati da runCanvasDryRun per is-compact quando la review Canvas è aperta.
+    classList: {
+      _c: new Set(id === 'review-canvas' ? ['hidden'] : []),
+      add(name) { this._c.add(name); },
+      remove(name) { this._c.delete(name); },
+      contains(name) { return this._c.has(name); },
+      toggle(name, force) {
+        const on = force === undefined ? !this._c.has(name) : !!force;
+        if (on) this._c.add(name); else this._c.delete(name);
+        return on;
+      },
+    } });
   const context = vm.createContext({
+    t,
     featureName: '', devType: 'backend', sessionRevision: 0,
     ensurePipelineFeature: async () => true,
     getFeatureName: () => 'feature-x',

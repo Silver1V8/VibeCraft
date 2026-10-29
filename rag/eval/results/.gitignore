@@ -5,6 +5,7 @@
 !/.gitignore
 !/.gitattributes
 !/README.md
+!/README.en.md
 !/FASE2_PROPOSE_20260914.md
 !/history.jsonl
 !/*/evidence/**/*.json

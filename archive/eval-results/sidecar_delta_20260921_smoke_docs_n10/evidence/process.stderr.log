@@ -1,119 +1,0 @@
-2026-09-21 12:18:43,418 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:43,420 INFO api.deps: Caricamento modello embedding: BAAI/bge-m3 ...
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 10669.54it/s]
-2026-09-21 12:18:45,538 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 12:18:45,542 INFO api.deps: Connessione a Qdrant (server mode): http://127.0.0.1:16333 ...
-2026-09-21 12:18:45,581 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:45,590 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:45,606 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:45,607 INFO api.deps: Stato alias Qdrant (riconciliazione): aligned (expected=sidecar_0628_smoke_docs_n10_pre, actual=sidecar_0628_smoke_docs_n10_pre, repaired=False)
-2026-09-21 12:18:45,622 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:45,635 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:45,636 INFO api.deps: Caricamento artefatti indice (grafo JSON, ColBERT/chunk) ...
-2026-09-21 12:18:45,646 INFO api.deps: Grafo caricato: 20 nodi, 10 archi.
-2026-09-21 12:18:45,646 INFO api.deps: Multivettori ColBERT caricati: 10 chunk. Chunk sidecar: 10 sezioni. Simboli codice: 0.
-2026-09-21 12:18:45,646 INFO api.deps: Caricamento descrizioni regole dai file spec...
-2026-09-21 12:18:45,648 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 12:18:45,648 INFO api.deps: Server pronto.
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]Loading weights: 100%|██████████| 391/391 [00:00<00:00, 6611.33it/s]
-2026-09-21 12:18:48,171 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 12:18:48,177 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-2026-09-21 12:18:48,603 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 12:18:49,131 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,143 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/count "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,146 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,183 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,200 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,200 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,310 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,450 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/snapshots?wait=true "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 1640.96it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.74it/s]
-2026-09-21 12:18:49,922 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:49,927 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4068.19it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.98it/s]
-2026-09-21 12:18:50,170 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:50,174 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5029.14it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.77it/s]
-2026-09-21 12:18:50,381 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:50,385 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 4899.89it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5759.87it/s]
-2026-09-21 12:18:52,561 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 12:18:52,570 INFO core.indexing: ✅ Nessun cambiamento in docs/ o code/: indice già aggiornato (no-op, nessuna scrittura).
-2026-09-21 12:18:53,007 INFO api.deps: Entità indicizzate (0): []
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.76it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  1.76it/s]
-2026-09-21 12:18:53,109 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,114 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,158 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,168 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/count "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,171 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,214 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,214 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,218 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,603 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,640 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 12:18:53,650 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,715 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,715 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/count "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,729 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,756 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,761 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:53,765 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5011.12it/s]
-Loading weights:   0%|          | 0/391 [00:00<?, ?it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s][ALoading weights: 100%|██████████| 391/391 [00:00<00:00, 5513.72it/s]
-2026-09-21 12:18:55,975 INFO FlagEmbedding.finetune.embedder.encoder_only.m3.runner: loading existing colbert_linear and sparse_linear---------
-2026-09-21 12:18:55,995 INFO core.indexing: 📋 Piano incrementale: 0 nuovi, 1 modificati, 0 cancellati, 9 invariati (saltati). Codice: +0 ~0 -0.
-2026-09-21 12:18:56,003 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,016 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,021 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,056 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/delete?wait=true "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,057 INFO core.indexing: 🗑️  Rimossi i chunk di 1 documenti (modificati/cancellati): 1 chunk purgati da Qdrant, sidecar e grafo.
-2026-09-21 12:18:56,058 INFO core.indexing: 
-Vettorializzazione incrementale di 1 chunk (da 1 documenti)...
-
-Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.42it/s][AInference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.42it/s]
-2026-09-21 12:18:56,141 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,145 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5622.39it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.88it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  5.88it/s]
-2026-09-21 12:18:56,653 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,658 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,684 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points?wait=true "HTTP/1.1 200 OK"
-2026-09-21 12:18:56,684 INFO core.indexing: ➕ (Ri)indicizzati 1 documenti → 1 chunk upsertati.
-2026-09-21 12:18:56,768 INFO core.artifacts: Versione indice promossa: CURRENT -> v20260921T101856
-2026-09-21 12:18:56,768 INFO core.indexing: 🧾 Manifest aggiornato: 10 chunk, 20 nodi, 10 archi.
-2026-09-21 12:18:56,768 INFO core.indexing: 🔁 Versione promossa: CURRENT → v20260921T101856.
-2026-09-21 12:18:56,768 INFO core.indexing: 🔗 Code-link spec<->codice ricalcolati per i nodi toccati (nessun full rebuild necessario).
-2026-09-21 12:18:57,064 INFO api.deps: Grafo cambiato su disco: ricarico grafo/ColBERT/regole in memoria.
-2026-09-21 12:18:57,250 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 12:18:57,251 INFO api.deps: Entità indicizzate (0): []
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 5882.61it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00, 10.72it/s]
-2026-09-21 12:18:57,487 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,491 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-pre tokenize:   0%|          | 0/1 [00:00<?, ?it/s]pre tokenize: 100%|██████████| 1/1 [00:00<00:00, 6355.01it/s]
-Inference Embeddings:   0%|          | 0/1 [00:00<?, ?it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.62it/s]Inference Embeddings: 100%|██████████| 1/1 [00:00<00:00,  9.61it/s]
-2026-09-21 12:18:57,889 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,903 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/query "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,935 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/count "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,951 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,970 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,983 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:57,997 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,000 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,282 INFO httpx: HTTP Request: PUT http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/snapshots/recover?wait=true "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,314 INFO api.deps: Entità indicizzate (0): []
-2026-09-21 12:18:58,324 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/scroll "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,359 INFO httpx: HTTP Request: POST http://127.0.0.1:16333/collections/sidecar_0628_smoke_docs_n10_pre/points/count "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,362 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,366 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,390 INFO httpx: HTTP Request: GET http://127.0.0.1:16333 "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,401 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/aliases "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,417 INFO httpx: HTTP Request: GET http://127.0.0.1:16333/collections "HTTP/1.1 200 OK"
-2026-09-21 12:18:58,666 INFO api.deps: Shutdown: rilascio risorse.

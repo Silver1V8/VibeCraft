@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const http = require('node:http');
+const { t } = require('./i18n_stub.cjs');
 
 async function intakeApprovalChecks() {
   const source = fs.readFileSync(path.join(__dirname, '../static/pages/intake.js'), 'utf8');
@@ -15,6 +16,7 @@ async function intakeApprovalChecks() {
   const calls = [], refreshed = [], timers = [];
   let ok = true;
   const context = vm.createContext({
+    t,
     document: { getElementById: id => nodes[id], querySelectorAll: () => [] },
     window: { parent: { refreshIndexStatus: id => refreshed.push(id) } },
     selectedProjectId: () => 'project-A', refreshStaging() {}, closePreview() {},
@@ -47,7 +49,7 @@ async function fetchChecks() {
   let retry = false, promptProject, promptHeaders, promptUrl;
   const location = { href: 'http://localhost/?project=legacy', origin: 'http://localhost' };
   const storage = new Map();
-  const context = vm.createContext({ URL, Request, Headers, AbortController, Promise, location,
+  const context = vm.createContext({ URL, Request, Headers, AbortController, Promise, location, t,
     localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
     sessionStorage: { getItem: () => 'legacy' },
     document: { baseURI: location.href, querySelector: () => null },
@@ -130,7 +132,7 @@ async function queryErrorChecks() {
     const node = id => nodes[id] ||= { value: id === 'question-input' ? 'Question' : '5', textContent: '',
       classList: { add() {}, remove() {} } };
     let loading;
-    const context = vm.createContext({ document: { getElementById: node }, console,
+    const context = vm.createContext({ document: { getElementById: node }, console, t,
       showLoader: value => { loading = value; }, setStatus() {}, showAnswerPanel() {},
       fetch: async () => ({ ok: false, status, json: async () => ({ detail }) }),
     });
@@ -237,7 +239,8 @@ async function browserChecks() {
     assert.equal(await page.locator('#project-select').inputValue(), A);
     assert.equal(await other.locator('#project-select').inputValue(), B);
     assert.equal(await page.locator('#project-select option').first().textContent(), projects[0].name);
-    assert.equal(await page.locator('#project-bar img').count(), 0);
+    // Dal 2026-10-28 la barra ha il logo VC al posto della scritta: deve restare l'unica immagine.
+    assert.deepEqual(await page.locator('#project-bar img').evaluateAll(imgs => imgs.map(img => img.getAttribute('src'))), ['/static/logo-vc.png?v=2']);
     const frameA = page.frameLocator(`iframe[data-project-id="${A}"][data-workspace-page="/"]`);
     await frameA.locator('#question-input').fill('A question');
     await frameA.locator('#ask-btn').click();
@@ -248,7 +251,7 @@ async function browserChecks() {
     assert.equal(await page.locator('#workspace-pages iframe').count(), 1);
     assert.equal(await page.locator('iframe').evaluate(frame => frame.contentWindow.workspaceIsBusy()), true);
     assert.equal(await page.locator('#project-list img').count(), 0);
-    await page.locator(`#project-list button[data-arg="${A}"]`).click();
+    await page.locator(`#project-list button.project-card-main[data-arg="${A}"]`).click();
     assert.equal(await frameA.locator('#question-input').inputValue(), 'A question');
     await page.locator('#project-select').selectOption(B);
     const frameB = page.frameLocator(`iframe[data-project-id="${B}"][data-workspace-page="/"]`);
@@ -296,7 +299,7 @@ async function browserChecks() {
     await other.locator('#project-welcome').waitFor();
     assert.equal(new URL(other.url()).searchParams.has('project'), false);
     assert.equal(await other.locator('iframe').count(), 0);
-    await other.locator(`#project-list button[data-arg="${B}"]`).click();
+    await other.locator(`#project-list button.project-card-main[data-arg="${B}"]`).click();
     await other.waitForFunction(id => new URL(location.href).searchParams.get('project') === id, B);
     const chooser = await context.newPage();
     await chooser.emulateMedia({ reducedMotion: 'no-preference' });
@@ -327,11 +330,11 @@ async function browserChecks() {
     await chooser.locator('#theme-switcher').selectOption('matrix');
     await rain.waitFor({ state: 'visible' });
     assert.equal(await rainChanges(), true, 'Explicit Rain on must override reduced motion');
-    assert.equal(await chooser.locator('#project-list button').count(), 3);
+    assert.equal(await chooser.locator('#project-list .project-card').count(), 3);
     assert.equal(await chooser.locator('#project-list img').count(), 0, 'Project names must remain text on the welcome screen');
     await chooser.locator('#project-search').fill('nessun risultato');
     await chooser.locator('#project-list-empty').filter({ hasText: 'Nessun progetto' }).waitFor();
-    assert.equal(await chooser.locator('#project-list button').count(), 0);
+    assert.equal(await chooser.locator('#project-list .project-card').count(), 0);
     assert.equal(await chooser.locator('iframe').count(), 0);
     await chooser.close();
     await page.locator('#project-select').selectOption(B);
@@ -398,7 +401,7 @@ async function browserChecks() {
       const preview = await visual.newPage();
       preview.on('pageerror', error => errors.push(error.message));
       await preview.goto(base);
-      await preview.locator('#project-list button').first().waitFor();
+      await preview.locator('#project-list button.project-card-main').first().waitFor();
       for (const theme of ['classic', 'matrix']) {
         await preview.locator('#theme-switcher').selectOption(theme);
         // Il CSS reduced-motion conserva transizioni di 0.01ms: attendere il paint
@@ -421,7 +424,7 @@ async function browserChecks() {
       assert.equal(await preview.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile welcome must not overflow');
       await preview.screenshot({ path: path.join(output, 'welcome-mobile.png') });
       await preview.setViewportSize({ width: 1280, height: 900 });
-      await preview.locator(`#project-list button[data-arg="${A}"]`).click();
+      await preview.locator(`#project-list button.project-card-main[data-arg="${A}"]`).click();
       await preview.frameLocator('iframe').locator('#question-input').waitFor();
       await preview.evaluate(() => setUiTheme('classic'));
       assert.equal(await preview.locator('#workspace-theme').isVisible(), true, 'The theme control lives in the workspace shell');
@@ -557,17 +560,25 @@ async function browserChecks() {
 
 async function reindexChecks() {
   const pipeline = fs.readFileSync(path.join(__dirname, '../static/pages/pipeline.js'), 'utf8');
-  const code = pipeline.slice(pipeline.indexOf('    function pollReindexJob('), pipeline.indexOf('    async function copyFinalPrompt('));
+  // Stati + etichette i18n, poi solo pollReindexJob (notifyReindexDone resta stub nel context).
+  const labels = pipeline.slice(
+    pipeline.indexOf('    const _TERMINAL_REINDEX_STATES'),
+    pipeline.indexOf('    async function notifyReindexDone('),
+  );
+  const poll = pipeline.slice(
+    pipeline.indexOf('    function pollReindexJob('),
+    pipeline.indexOf('    async function copyFinalPrompt('),
+  );
   const timers = [], replies = [];
   let active = 0;
   const context = vm.createContext({
+    t,
     setTimeout: callback => timers.push(callback),
     sessionRevision: 0,
     retainWorkspaceTask: promise => { active++; promise.finally(() => active--); },
     fetch: async () => replies.shift(), notifyReindexDone() {},
-    _TERMINAL_REINDEX_STATES: ['completed'], _REINDEX_STATUS_LABELS: { completed: 'completata' },
   });
-  vm.runInContext(code, context);
+  vm.runInContext(labels + poll, context);
   const box = { textContent: '', scrollHeight: 0 };
   context.pollReindexJob('test-job', box);
   assert.equal(active, 1);

@@ -1,11 +1,11 @@
-"""Contratto del parser NDJSON usato dalla dashboard /ask."""
+"""Contratto del parser NDJSON /ask (createAskStreamParser in static/shared.js)."""
 import json
 import subprocess
 from pathlib import Path
 
 
-# Script della dashboard (era inline nel template, spostato in static/pages/ per la CSP).
-DASHBOARD = Path(__file__).parents[1] / "static" / "pages" / "dashboard.js"
+# Unificato in shared.js (R7); i marker ASK_STREAM_PARSER_* restano il contratto del test.
+SHARED = Path(__file__).parents[1] / "static" / "shared.js"
 
 
 def test_dashboard_parser_gestisce_confini_utf8_e_terminale():
@@ -26,7 +26,7 @@ parser.push(undefined, true);
 process.stdout.write(JSON.stringify(events));
 """
     completed = subprocess.run(
-        ["node", "-e", script, str(DASHBOARD), json.dumps(chunks)],
+        ["node", "-e", script, str(SHARED), json.dumps(chunks)],
         check=True, capture_output=True, text=True, encoding="utf-8",
     )
     events = json.loads(completed.stdout)
@@ -51,7 +51,7 @@ try {
 }
 """
     completed = subprocess.run(
-        ["node", "-e", script, str(DASHBOARD)],
+        ["node", "-e", script, str(SHARED)],
         check=True, capture_output=True, text=True, encoding="utf-8",
     )
     assert "senza evento terminale" in completed.stdout

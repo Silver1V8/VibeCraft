@@ -3,12 +3,13 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from api import deps
 from core.artifacts import manifest_path
 from core.config import ROLE
-from core.projects import ProjectError, _unlinked
+from core.projects import ProjectError, assert_project_not_busy, validate_project_id, _unlinked
 
 router = APIRouter(dependencies=[Depends(deps.require_api_key)])
 
@@ -21,6 +22,17 @@ class CreateProject(BaseModel):
 class RegisterProject(BaseModel):
     model_config = ConfigDict(extra="forbid")
     root: str
+
+
+class RenameProject(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str
+
+
+class DeleteProject(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    mode: str | None = None
+    confirm: str | None = None
 
 
 def project_metadata(project, request: Request, *, check_stale: bool = True) -> dict:
@@ -68,15 +80,67 @@ def project_metadata(project, request: Request, *, check_stale: bool = True) -> 
     return result
 
 
+def _matches_project_query(record: dict, q: str) -> bool:
+    needle = q.casefold()
+    return needle in str(record.get("name", "")).casefold() or needle in str(record.get("id", "")).casefold()
+
+
+def _project_delete_busy_check(project) -> None:
+    """Refuse delete while the writer lock is held or ReindexManager is active."""
+    assert_project_not_busy(project)
+    runtime = deps.project_runtime(project)
+    manager = runtime.get("reindex_manager")
+    if manager is not None and (manager.is_running or manager.pending_id is not None):
+        raise ProjectError("Project is busy", status_code=409, code="project_busy")
+
+
+async def _delete_params(request: Request, mode: str | None, confirm: str | None) -> tuple[str | None, str | None]:
+    """Merge query + optional JSON body; body fields win when explicitly set."""
+    content_type = request.headers.get("content-type", "")
+    if "application/json" not in content_type.lower():
+        return mode, confirm
+    try:
+        raw = await request.json()
+    except Exception:
+        return mode, confirm
+    if raw is None:
+        return mode, confirm
+    if not isinstance(raw, dict):
+        raise HTTPException(status_code=422, detail={"code": "project_delete_mode",
+                                                     "message": "invalid delete body"})
+    try:
+        body = DeleteProject.model_validate(raw)
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail={"code": "project_delete_mode",
+                                                     "message": "invalid delete body"}) from exc
+    if body.mode is not None:
+        mode = body.mode
+    if body.confirm is not None:
+        confirm = body.confirm
+    return mode, confirm
+
+
+def _confirm_matches(record: dict, confirm: str | None) -> bool:
+    if not isinstance(confirm, str):
+        return False
+    token = confirm.strip()
+    if not token:
+        return False
+    return token == record["id"] or token.casefold() == str(record["name"]).casefold()
+
+
 @router.get("/api/projects")
-def list_projects(request: Request, stale: bool = True):
+def list_projects(request: Request, stale: bool = True, q: str | None = None):
     """`?stale=0` risponde subito, senza lo stato "da aggiornare": la shell lo usa per
-    disegnare la pagina e completa lo stato con una seconda richiesta in background."""
+    disegnare la pagina e completa lo stato con una seconda richiesta in background.
+    `?q=` filtra per sottostringa casefold su name o id prima dell'arricchimento metadata."""
     try:
         registry = deps.project_registry()
         records = registry.records()
     except ProjectError as exc:
         raise deps.project_http_error(exc) from exc
+    if q:
+        records = [record for record in records if _matches_project_query(record, q)]
     projects = []
     for record in records:
         try:
@@ -126,3 +190,55 @@ def register_project(body: RegisterProject, request: Request):
         return project_metadata(registry.register(root), request)
     except ProjectError as exc:
         raise deps.project_http_error(exc) from exc
+
+
+@router.patch("/api/projects/{project_id}",
+              dependencies=[Depends(deps.require_not_cross_site_request)])
+def rename_project(project_id: str, body: RenameProject, request: Request):
+    try:
+        return project_metadata(deps.project_registry().rename(project_id, body.name), request)
+    except ProjectError as exc:
+        raise deps.project_http_error(exc) from exc
+
+
+@router.delete("/api/projects/{project_id}",
+               dependencies=[Depends(deps.require_not_cross_site_request)])
+async def delete_project(project_id: str, request: Request,
+                         mode: str | None = None, confirm: str | None = None):
+    mode, confirm = await _delete_params(request, mode, confirm)
+    try:
+        project_id = validate_project_id(project_id)
+        registry = deps.project_registry()
+        records = registry.records()
+    except ProjectError as exc:
+        raise deps.project_http_error(exc) from exc
+    record = next((row for row in records if row["id"] == project_id), None)
+    if record is None:
+        raise deps.project_http_error(
+            ProjectError("Project not found", status_code=404, code="project_not_found"))
+    if not _confirm_matches(record, confirm):
+        raise deps.project_http_error(
+            ProjectError("Delete confirmation mismatch", status_code=422,
+                         code="project_delete_confirm"))
+    try:
+        from core import ask_cache
+        result = registry.delete(
+            project_id,
+            mode=mode,
+            busy_check=_project_delete_busy_check,
+            qdrant=deps.state.get("qdrant"),
+        )
+        deps.evict_project(project_id, ask_cache=ask_cache.for_app(request.app))
+    except ProjectError as exc:
+        raise deps.project_http_error(exc) from exc
+    payload = {
+        "id": result.id,
+        "name": result.name,
+        "mode": result.mode,
+        "managed": result.managed,
+        "cleanup": result.cleanup,
+    }
+    if "error" in result.cleanup.values():
+        payload["code"] = "project_cleanup_partial"
+        return JSONResponse(status_code=207, content=payload)
+    return payload

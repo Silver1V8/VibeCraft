@@ -1,6 +1,9 @@
 """Controlli strutturati e contesto tracciabile, senza riparare risposte LLM."""
 import json
+import re
 from typing import Literal
+
+from pydantic import model_validator
 
 from core import pipeline, retrieval
 from core.open_points import Text, _unique_keys, read_report
@@ -9,24 +12,74 @@ from core.pipeline_gate import (Check, Contract, Digest, Record, ProvidedSource,
 
 COVERAGE_RULES = frozenset({'scenari_insufficienti', 'caso_negativo_mancante'})
 
+# F05 / R8: coverage che dichiara assenza di lacune è strutturalmente conforme al
+# vecchio schema ma contraddittoria. Il detector è euristico sulla sola message:
+# nessuna seconda chiamata LLM e nessuna approvazione dalla prosa.
+_CONTRADICTORY_COVERAGE = re.compile(
+    r'(?i)(?:'
+    r'nessun[ao]?\s+lacun'
+    r'|assenza\s+di\s+lacun'
+    r'|non\s+(?:ci\s+sono|emerge(?:rono)?|risulta(?:no)?)\s+lacun'
+    r'|senza\s+lacun'
+    r'|copertura\s+(?:(?:è|e)\s+)?(?:completa|soddisfatta|adeguata|sufficiente|piena|integrale)'
+    r'|tutti\s+i\s+(?:casi|scenari|requisiti)\s+(?:sono\s+)?(?:già\s+)?copert'
+    r'|no\s+gaps?'
+    r'|(?:fully|completely|adequately)\s+covered'
+    r'|coverage\s+is\s+(?:complete|adequate|sufficient|full)'
+    r'|no\s+(?:missing|uncovered)\s+(?:cases?|scenarios?|gaps?)'
+    r')'
+)
+
 
 class ValidationUnavailable(RuntimeError):
     pass
 
 
 class SemanticFinding(Record):
-    kind: Literal['conflict', 'coverage', 'out_of_scope']
+    """Rilievo semantico con livelli separati (R8).
+
+    - topic: argomento esaminato (conflict / coverage / out_of_scope)
+    - defect: esistenza del difetto; nei findings è ammesso solo ``present``
+    - effetto sul gate: derivato in read_semantic (blocking se non coperto)
+
+    ``kind`` resta un alias di ingresso/uscita per compatibilità HTTP/UI: se
+    presente in ingresso deve coincidere con topic; in uscita viene riproposto.
+    """
+    topic: Literal['conflict', 'coverage', 'out_of_scope']
+    defect: Literal['present']
     message: Text
     contract_quote: Text | None
     source_doc_id: Text | None
     source_quote: Text | None
     open_point_hash: Digest | None
 
+    @model_validator(mode='before')
+    @classmethod
+    def accept_kind_alias(cls, value):
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        kind = data.pop('kind', None)
+        if 'topic' not in data:
+            if kind is None:
+                raise ValueError('topic obbligatorio (o kind legacy)')
+            data['topic'] = kind
+        elif kind is not None and kind != data['topic']:
+            raise ValueError('kind e topic discordanti')
+        # Record legacy (solo kind): un finding era sempre un difetto dichiarato.
+        data.setdefault('defect', 'present')
+        return data
+
 
 class SemanticReport(Record):
     summary: Text
     findings: list[SemanticFinding]
     suggestions: list[Text]
+
+
+def contradictory_coverage(message: str) -> bool:
+    """True se un rilievo coverage afferma assenza di lacune (F05)."""
+    return bool(_CONTRADICTORY_COVERAGE.search(message or ''))
 
 
 def decision_reference(decision):
@@ -77,9 +130,12 @@ def read_semantic(raw: str, contract: Contract, sources: ValidationSources):
         supplied.setdefault(source.doc_id, []).append(source.text_supplied)
     output = []
     for finding in report.findings:
+        if finding.topic == 'coverage' and contradictory_coverage(finding.message):
+            raise ValueError(
+                'Coverage contraddittoria: un rilievo coverage non può dichiarare assenza di lacune')
         if finding.open_point_hash is not None and finding.open_point_hash not in points:
             raise ValueError('Riferimento semantico a un punto aperto non presente nel contratto')
-        if finding.kind in ('conflict', 'out_of_scope') and finding.contract_quote is None:
+        if finding.topic in ('conflict', 'out_of_scope') and finding.contract_quote is None:
             raise ValueError('Conflitto/fuori ambito senza citazione del contratto')
         if finding.contract_quote and not any(finding.contract_quote in t for t in (contract.canvas.text, contract.spec.text)):
             raise ValueError('Citazione non presente nel contratto congelato')
@@ -87,12 +143,13 @@ def read_semantic(raw: str, contract: Contract, sources: ValidationSources):
             raise ValueError('Citazione fonte incompleta')
         if finding.source_doc_id and not any(finding.source_quote in t for t in supplied.get(finding.source_doc_id, [])):
             raise ValueError('Citazione non presente nelle fonti fornite al validatore')
-        decision = decisions.get(finding.open_point_hash) if finding.kind == 'coverage' else None
+        decision = decisions.get(finding.open_point_hash) if finding.topic == 'coverage' else None
         # Una lacuna accepted resta tale; resolved è una risoluzione dichiarata.
         # La corrispondenza semantica al punto è riferita dal modello, non provata.
         covered = decision_reference(decision) if decision else None
-        output.append({**finding.model_dump(), 'covered_by': covered, 'scenario_satisfied': False,
-                       'blocking': covered is None})
+        # kind=topic: alias HTTP/UI; blocking = effetto sul gate (derivato, non dichiarato).
+        output.append({**finding.model_dump(), 'kind': finding.topic, 'covered_by': covered,
+                       'scenario_satisfied': False, 'blocking': covered is None})
     check = Check(status='fail' if any(f['blocking'] for f in output) else 'pass',
                   details=[f['message'] + (f" [decisione {f['covered_by']['decision_id']}; non certifica copertura]"
                                           if f['covered_by'] else '') for f in output])

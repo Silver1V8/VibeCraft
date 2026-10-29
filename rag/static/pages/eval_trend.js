@@ -12,7 +12,20 @@
     function recallOf(e) { return e.recall && e.recall[KEY]; }
 
     let lastData = null;
+    let lastCqData = null;
     window.onThemeChange = function () { if (lastData) render(lastData); };
+
+    function uiLocale() {
+      return (typeof currentLang === 'function' && currentLang() === 'en') ? 'en-GB' : 'it-IT';
+    }
+    function pct(v) {
+      const n = (v * 100).toFixed(1);
+      return (uiLocale() === 'it-IT' ? n.replace('.', ',') : n) + '%';
+    }
+    function fmtMargin(v) {
+      const n = v.toFixed(1);
+      return uiLocale() === 'it-IT' ? n.replace('.', ',') : n;
+    }
 
     function render(data) {
       lastData = data;
@@ -25,7 +38,10 @@
       renderCards(s, rows, trend, last);
 
       const chart = document.getElementById("chart");
-      if (rows.length < 2) { chart.innerHTML = '<div class="empty">Servono almeno 2 valutazioni per un trend. Lancia <code>uv run python -m eval.run</code>.</div>'; return; }
+      if (rows.length < 2) {
+        chart.innerHTML = `<div class="empty">${t('eval.chart.needTwoHtml')}</div>`;
+        return;
+      }
 
       /* ── Asse X TEMPORALE ──
          Prima i punti erano spaziati per indice: un intervallo di tre mesi
@@ -75,24 +91,24 @@
       // Linea di soglia del gate
       const thr = soglia == null ? '' :
         `<line class="threshold" x1="${padL}" y1="${y(soglia)}" x2="${W - padR}" y2="${y(soglia)}"/>` +
-        `<text class="lbl" x="${W - padR}" y="${y(soglia) - 5}" text-anchor="end">soglia ${(soglia * 100).toFixed(0)}%</text>`;
+        `<text class="lbl" x="${W - padR}" y="${y(soglia) - 5}" text-anchor="end">${escapeHtml(t('eval.chart.thresholdLabel', { pct: (soglia * 100).toFixed(0) }))}</text>`;
 
       const path = rows.map((e, i) => `${i ? "L" : "M"}${x(tsOf(e)).toFixed(1)},${y(recallOf(e)).toFixed(1)}`).join(" ");
 
       /* Marker per FORMA, non per solo colore. */
       const marks = rows.map(e => {
         const cx = x(tsOf(e)), cy = y(recallOf(e));
-        const t = `<title>${escapeHtml(descrizionePunto(e))}</title>`;
+        const title = `<title>${escapeHtml(descrizionePunto(e))}</title>`;
         if (e.source === "gate" && e.gate && e.gate.passed === false)
-          return `<path class="mk-fail" d="M${cx - 4},${cy - 4}l8,8M${cx + 4},${cy - 4}l-8,8">${t}</path>`;
+          return `<path class="mk-fail" d="M${cx - 4},${cy - 4}l8,8M${cx + 4},${cy - 4}l-8,8">${title}</path>`;
         if (e.source === "gate")
-          return `<circle class="mk-gate" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5">${t}</circle>`;
-        return `<path class="mk-run" d="M${cx.toFixed(1)},${(cy - 4.5).toFixed(1)}l4.5,8h-9z">${t}</path>`;
+          return `<circle class="mk-gate" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.5">${title}</circle>`;
+        return `<path class="mk-run" d="M${cx.toFixed(1)},${(cy - 4.5).toFixed(1)}l4.5,8h-9z">${title}</path>`;
       }).join("");
 
       const daA = `${fmtCompleto(t0)} – ${fmtCompleto(t1)}`;
       chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet"
-             role="img" aria-label="Andamento di ${KEY} su ${rows.length} valutazioni fra ${daA}. Valore piu recente ${(recallOf(rows[rows.length-1]) * 100).toFixed(1)}%.">
+             role="img" aria-label="${escapeHtml(t('eval.chart.aria', { key: KEY, n: rows.length, range: daA, last: (recallOf(rows[rows.length-1]) * 100).toFixed(1) }))}">
         ${grid.join("")}
         ${xTicks.join("")}
         <line class="axis" x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}"/>
@@ -108,29 +124,36 @@
     /* Card con il contesto per leggere il numero: quanto margine resta sulla soglia del
        gate, com'è andata l'ultima valutazione e la recall agli altri k. Prima c'erano
        valore, "flat" in inglese e il numero di punti, senza dire se 82,8% fosse tanto. */
-    const TREND_LABEL = { up: "in salita", down: "in discesa", flat: "stabile" };
-    function pct(v) { return (v * 100).toFixed(1).replace(".", ",") + "%"; }
+    function trendLabel(trend) {
+      if (trend === 'up') return t('eval.trend.up');
+      if (trend === 'down') return t('eval.trend.down');
+      if (trend === 'flat') return t('eval.trend.flat');
+      return trend;
+    }
     function renderCards(s, rows, trend, last) {
       const soglia = typeof s.min_recall === "number" ? s.min_recall : sogliaGate(rows);
       const ultimo = rows.slice().sort((a, b) => tsOf(a) - tsOf(b)).at(-1);
       const margine = last != null && soglia != null ? (last - soglia) * 100 : null;
-      const noteRecall = margine == null ? "" : `<div class="note ${margine >= 0 ? "ok" : "ko"}">soglia del gate ${pct(soglia)}`
-        + ` · margine ${margine >= 0 ? "+" : ""}${margine.toFixed(1).replace(".", ",")} punti</div>`;
+      const noteRecall = margine == null ? "" : `<div class="note ${margine >= 0 ? "ok" : "ko"}">${escapeHtml(t('eval.cards.marginNote', {
+        soglia: pct(soglia),
+        sign: margine >= 0 ? '+' : '',
+        margin: fmtMargin(margine),
+      }))}</div>`;
       // Recall agli altri k: se quella del gate si avvicina al 100% il gate smette di distinguere le versioni.
       const perK = ultimo && ultimo.recall ? Object.keys(ultimo.recall)
         .sort((a, b) => Number(a.split("@")[1]) - Number(b.split("@")[1]))
         .map(k => `<span class="${k === KEY ? "is-gate" : ""}">${escapeHtml(k.replace("recall", ""))} ${pct(ultimo.recall[k])}</span>`).join("") : "";
       document.getElementById("cards").innerHTML = `
-        <div class="card"><div class="k">${escapeHtml(KEY)} attuale</div>
+        <div class="card"><div class="k">${escapeHtml(t('eval.cards.current', { key: KEY }))}</div>
           <div class="v">${last == null ? "—" : pct(last)}</div>${noteRecall}</div>
-        <div class="card"><div class="k">andamento</div>
-          <div class="v"><span class="badge ${trend}">${TREND_LABEL[trend] || escapeHtml(trend)}</span></div>
-          <div class="note">${s.history_points ?? rows.length} valutazioni</div></div>
-        ${ultimo ? `<div class="card"><div class="k">ultima valutazione</div>
-          <div class="v v-small">${escapeHtml(new Date(tsOf(ultimo)).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }))}</div>
-          <div class="note">${escapeHtml(esitoDi(ultimo))}${ultimo.n_cases ? ` · ${Number(ultimo.n_cases)} casi` : ""}</div></div>` : ""}
-        ${perK ? `<div class="card" title="Recall dell'ultima valutazione ai diversi k: se quella del gate arriva al 100% il gate non distingue più una versione peggiore.">
-          <div class="k">recall per k</div><div class="per-k">${perK}</div></div>` : ""}`;
+        <div class="card"><div class="k">${escapeHtml(t('eval.cards.trend'))}</div>
+          <div class="v"><span class="badge ${trend}">${escapeHtml(trendLabel(trend))}</span></div>
+          <div class="note">${escapeHtml(t('eval.cards.evalsCount', { n: s.history_points ?? rows.length }))}</div></div>
+        ${ultimo ? `<div class="card"><div class="k">${escapeHtml(t('eval.cards.lastEval'))}</div>
+          <div class="v v-small">${escapeHtml(new Date(tsOf(ultimo)).toLocaleDateString(uiLocale(), { day: "2-digit", month: "short", year: "numeric" }))}</div>
+          <div class="note">${escapeHtml(esitoDi(ultimo))}${ultimo.n_cases ? ` · ${t('eval.cards.cases', { n: Number(ultimo.n_cases) })}` : ""}</div></div>` : ""}
+        ${perK ? `<div class="card" title="${escapeHtml(t('eval.cards.perKTitle'))}">
+          <div class="k">${escapeHtml(t('eval.cards.perK'))}</div><div class="per-k">${perK}</div></div>` : ""}`;
     }
 
     /* ──────────── HELPER ──────────── */
@@ -152,16 +175,16 @@
       const opts = span < 48 * 3600e3
         ? { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }
         : { day: "2-digit", month: "2-digit" };
-      return d.toLocaleString("it-IT", opts);
+      return d.toLocaleString(uiLocale(), opts);
     }
     function fmtCompleto(t) {
-      return new Date(t).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+      return new Date(t).toLocaleString(uiLocale(), { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
     }
 
     function esitoDi(e) {
-      if (e.source === "gate" && e.gate && e.gate.passed === false) return "gate BLOCCATO";
-      if (e.source === "gate") return "gate superato";
-      return e.source || "eval";
+      if (e.source === "gate" && e.gate && e.gate.passed === false) return t('eval.outcome.gateBlocked');
+      if (e.source === "gate") return t('eval.outcome.gatePassed');
+      return e.source || t('eval.outcome.eval');
     }
     function descrizionePunto(e) {
       return `${(recallOf(e) * 100).toFixed(1)}% · ${fmtCompleto(tsOf(e))} · ${esitoDi(e)}`
@@ -183,9 +206,9 @@
           <td>${escapeHtml(e.commit || "—")}</td>
         </tr>`;
       }).join("");
-      box.innerHTML = `<summary>Dati del grafico in tabella (${rows.length} valutazioni)</summary>
+      box.innerHTML = `<summary>${escapeHtml(t('eval.table.summaryCount', { n: rows.length }))}</summary>
         <table>
-          <thead><tr><th>Data</th><th>${KEY}</th><th>Esito</th><th>Casi</th><th>Versione</th><th>Commit</th></tr></thead>
+          <thead><tr><th>${escapeHtml(t('eval.table.date'))}</th><th>${escapeHtml(KEY)}</th><th>${escapeHtml(t('eval.table.outcome'))}</th><th>${escapeHtml(t('eval.table.cases'))}</th><th>${escapeHtml(t('eval.table.version'))}</th><th>${escapeHtml(t('eval.table.commit'))}</th></tr></thead>
           <tbody>${righe}</tbody>
         </table>`;
     }
@@ -194,13 +217,13 @@
        modo di riprovare senza ricaricare la pagina. */
     function caricaStorico() {
       const chart = document.getElementById("chart");
-      chart.innerHTML = '<div class="empty">Caricamento…</div>';
+      chart.innerHTML = `<div class="empty">${escapeHtml(t('eval.loading'))}</div>`;
       fetch("/api/eval/history?limit=200")
         .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
         .then(render)
         .catch(e => {
-          chart.innerHTML = `<div class="empty">Impossibile caricare lo storico: ${escapeHtml(e.message)}
-            <br/><button type="button" class="btn btn-secondary" style="margin-top:.75rem" data-click="caricaStorico">Riprova</button></div>`;
+          chart.innerHTML = `<div class="empty">${escapeHtml(t('eval.chart.loadError', { msg: e.message }))}
+            <br/><button type="button" class="btn btn-secondary" style="margin-top:.75rem" data-click="caricaStorico">${escapeHtml(t('common.retry'))}</button></div>`;
         });
     }
     caricaStorico();
@@ -208,49 +231,76 @@
     /* ══════════ QUALITÀ DEI CANVAS (era in Analisi) ══════════
        Colori dai token semantici di shared.css, uguali nei due temi; il giudizio è
        comunque scritto accanto al pallino, non affidato al solo colore. */
-    const FIDELITY_STYLE = {
-      alto:        { color: 'var(--color-success)', label: 'alto' },
-      medio:       { color: 'var(--color-warning)', label: 'medio' },
-      basso:       { color: 'var(--color-danger)', label: 'basso' },
-      sconosciuto: { color: 'var(--color-text-muted)', label: '?' },
-    };
+    function fidelityStyle(key) {
+      const colors = {
+        alto: 'var(--color-success)',
+        medio: 'var(--color-warning)',
+        basso: 'var(--color-danger)',
+        sconosciuto: 'var(--color-text-muted)',
+      };
+      const labels = {
+        alto: t('eval.cq.fidelityHigh'),
+        medio: t('eval.cq.fidelityMid'),
+        basso: t('eval.cq.fidelityLow'),
+        sconosciuto: '?',
+      };
+      return { color: colors[key] || colors.sconosciuto, label: labels[key] || labels.sconosciuto };
+    }
     // Oltre le prime 5 le divergenze stanno in un elenco richiudibile: erano 800 px di pagina.
     const CQ_VISIBLE = 5;
+    function renderCanvasQuality(d) {
+      lastCqData = d;
+      const status = document.getElementById('cq-status');
+      if (!d || !d.total_reviews) {
+        status.textContent = t('eval.cq.empty');
+        document.getElementById('cq-trend').innerHTML = '';
+        document.getElementById('cq-divergences').innerHTML = '';
+        return;
+      }
+      const c = d.fidelity_counts;
+      status.textContent = t('eval.cq.status', {
+        n: d.total_reviews,
+        alto: c.alto,
+        medio: c.medio,
+        basso: c.basso,
+      });
+      // Trend (dalla più vecchia alla più recente): un pallino colorato per change.
+      document.getElementById('cq-trend').innerHTML = d.trend.map(item => {
+        const s = fidelityStyle(item.fidelity);
+        return `<span><i class="dot" style="background:${s.color}"></i> ${escapeHtml(item.feature)} (${escapeHtml(s.label)})</span>`;
+      }).join('');
+      // Il testo arriva dalle review in Markdown: inlineMd (shared.js) ne fa grassetto e
+      // codice sopra un testo già escapato, invece di mostrare gli asterischi.
+      const item = x => `<li><span class="cq-count" title="${escapeHtml(t('eval.cq.recurTitle', { n: Number(x.count) }))}">×${Number(x.count)}</span>`
+        + `<span>${inlineMd(x.text)}</span></li>`;
+      const top = d.top_divergences;
+      document.getElementById('cq-divergences').innerHTML = top.length
+        ? `<p class="cq-heading">${escapeHtml(t('eval.cq.divergencesHeading'))}</p><ul>` + top.slice(0, CQ_VISIBLE).map(item).join('') + '</ul>'
+          + (top.length > CQ_VISIBLE ? `<details><summary>${escapeHtml(t('eval.cq.divergencesMore', { n: top.length - CQ_VISIBLE }))}</summary><ul>`
+            + top.slice(CQ_VISIBLE).map(item).join('') + '</ul></details>' : '')
+        : `<p class="cq-heading">${escapeHtml(t('eval.cq.noDivergences'))}</p>`;
+    }
     async function loadCanvasQuality() {
       const status = document.getElementById('cq-status');
-      status.textContent = 'Caricamento…';
+      status.textContent = t('eval.loading');
       try {
         const res = await fetch('/api/canvas-quality');
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const d = await res.json();
-        if (!d.total_reviews) {
-          status.textContent = 'Nessuna canvas review ancora: archivia una change per popolare il pannello.';
-          document.getElementById('cq-trend').innerHTML = '';
-          document.getElementById('cq-divergences').innerHTML = '';
-          return;
-        }
-        const c = d.fidelity_counts;
-        status.textContent = `${d.total_reviews} review · fedeltà: ${c.alto} alto / ${c.medio} medio / ${c.basso} basso`;
-        // Trend (dalla più vecchia alla più recente): un pallino colorato per change.
-        document.getElementById('cq-trend').innerHTML = d.trend.map(t => {
-          const s = FIDELITY_STYLE[t.fidelity] || FIDELITY_STYLE.sconosciuto;
-          return `<span><i class="dot" style="background:${s.color}"></i> ${escapeHtml(t.feature)} (${s.label})</span>`;
-        }).join('');
-        // Il testo arriva dalle review in Markdown: inlineMd (shared.js) ne fa grassetto e
-        // codice sopra un testo già escapato, invece di mostrare gli asterischi.
-        const item = x => `<li><span class="cq-count" title="Ricorre in ${Number(x.count)} review">×${Number(x.count)}</span>`
-          + `<span>${inlineMd(x.text)}</span></li>`;
-        const top = d.top_divergences;
-        document.getElementById('cq-divergences').innerHTML = top.length
-          ? '<p class="cq-heading">Divergenze più frequenti</p><ul>' + top.slice(0, CQ_VISIBLE).map(item).join('') + '</ul>'
-            + (top.length > CQ_VISIBLE ? `<details><summary>Mostra le altre ${top.length - CQ_VISIBLE}</summary><ul>`
-              + top.slice(CQ_VISIBLE).map(item).join('') + '</ul></details>' : '')
-          : '<p class="cq-heading">Nessuna divergenza registrata nelle review.</p>';
+        renderCanvasQuality(d);
       } catch (e) {
+        lastCqData = null;
         status.textContent = '❌ ' + e.message;
       }
     }
     loadCanvasQuality();
+
+    window.onLangChange = function () {
+      document.title = t('eval.docTitle');
+      if (lastData) render(lastData);
+      else document.getElementById('chart').querySelector('.empty')?.setAttribute('data-i18n', 'eval.loading');
+      if (lastCqData) renderCanvasQuality(lastCqData);
+    };
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */

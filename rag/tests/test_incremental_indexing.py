@@ -2221,3 +2221,120 @@ def test_delta_ristretto_non_dimentica_le_cancellazioni_non_elaborate(tmp_path, 
     assert doc_ids() == {"a.md", "nuovo.md"}
     assert "vecchio.md" not in index._read_manifest()["doc_hashes"]
     assert "vecchio.md" not in _artifacts.load_artifacts().graph
+
+
+# ---------------------------------------------------------------------------
+# R9: batch encode gated sul percorso COW/incrementale NPY (ColbertWriter).
+# Default 0 = per-documento; bound>0 accumula chunk di docs distinti in una
+# encode(). Non tocca /ask né il full rebuild progressivo.
+# ---------------------------------------------------------------------------
+def test_cow_encode_batch_from_env_default_twelve(monkeypatch):
+    """R9 ship: default produttivo 12 dopo gate --real-delta docs N100 (~2.2×)."""
+    monkeypatch.delenv("VIBECRAFT_COW_ENCODE_BATCH", raising=False)
+    assert _config.cow_encode_batch_from_env() == 12
+
+
+def test_cow_encode_batch_from_env_custom_and_invalid(monkeypatch, caplog):
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "8")
+    assert _config.cow_encode_batch_from_env() == 8
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "-3")
+    assert _config.cow_encode_batch_from_env() == 0
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "nope")
+    with caplog.at_level("WARNING"):
+        assert _config.cow_encode_batch_from_env() == 12
+    assert "VIBECRAFT_COW_ENCODE_BATCH" in caplog.text
+
+
+class _RecordingColbertWriter:
+    """Writer minimo: registra add_document senza toccare disco."""
+
+    def __init__(self):
+        self.docs: list[str] = []
+        self.vectors: dict[str, dict] = {}
+        self.token_count = 0
+
+    def add_document(self, doc_id, vectors):
+        self.docs.append(doc_id)
+        self.vectors[doc_id] = dict(vectors)
+
+    def remove_document(self, doc_id):
+        self.docs = [d for d in self.docs if d != doc_id]
+        self.vectors.pop(doc_id, None)
+
+
+def test_cow_encode_batch_reduces_encode_calls_for_tiny_docs(tmp_path, monkeypatch):
+    """Con bound=12, 5 doc da 1 chunk ⇒ una sola encode() invece di 5."""
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "12")
+    encode_calls: list[int] = []
+
+    def _counting_encode(_model, chunks):
+        encode_calls.append(len(chunks))
+        return _fake_encode(_model, chunks)
+
+    monkeypatch.setattr(index, "_encode_chunks_to_points", _counting_encode)
+    for i in range(5):
+        (tmp_path / f"d{i}.md").write_text(f"## Sezione\ncorpo {i}\n", encoding="utf-8")
+    plan = index.IndexPlan(
+        unchanged=[], new=[f"d{i}.md" for i in range(5)], modified=[], deleted=[])
+    writer = _RecordingColbertWriter()
+    graph = nx.DiGraph()
+    chunks_store: dict = {}
+    dense_store: dict = {}
+    stats = index.apply_incremental_indexing(
+        plan, tmp_path, cast(QdrantClient, FakeQdrant()), embed_model=None,
+        graph=graph, colbert_store={}, chunks_store=chunks_store,
+        dense_store=dense_store, colbert_writer=writer,  # type: ignore[arg-type]
+    )
+    assert encode_calls == [5]
+    assert sorted(writer.docs) == [f"d{i}.md" for i in range(5)]
+    assert stats["upserted_chunks"] == 5
+    assert stats["reindexed_docs"] == 5
+    assert len(chunks_store) == 5
+
+
+def test_cow_encode_batch_off_keeps_per_document_encode(tmp_path, monkeypatch):
+    """Bound esplicito 0: una encode() per documento (comportamento storico NPY)."""
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "0")
+    encode_calls: list[int] = []
+
+    def _counting_encode(_model, chunks):
+        encode_calls.append(len(chunks))
+        return _fake_encode(_model, chunks)
+
+    monkeypatch.setattr(index, "_encode_chunks_to_points", _counting_encode)
+    for i in range(3):
+        (tmp_path / f"d{i}.md").write_text(f"## Sezione\ncorpo {i}\n", encoding="utf-8")
+    plan = index.IndexPlan(
+        unchanged=[], new=[f"d{i}.md" for i in range(3)], modified=[], deleted=[])
+    writer = _RecordingColbertWriter()
+    index.apply_incremental_indexing(
+        plan, tmp_path, cast(QdrantClient, FakeQdrant()), embed_model=None,
+        graph=nx.DiGraph(), colbert_store={}, chunks_store={},
+        dense_store={}, colbert_writer=writer,  # type: ignore[arg-type]
+    )
+    assert encode_calls == [1, 1, 1]
+    assert writer.docs == ["d0.md", "d1.md", "d2.md"]
+
+
+def test_cow_encode_batch_flushes_when_bound_exceeded(tmp_path, monkeypatch):
+    """Bound=2 con 5 doc da 1 chunk ⇒ gruppi 2+2+1 (3 encode)."""
+    monkeypatch.setenv("VIBECRAFT_COW_ENCODE_BATCH", "2")
+    encode_calls: list[int] = []
+
+    def _counting_encode(_model, chunks):
+        encode_calls.append(len(chunks))
+        return _fake_encode(_model, chunks)
+
+    monkeypatch.setattr(index, "_encode_chunks_to_points", _counting_encode)
+    for i in range(5):
+        (tmp_path / f"d{i}.md").write_text(f"## Sezione\ncorpo {i}\n", encoding="utf-8")
+    plan = index.IndexPlan(
+        unchanged=[], new=[f"d{i}.md" for i in range(5)], modified=[], deleted=[])
+    writer = _RecordingColbertWriter()
+    index.apply_incremental_indexing(
+        plan, tmp_path, cast(QdrantClient, FakeQdrant()), embed_model=None,
+        graph=nx.DiGraph(), colbert_store={}, chunks_store={},
+        dense_store={}, colbert_writer=writer,  # type: ignore[arg-type]
+    )
+    assert encode_calls == [2, 2, 1]
+    assert writer.docs == [f"d{i}.md" for i in range(5)]

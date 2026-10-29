@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VibeCraft · Eval</title>
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="icon" type="image/png" href="/static/favicon.png?v=3" />
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
   <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/i18n/messages.js"></script>
   <script src="/static/shared.js"></script>
+  <script src="/static/i18n.js"></script>
 
   <style>
     /* Shell della pagina (body, header, main, section, h2, .desc, scrollbar):
@@ -155,48 +157,48 @@
 <body class="page-doc">
   <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
        da tastiera attraversa 6 pill a ogni caricamento. -->
-  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+  <a href="#main-content" class="skip-link" data-i18n="eval.skip">Vai al contenuto</a>
 
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
        shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
-  <h1 class="sr-only">Trend di Qualità del Retrieval</h1>
+  <h1 class="sr-only" data-i18n="eval.title.sr">Trend di Qualità del Retrieval</h1>
 
   <main id="main-content" tabindex="-1" class="eval-layout">
     <section>
-      <h2>📈 <span class="chiave-recall">recall@10</span> nel tempo</h2>
-      <p class="desc" title="Fonte: database/eval/history.jsonl del progetto">Quante domande del golden set trovano la fonte giusta
+      <h2>📈 <span class="chiave-recall">recall@10</span> <span data-i18n="eval.recall.h2Suffix">nel tempo</span></h2>
+      <p class="desc" title="Fonte: database/eval/history.jsonl del progetto" data-i18n-title="eval.recall.sourceTitle" data-i18n-html="eval.recall.desc">Quante domande del golden set trovano la fonte giusta
         fra i primi risultati (<span class="chiave-recall">recall@10</span>), versione dopo versione: le valutazioni del gate a ogni
         promozione e quelle lanciate a mano.</p>
       <div class="cards" id="cards"></div>
-      <div class="chart" id="chart"><div class="empty">Caricamento…</div></div>
+      <div class="chart" id="chart"><div class="empty" data-i18n="eval.loading">Caricamento…</div></div>
       <!-- Legenda per forma oltre che per colore: gate superato, gate bloccato ed
            eval fuori dal gate restano distinguibili anche in scala di grigi. -->
       <div class="legend">
         <span><svg viewBox="0 0 12 12" aria-hidden="true"><circle class="mk-gate" cx="6" cy="6" r="4"/></svg>
-          eval-gate · promozione consentita</span>
+          <span data-i18n="eval.legend.gatePass">eval-gate · promozione consentita</span></span>
         <span><svg viewBox="0 0 12 12" aria-hidden="true"><path class="mk-fail" d="M3 3l6 6M9 3l-6 6"/></svg>
-          eval-gate · promozione bloccata</span>
+          <span data-i18n="eval.legend.gateFail">eval-gate · promozione bloccata</span></span>
         <span><svg viewBox="0 0 12 12" aria-hidden="true"><path class="mk-run" d="M6 2l4.5 8h-9z"/></svg>
-          eval fuori dal gate (manuale o advisory)</span>
+          <span data-i18n="eval.legend.manual">eval fuori dal gate (manuale o advisory)</span></span>
         <span><svg viewBox="0 0 12 12" aria-hidden="true"><line class="threshold" x1="0" y1="6" x2="12" y2="6"/></svg>
-          soglia minima del gate</span>
+          <span data-i18n="eval.legend.threshold">soglia minima del gate</span></span>
       </div>
       <details class="data-table" id="data-table">
-        <summary>Dati del grafico in tabella</summary>
+        <summary data-i18n="eval.table.summary">Dati del grafico in tabella</summary>
       </details>
     </section>
 
     <section>
-      <h2 title="Canvas quality">📐 Qualità dei canvas</h2>
-      <p class="desc">All'archiviazione di ogni change il codice reale viene confrontato con il canvas
+      <h2 title="Canvas quality" data-i18n-title="eval.cq.titleAttr" data-i18n="eval.cq.h2">📐 Qualità dei canvas</h2>
+      <p class="desc" data-i18n-html="eval.cq.desc">All'archiviazione di ogni change il codice reale viene confrontato con il canvas
         (<code>canvas_review.md</code>): qui la <em>fedeltà</em> delle ultime change e le <em>divergenze</em>
         più frequenti, i punti ciechi che le review reiniettano nella generazione dei canvas futuri.</p>
       <div class="cq-toolbar">
-        <button type="button" data-click="loadCanvasQuality" class="btn btn-secondary">↻ Ricarica</button>
-        <span id="cq-status" class="cq-status">Caricamento…</span>
+        <button type="button" data-click="loadCanvasQuality" class="btn btn-secondary" data-i18n="eval.cq.reload">↻ Ricarica</button>
+        <span id="cq-status" class="cq-status" data-i18n="eval.loading">Caricamento…</span>
       </div>
       <div id="cq-trend" class="legend cq-trend"></div>
       <div id="cq-divergences" class="cq-divergences prose-text"></div>

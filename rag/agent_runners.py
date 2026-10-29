@@ -6,8 +6,10 @@ Perimetri, runner per runner:
   - local : i tool li esegue VibeCraft, non il modello, e non esiste shell. Letture solo
             dentro PROJECT_ROOT (niente .git né file .env*); in agentic le scritture passano
             da agent_bridge._path_escapes_code, la stessa decisione testata dell'hook Claude.
-  - codex/cursor: avvio integrato negato fino alla verifica dell'isolamento delle letture;
-                 restano export per IDE e helper puri di traduzione/argv.
+  - codex : suggest/oneshot restano chiusi (isolamento letture non verificato). Agentic si
+            apre solo dopo `native_sandbox.probe_write_isolation("codex")` ok (fail-closed);
+            cwd = code/, sandbox workspace-write + windows.sandbox=unelevated.
+  - cursor: avvio integrato negato (letture e scritture); export/IDE restano disponibili.
 Il prompt CLI va sempre su stdin, mai negli argomenti: gli shim .cmd
 di npm su Windows passerebbero il testo a cmd.exe, che ne interpreta i metacaratteri.
 """
@@ -30,11 +32,18 @@ from core import llm
 from core.config import OLLAMA_TIMEOUT_SECONDS, OLLAMA_URL, config
 from core.open_points import read_report
 from core.projects import ProjectError, ProjectRegistry
+from native_sandbox import (
+    READ_UNAVAILABLE_CODE,
+    WRITE_UNAVAILABLE_CODE,
+    probe_write_isolation,
+    write_isolation_ok,
+)
 
 RUNNERS: dict[str, dict] = {
     "claude": {"label": "Claude Code", "modes": ("suggest", "agentic", "oneshot"), "bin": "claude"},
     "local": {"label": "LLM locale (Ollama)", "modes": ("suggest", "agentic", "oneshot")},
-    "codex": {"label": "Codex CLI", "modes": ("suggest", "oneshot"), "bin": "codex"},
+    # agentic è nella lista per Codex: validate_run lo ammette solo se la prova scrittura passa.
+    "codex": {"label": "Codex CLI", "modes": ("suggest", "oneshot", "agentic"), "bin": "codex"},
     "cursor": {"label": "Cursor CLI", "modes": ("suggest", "oneshot"), "bin": "agent"},
 }
 CLAUDE_MODELS = ["sonnet", "opus", "haiku"]
@@ -50,10 +59,21 @@ _CODEX_DISABLED_FEATURES = ("plugins", "apps", "browser_use", "computer_use", "i
                             "multi_agent", "hooks", "skill_mcp_dependency_install")
 
 
-NATIVE_UNAVAILABLE_CODE = "native_read_isolation_unverified"
+# Alias storico: i test e la route HTTP usavano un solo codice per il blocco nativo.
+NATIVE_UNAVAILABLE_CODE = READ_UNAVAILABLE_CODE
 NATIVE_UNAVAILABLE_MESSAGE = ("Avvio integrato non disponibile: l'isolamento delle letture del progetto "
                             "non è verificato. Il prompt può essere esportato per l'IDE.")
 NATIVE_UNAVAILABLE_REASON = f"{NATIVE_UNAVAILABLE_CODE}: {NATIVE_UNAVAILABLE_MESSAGE}"
+NATIVE_UNAVAILABLE_CODES = frozenset({READ_UNAVAILABLE_CODE, WRITE_UNAVAILABLE_CODE})
+
+
+def native_detail(reason: str) -> dict | str:
+    """Mappa un motivo validate_run a detail HTTP strutturato, se è un codice nativo."""
+    for code in NATIVE_UNAVAILABLE_CODES:
+        prefix = code + ": "
+        if reason.startswith(prefix):
+            return {"code": code, "message": reason.removeprefix(prefix)}
+    return reason
 
 
 def validate_run(runner: str, mode: str, model: str, *, project=None) -> str | None:
@@ -64,8 +84,14 @@ def validate_run(runner: str, mode: str, model: str, *, project=None) -> str | N
         return f"{RUNNERS[runner]['label']} non supporta la modalità {mode!r}."
     if not MODEL_RE.match(model or ""):
         return f"Nome modello non valido: {model!r}"
-    if runner in ("codex", "cursor"):
+    if runner == "cursor":
         return NATIVE_UNAVAILABLE_REASON
+    if runner == "codex":
+        if mode != "agentic":
+            return NATIVE_UNAVAILABLE_REASON
+        probe = probe_write_isolation("codex")
+        if not probe.ok:
+            return probe.reason
     return None
 
 
@@ -79,17 +105,40 @@ def list_runners(*, project=None) -> list[dict]:
     out = []
     for rid, cfg in RUNNERS.items():
         if rid == "local":
-            available, models = bool(local_models), local_models
-        else:
-            available = shutil.which(cfg["bin"]) is not None
-            models = CLAUDE_MODELS if rid == "claude" else []
-        native = rid in ("codex", "cursor")
+            installed, models = bool(local_models), local_models
+            available = installed
+            code = reason = None
+        elif rid == "claude":
+            installed = shutil.which(cfg["bin"]) is not None
+            models = CLAUDE_MODELS
+            available = installed
+            code = reason = None
+        elif rid == "codex":
+            installed = shutil.which(cfg["bin"]) is not None
+            models = []
+            # Disponibile solo se agentic può partire (prova scrittura ok). Suggest resta chiuso.
+            available = bool(installed and write_isolation_ok("codex"))
+            if not installed:
+                code, reason = None, "Runner non installato o modello locale non disponibile."
+            elif available:
+                code = reason = None
+            else:
+                probe = probe_write_isolation("codex")
+                code, reason = WRITE_UNAVAILABLE_CODE, probe.detail
+        else:  # cursor
+            installed = shutil.which(cfg["bin"]) is not None
+            models = []
+            available = False
+            code = NATIVE_UNAVAILABLE_CODE if installed else None
+            reason = NATIVE_UNAVAILABLE_MESSAGE if installed else (
+                "Runner non installato o modello locale non disponibile.")
+        if rid in ("claude", "local") and not available and reason is None:
+            reason = "Runner non installato o modello locale non disponibile."
         out.append({"id": rid, "label": cfg["label"], "modes": list(cfg["modes"]),
-                    "installed": available, "export_available": True,
-                    "available": available and not native, "models": models,
-                    "unavailable_code": NATIVE_UNAVAILABLE_CODE if native else None,
-                    "unavailable_reason": NATIVE_UNAVAILABLE_MESSAGE if native else
-                        (None if available else "Runner non installato o modello locale non disponibile.")})
+                    "installed": installed, "export_available": True,
+                    "available": available, "models": models,
+                    "unavailable_code": code if not available else None,
+                    "unavailable_reason": reason if not available else None})
     return out
 
 
@@ -284,8 +333,15 @@ def cli_command(runner: str, model: str, cwd: Path, last_message: Path, mode: st
     if not exe:
         raise RuntimeError(f"'{RUNNERS[runner]['bin']}' non trovato nel PATH: installa {RUNNERS[runner]['label']}.")
     if runner == "codex":
-        cmd = [exe, "exec", "--json", "--sandbox", "read-only", "--skip-git-repo-check", "--ephemeral",
+        # suggest/oneshot: read-only (storico). agentic: workspace-write con cwd=code/ —
+        # ammessi solo dopo native_sandbox.probe_write_isolation("codex").
+        sandbox = "workspace-write" if mode == "agentic" else "read-only"
+        cmd = [exe, "exec", "--json", "--sandbox", sandbox, "--skip-git-repo-check", "--ephemeral",
                "-C", str(cwd), "--output-last-message", str(last_message)]
+        if mode == "agentic":
+            # Elevated richiede UAC; MXC assente in 0.154.0. Unelevated è la prova
+            # misurata su PcLavoro (scrittura in cwd ok, fuori negata).
+            cmd[1:1] = ["-c", 'windows.sandbox="unelevated"']
         # Disabilita feature accessorie; questo non prova un confine di lettura o config.
         # Senza, Codex carica plugin e skill da
         # ~/.codex (misurato: leggeva SKILL.md fuori dal progetto) e ha tool che comandano
@@ -325,15 +381,19 @@ def translate_cli_event(runner: str, ev: dict) -> dict | None:
 
 
 def run_cli(runner: str, prompt: str, mode: str, model: str, *, project_root: Path = PROJECT_ROOT,
-            popen=subprocess.Popen):
+            code_root: Path = CODE_ROOT, popen=subprocess.Popen):
     if reason := validate_run(runner, mode, model):
         raise ValueError(reason)
+    # Agentic scrive solo sotto code/: allinea cwd CLI alla stessa radice del runner local/Claude.
+    cwd = code_root if mode == "agentic" else project_root
+    if mode == "agentic":
+        Path(cwd).mkdir(parents=True, exist_ok=True)
     timeout = float(os.environ.get("VIBECRAFT_AGENT_TIMEOUT_SECONDS", "1800"))
     started = time.monotonic()
     with tempfile.TemporaryDirectory() as tmp:
         last_message, stderr_path = Path(tmp) / "last.txt", Path(tmp) / "stderr.txt"
         with stderr_path.open("w+", encoding="utf-8", errors="replace") as stderr:
-            proc = popen(cli_command(runner, model, project_root, last_message, mode), cwd=project_root,
+            proc = popen(cli_command(runner, model, cwd, last_message, mode), cwd=cwd,
                          stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr,
                          text=True, encoding="utf-8", errors="replace")
             timer = threading.Timer(timeout, proc.kill)
@@ -406,11 +466,12 @@ def run_streaming(runner: str, prompt: str, mode: str, model: str, *, feature=No
     if runner == "claude":
         return agent_bridge.run_agent_streaming(prompt, mode, model or "sonnet", feature=feature,
                                                 attempt_id=attempt_id, on_finish=on_finish, project=project)
-    roots = {"project_root": project.root} if project is not None else {}
+    roots = {}
+    if project is not None:
+        roots["project_root"] = project.root
+        roots["code_root"] = project.code_dir
     if runner == "local":
-        events = run_local(prompt, mode, model, **roots,
-                           **({"code_root": project.code_dir} if project is not None else {}),
-                           registry=ProjectRegistry(readonly=True))
+        events = run_local(prompt, mode, model, **roots, registry=ProjectRegistry(readonly=True))
     else:
         events = run_cli(runner, prompt, mode, model, **roots)
     out: queue.Queue = queue.Queue()

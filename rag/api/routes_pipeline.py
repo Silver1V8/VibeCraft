@@ -16,7 +16,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from agent_bridge import AGENT_MODES
-from agent_runners import (RUNNERS, NATIVE_UNAVAILABLE_CODE, list_runners,
+from agent_runners import (RUNNERS, list_runners, native_detail,
                            run_streaming as run_agent_streaming, validate_run)
 from api.deps import (
     IndexSnapshot,
@@ -56,7 +56,7 @@ from core.config import (
     TECH_MAX_CHUNKS,
     TECH_SCOPE_TAG_KEY,
 )
-from core.indexing import archive_feature, check_drift, check_index_integrity, docs_hashes, index_status
+from core.indexing import archive_feature, check_drift, docs_hashes
 from core.pipeline import (
     FINAL_PROMPT_CONSUMERS,
     InvalidDevTypeError,
@@ -376,8 +376,7 @@ async def agent_run(req: AgentRunRequest, project=Depends(get_project)):
     if req.mode not in AGENT_MODES:
         raise HTTPException(status_code=400, detail=f"Modalità non valida: {req.mode}")
     if reason := validate_run(req.runner, req.mode, req.model, project=project):
-        detail = {"code": NATIVE_UNAVAILABLE_CODE, "message": reason.removeprefix(NATIVE_UNAVAILABLE_CODE + ": ")} if reason.startswith(NATIVE_UNAVAILABLE_CODE) else reason
-        raise HTTPException(status_code=400, detail=detail)
+        raise HTTPException(status_code=400, detail=native_detail(reason))
     if req.mode != 'agentic' and not req.prompt.strip():
         raise HTTPException(status_code=400, detail="Prompt vuoto.")
     # Budget prima di gate e journal: il rifiuto non è un esito del contratto. 429 come le
@@ -980,23 +979,6 @@ async def pipeline_validate(req: ValidateRequest, project=Depends(get_project)):
     except (PipelineStorageError, ProjectError, OSError, UnicodeError) as exc:
         raise _gate_storage_error(exc) from exc
     return JSONResponse(result, status_code=503) if result['status'] == 'unavailable' else result
-
-
-@router.get("/api/index/status")
-async def api_index_status(project=Depends(get_project)):
-    """Segnala se l'indice Graph RAG è aggiornato rispetto ai documenti in docs/ (drift di
-    indicizzazione): confronta gli hash correnti con lo snapshot salvato dall'ultima build."""
-    return await run_in_threadpool(index_status, project=project)
-
-
-@router.get("/api/index/integrity")
-async def api_index_integrity(project=Depends(get_project)):
-    """Check economico di integrità dell'indice (zero embedding): manifest, hash dei
-    sorgenti, integrità degli artefatti in database/ e allineamento del conteggio Qdrant
-    col sidecar chunk. Riusa il client Qdrant del server se disponibile."""
-    return await run_in_threadpool(
-        check_index_integrity, state.get("qdrant"), lambda *_a, **_k: None
-        , project=project)
 
 
 @router.post("/api/pipeline/canvas/dry-run")

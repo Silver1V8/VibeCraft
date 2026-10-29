@@ -320,7 +320,8 @@ def _ask_col_ponte(ask_env, monkeypatch, soglia, vettore_ponte):
         snap = dataclasses.replace(snap, code_store=store, code_ids=ids, code_matrix=matrix)
         monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: snap)
     monkeypatch.setattr(routes_retrieval, "CODE_LINK_MIN_QUESTION_SCORE", soglia)
-    r = client.post("/ask", json={"question": "quali vincoli ha il form?"})
+    # use_thread=false: confronti byte-identici del prompt non devono ereditare il filo.
+    r = client.post("/ask", json={"question": "quali vincoli ha il form?", "use_thread": False})
     assert r.status_code == 200, r.text
     return prompts[0], r.json()["implementing_code"]
 

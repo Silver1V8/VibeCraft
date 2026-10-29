@@ -1,0 +1,18 @@
+{
+  "wall_ms": 14687.7,
+  "a": {
+    "i": 1,
+    "status": 200,
+    "http_ms": 12766.9,
+    "total_duration_ns": 12751509700,
+    "eval_count": 8
+  },
+  "b": {
+    "i": 2,
+    "status": 200,
+    "http_ms": 14679.4,
+    "total_duration_ns": 14671478500,
+    "eval_count": 8
+  },
+  "interpretation": "serialized_if_wall_approx_sum_or_max_with_stagger"
+}

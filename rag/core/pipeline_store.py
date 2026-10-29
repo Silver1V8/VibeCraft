@@ -1,9 +1,13 @@
-"""Persistenza atomica delle validazioni; nessuna pulizia o rotazione automatica.
+"""Persistenza atomica delle validazioni con retention configurabile.
 
 L'avvio agentic usa questo gate. Errori di storage non diventano record assenti.
+La rotazione (R8) trattiene le ultime N validazioni concluse per feature e le
+ultime M righe di events.jsonl; i record running e i decision record non si
+toccano. Un fallimento del prune non annulla la scrittura appena riuscita.
 """
 import json
 import hashlib
+import logging
 import os
 import re
 from contextlib import contextmanager
@@ -11,14 +15,17 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from core.artifacts import _atomic_write_json, _project_artifact_path
+from core.artifacts import _atomic_write_json, _atomic_write_text, _project_artifact_path
 from core.projects import _unlinked, ProjectError
-from core.config import DATABASE_DIR
+from core.config import (DATABASE_DIR, pipeline_events_keep_from_env,
+                         pipeline_validations_keep_from_env)
 from core.open_points import _unique_keys
 from core.pipeline import resolve_feature_dir
 from core.pipeline_gate import PointDecision, ValidationRecord, _now, content_hash
 from uuid import uuid4
 from core.writer_lock import WriterLockBusyError, writer_lock
+
+logger = logging.getLogger(__name__)
 
 
 class PipelineStorageError(RuntimeError):
@@ -97,18 +104,48 @@ class PipelineStore:
                       retry_of_attempt_id=retry_of_attempt_id, recorded_at=_now())
         data = (json.dumps(record, ensure_ascii=False, allow_nan=False) + '\n').encode('utf-8')
         try:
-            # ponytail: journal piccolo riletto sotto lock a ogni append; indicizzare se la crescita lo richiede.
+            # ponytail: journal piccolo riletto sotto lock a ogni append; la retention
+            # (R8) taglia qui le righe eccedenti senza lasciare un tail troncato.
             with writer_lock(lock_path=self._path(self.root / '.events.lock')):
                 self._read_events_unlocked()  # un tail corrotto non rende registrabile l’avvio
                 with self._path(self.root / 'events.jsonl').open('ab') as stream:
                     stream.write(data)
                     stream.flush()
                     os.fsync(stream.fileno())
+                self._prune_events_unlocked()
         except WriterLockBusyError as exc:
             raise PipelineStorageBusyError('Registrazione evento occupata: riprova.') from exc
         except (OSError, ValueError, UnicodeError) as exc:
             raise PipelineStorageError(f'Registrazione evento non disponibile: {exc}') from exc
         return record
+
+    def _prune_events_unlocked(self, keep: int | None = None) -> int:
+        """Trattiene le ultime `keep` righe del journal. Chiamare sotto .events.lock."""
+        keep = max(1, keep if keep is not None else pipeline_events_keep_from_env())
+        path = self._path(self.root / 'events.jsonl')
+        if not path.exists():
+            return 0
+        text = path.read_text(encoding='utf-8')
+        if text and not text.endswith('\n'):
+            raise ValueError('Registro eventi troncato: intervento operativo richiesto')
+        lines = text.splitlines(keepends=True)
+        if len(lines) <= keep:
+            return 0
+        retained = lines[-keep:]
+        _atomic_write_text(path, ''.join(retained))
+        removed = len(lines) - keep
+        logger.info('Retention events.jsonl: rimosse %d righe (keep=%d)', removed, keep)
+        return removed
+
+    def prune_events(self, keep: int | None = None) -> int:
+        """Retention esplicita del journal; usata dai test e da operatori."""
+        try:
+            with writer_lock(lock_path=self._path(self.root / '.events.lock')):
+                return self._prune_events_unlocked(keep)
+        except WriterLockBusyError as exc:
+            raise PipelineStorageBusyError('Retention eventi occupata: riprova.') from exc
+        except (OSError, ValueError, UnicodeError) as exc:
+            raise PipelineStorageError(f'Retention eventi non disponibile: {exc}') from exc
 
     def _validation_path(self, feature: str, identifier: str) -> Path:
         if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', feature):
@@ -134,10 +171,58 @@ class PipelineStore:
                                  or previous.started_at != checked.started_at):
                     raise PipelineStorageError('Record concluso o contratto congelato non modificabile')
                 _atomic_write_json(path, checked.model_dump())
+                # Retention solo sui record conclusi: un running non deve sparire sotto
+                # i piedi della validazione in corso (R8).
+                if checked.status != 'running':
+                    self._prune_validations_unlocked(checked.feature, path.parent)
         except WriterLockBusyError as exc:
             raise PipelineStorageBusyError('Scrittura concorrente della validazione: riprova') from exc
         except OSError as exc:
             raise PipelineStorageError(f'Scrittura della validazione non disponibile: {exc}') from exc
+
+    def _prune_validations_unlocked(self, feature: str, folder: Path,
+                                    keep: int | None = None) -> list[str]:
+        """Elimina le validazioni concluse più vecchie oltre `keep`. Sotto .writer.lock."""
+        keep = max(1, keep if keep is not None else pipeline_validations_keep_from_env())
+        records = []
+        for path in folder.iterdir() if folder.exists() else []:
+            if path.suffix != '.json' or path.name.startswith('.'):
+                continue
+            record = self.read_validation(feature, path.stem)
+            if record is None:
+                continue
+            if record.status == 'running':
+                continue
+            records.append(record)
+        if len(records) <= keep:
+            return []
+        records.sort(key=lambda r: (r.started_at, r.validation_id))
+        doomed = records[:-keep]
+        removed = []
+        for record in doomed:
+            target = self._validation_path(feature, record.validation_id)
+            try:
+                target.unlink()
+                removed.append(record.validation_id)
+            except OSError as exc:
+                # Non annullare la scrittura appena riuscita per un unlink fallito.
+                logger.warning('Retention validazione %s non eliminata: %s',
+                               record.validation_id, exc)
+        if removed:
+            logger.info('Retention validazioni %s: rimosse %d (keep=%d)',
+                        feature, len(removed), keep)
+        return removed
+
+    def prune_validations(self, feature: str, keep: int | None = None) -> list[str]:
+        """Retention esplicita per feature; usata dai test e da operatori."""
+        path = self._validation_path(feature, 'val-' + '0' * 32)
+        try:
+            with writer_lock(timeout_seconds=0, lock_path=self._path(path.parent / '.writer.lock')):
+                return self._prune_validations_unlocked(feature, path.parent, keep)
+        except WriterLockBusyError as exc:
+            raise PipelineStorageBusyError('Retention validazioni occupata: riprova') from exc
+        except OSError as exc:
+            raise PipelineStorageError(f'Retention validazioni non disponibile: {exc}') from exc
 
     def read_validation(self, feature: str, identifier: str) -> ValidationRecord | None:
         path = self._validation_path(feature, identifier)

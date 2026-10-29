@@ -130,6 +130,8 @@ jobs:
           node rag/tests/workflow_errors.cjs
           node rag/tests/pipeline_runner_capability.cjs
           node rag/tests/pipeline_session_recovery.cjs
+          node rag/tests/pipeline_ui_layout.cjs
+          node rag/tests/pipeline_validation.cjs
 
       # Dipendenza soltanto del gate browser, fuori da package/lock di prodotto.
       - name: Browser di prova

@@ -762,6 +762,8 @@ def test_route_propose_generate_rejects_stale_or_tampered_meta_dev_type(code_dir
 _ANTI_XSITE_ROUTES = [
     (routes_projects.router, "POST", "/api/projects"),
     (routes_projects.router, "POST", "/api/projects/register"),
+    (routes_projects.router, "PATCH", "/api/projects/{project_id}"),
+    (routes_projects.router, "DELETE", "/api/projects/{project_id}"),
     (routes_reindex.router, "POST", "/api/reindex"),
     (routes_reindex.router, "POST", "/api/index/reindex"),
     (routes_reindex.router, "POST", "/api/index/rollback"),
@@ -777,6 +779,9 @@ _ANTI_XSITE_ROUTES = [
     (routes_pipeline.router, "POST", "/api/pipeline/drift/check/stream"),
     (routes_pipeline.router, "POST", "/api/pipeline/validate"),
     (routes_retrieval.router, "POST", "/ask"),
+    # VC-3 WP2: reset del filo /ask — DELETE bodyless mutante (non CORS-simple, ma
+    # stessa dependency degli altri mutanti; vedi SECURITY_SURFACE.md §2A).
+    (routes_retrieval.router, "DELETE", "/api/ask/thread"),
     # Intake & Import (S0-S6): 9 POST, tutti mutanti o LLM. Tre di questi sono
     # STRUTTURALMENTE raggiungibili cross-site anche senza preflight — `docs` ha un body
     # multipart (content-type "simple", nessun preflight) e `refine`/`browse-path` non
@@ -810,7 +815,8 @@ _ALL_ROUTERS = [routes_pages.router, routes_pipeline.router, routes_reindex.rout
 def _concrete(path: str) -> str:
     """Template di route → URL concreto per le richieste HTTP. Gli id inesistenti sono
     voluti: il ramo "come oggi" deve fermarsi su un 404/422, mai su un documento vero."""
-    return path.replace("{doc_id}", "non-esiste").replace("{job_id}", "non-esiste")
+    return (path.replace("{doc_id}", "non-esiste").replace("{job_id}", "non-esiste")
+            .replace("{project_id}", "non-esiste"))
 
 
 # --- Semantica della dependency, in isolamento (stesso pattern _FakeRequest) ---
@@ -856,19 +862,33 @@ def test_every_post_route_is_classified():
     """Il verso che mancava: ogni POST registrato deve stare nella matrice O fra le
     esclusioni motivate. È il test che avrebbe fatto fallire l'ingresso dei 9 POST di
     intake senza una riga corrispondente in SECURITY_SURFACE.md — la matrice non può
-    restare indietro rispetto al codice senza che la suite lo dica."""
+    restare indietro rispetto al codice senza che la suite lo dica.
+
+    Le righe non-POST in `_ANTI_XSITE_ROUTES` (es. DELETE `/api/ask/thread`) sono
+    verificate a parte: devono esistere sui router, ma non entrano nel confronto POST."""
     classified = {(m, p) for _, m, p in _ANTI_XSITE_ROUTES + _ANTI_XSITE_EXCLUDED}
-    registered = {
+    classified_post = {(m, p) for m, p in classified if m == "POST"}
+    registered_post = {
         ("POST", route.path)
         for router in _ALL_ROUTERS for route in router.routes
         if "POST" in getattr(route, "methods", set())
     }
-    assert registered - classified == set(), (
+    assert registered_post - classified_post == set(), (
         "POST non classificati: aggiungili a _ANTI_XSITE_ROUTES (con la dependency) o a "
         "_ANTI_XSITE_EXCLUDED (con la motivazione), e aggiorna SECURITY_SURFACE.md §1-§2."
     )
     # E nessuna riga fantasma: una route rimossa dal codice non deve restare in matrice.
-    assert classified - registered == set()
+    assert classified_post - registered_post == set()
+    registered_all = {
+        (method, route.path)
+        for router in _ALL_ROUTERS for route in router.routes
+        for method in (getattr(route, "methods", None) or set()) - {"HEAD"}
+    }
+    classified_other = {(m, p) for m, p in classified if m != "POST"}
+    assert classified_other <= registered_all, (
+        "righe non-POST in _ANTI_XSITE_ROUTES assenti dai router: "
+        f"{sorted(classified_other - registered_all)}"
+    )
 
 
 # --- Wiring HTTP reale su tutte le route della matrice ---

@@ -51,19 +51,48 @@ def test_cronaca_adr_spostata_decisioni_restano():
 def test_run_eval_pesanti_spostate_in_archive():
     """Le run con evidence/ non sono più sotto rag/eval/results/, TRANNE quelle che un test
     legge davvero a runtime (bloccanti, non spostate: vedi sotto) e i file sciolti (letti o
-    scritti da codice/script, es. history.jsonl), che restano dove sono, invariati."""
+    scritti da codice/script, es. history.jsonl), che restano dove sono, invariati.
+
+    R6 (2026-10-28): il tip di archive/eval-results/ è alleggerito (niente json/jsonl/log
+    pesanti). La cartella `evidence/` resta, con almeno un puntatore o un resoconto `.md`.
+    """
     campione = ["sidecar_npy_20260921", "colbert_memory_20260915", "verifica_finale_20260910"]
     for run in campione:
         assert not (RAG_DIR / "eval" / "results" / run).exists(), (
             f"rag/eval/results/{run}/ dovrebbe essere stata spostata"
         )
         dest = ARCHIVE_DIR / "eval-results" / run
-        assert (dest / "evidence").is_dir(), f"archive/eval-results/{run}/evidence/ mancante"
+        evidence = dest / "evidence"
+        assert evidence.is_dir(), f"archive/eval-results/{run}/evidence/ mancante"
+        assert any(evidence.glob("*.md")), (
+            f"archive/eval-results/{run}/evidence/ senza .md "
+            "(atteso resoconto o HEAVY_REMOVED.md)"
+        )
 
     for nome in ("history.jsonl", "README.md", "FASE2_PROPOSE_20260914.md", ".gitignore", ".gitattributes"):
         assert (RAG_DIR / "eval" / "results" / nome).is_file(), (
             f"rag/eval/results/{nome} non doveva spostarsi"
         )
+
+
+def test_archive_eval_results_alleggerito_r6():
+    """Dopo R6 il tip non deve ripesare ~100 MiB di json/jsonl: inventario e stub presenti,
+    e nessun .jsonl sotto evidence/ (i blob restano solo in history)."""
+    assert (ARCHIVE_DIR / "eval-results" / "HEAVY_REMOVED.md").is_file()
+    assert (ARCHIVE_DIR / "eval-results" / "HEAVY_REMOVED.json").is_file()
+    pesanti = [
+        p
+        for p in (ARCHIVE_DIR / "eval-results").rglob("*")
+        if p.is_file() and p.suffix.lower() in {".jsonl", ".log", ".zip"}
+    ]
+    assert pesanti == [], f"blob pesanti ancora nel tip: {pesanti[:5]}"
+    # HEAVY_REMOVED.json è l'inventario (atteso); altri .json di evidence no.
+    json_evidence = [
+        p
+        for p in (ARCHIVE_DIR / "eval-results").rglob("*.json")
+        if p.name != "HEAVY_REMOVED.json"
+    ]
+    assert json_evidence == [], f".json di evidence ancora nel tip: {json_evidence[:5]}"
 
 
 def test_run_lette_dai_test_non_spostate():

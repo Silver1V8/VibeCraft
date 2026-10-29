@@ -634,10 +634,14 @@ def test_cancel_durante_cpu_non_libera_slot_prima_della_fine_del_thread(ask_app,
 
     def blocked_encode(*_args):
         entered.set()
-        release.wait(timeout=2)
+        # Non scadere in silenzio: sotto carico CI la cancel deve restare
+        # agganciata al worker finché il test non chiama release.set().
+        if not release.wait(timeout=30):
+            raise RuntimeError("release del test non arrivato in tempo")
         return {"dense": np.array([1.0]), "lexical": {}, "colbert": np.zeros((1, 1))}
 
     monkeypatch.setattr(retrieval, "encode_query", blocked_encode)
+    monkeypatch.setattr(routes_retrieval.question_router, "route_question", lambda _q: "hybrid")
 
     async def scenario():
         transport = httpx.ASGITransport(app=app)
@@ -645,25 +649,16 @@ def test_cancel_durante_cpu_non_libera_slot_prima_della_fine_del_thread(ask_app,
             task = asyncio.create_task(client.post(
                 "/ask", json={"question": "cpu", "stream": True},
             ))
-            assert await asyncio.to_thread(entered.wait, 2)
+            assert await asyncio.to_thread(entered.wait, 5)
             task.cancel()
-            cancellation_ack = asyncio.Event()
-
-            async def observe_cancellation():
-                with pytest.raises(asyncio.CancelledError):
-                    await task
-                cancellation_ack.set()
-
-            observer = asyncio.create_task(observe_cancellation())
-            with pytest.raises(TimeoutError):
-                await asyncio.wait_for(
-                    asyncio.shield(cancellation_ack.wait()), timeout=0.05,
-                )
+            # Niente shield+Event orfani: asyncio.wait basta a provare che la
+            # cancel non completa mentre il thread CPU è ancora dentro encode.
+            done, _pending = await asyncio.wait({task}, timeout=0.05)
+            assert not done, "cancel completata prima della fine del thread CPU"
             assert runtime.active == 1
-            assert task.done() is False
             release.set()
-            await asyncio.wait_for(cancellation_ack.wait(), timeout=2)
-            await observer
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, timeout=10)
 
     asyncio.run(scenario())
     assert runtime.active == 0
@@ -710,9 +705,11 @@ def test_errore_dopo_delta_e_terminale_e_non_entra_in_cache(ask_app):
 
 def test_stream_completato_popola_cache_e_hit_non_richiama_provider(ask_app):
     app, calls = ask_app
+    # use_thread=false: append del filo cambierebbe il fingerprint e annullerebbe l'hit.
+    payload = {"question": "cache", "stream": True, "use_thread": False}
     with TestClient(app, client=("127.0.0.1", 54321)) as client:
-        first = client.post("/ask", json={"question": "cache", "stream": True})
-        second = client.post("/ask", json={"question": "cache", "stream": True})
+        first = client.post("/ask", json=payload)
+        second = client.post("/ask", json=payload)
 
     assert first.status_code == second.status_code == 200
     events = [json.loads(line) for line in second.text.splitlines()]

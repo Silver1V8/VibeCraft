@@ -1,0 +1,46 @@
+[Italiano](README.md) | English
+
+> **Documentation languages.** Italian is canonical. From 2026-10-28 the operational
+> detail lives under [`docs/`](docs/) (outside the RAG corpus, same reason as ADRs).
+> This English file is a **short index** pointing at the Italian pages — no dual
+> maintenance of the body text.
+
+# rag/ — Graph-RAG console
+
+**Documented state: `main`, 28 October 2026.**
+Same status note as [`../README.md`](../README.md) / [`README.md`](README.md).
+
+Pages under `docs/` explain *how* to operate the console. They are not corpus and
+are not indexed.
+
+## Operational index (Italian canonical)
+
+| Page | Topic |
+|---|---|
+| [Progetti](docs/progetti.md) | Separate projects |
+| [LLM](docs/llm.md) | Single LLM layer, providers per step |
+| [Reindex](docs/reindex.md) | Automatic reindex |
+| [Intake](docs/intake.md) | Intake & Import |
+| [Eval & CI](docs/eval-e-ci.md) | Retrieval eval and CI |
+| [Benchmark](docs/benchmark.md) | Baseline benchmarks |
+| [Streaming & replicas](docs/streaming-repliche.md) | Streaming and local opt-in replicas |
+| [Index & embedding](docs/indice-e-embedding.md) | Blue/green artefacts and BGE-M3 |
+| [Graph & code index](docs/grafo-e-code-index.md) | Drift, exclusions, entities, languages |
+| [Agents & MCP](docs/agenti-e-mcp.md) | Agent runner, read-only MCP |
+
+## Stable anchors
+
+Historical links into `README.md` still resolve via stubs there; prefer the pages above.
+
+| Legacy anchor (on `README.md`) | Full text |
+|---|---|
+| `#embedding-bge-m3-…` | [indice-e-embedding.md](docs/indice-e-embedding.md#embedding-bge-m3-cpu-per-le-query-acceleratore-per-il-reindex) |
+| `#delta-reale-isolato` | [benchmark.md](docs/benchmark.md#delta-reale-isolato) |
+| `#artefatti-dellindice-…` | [indice-e-embedding.md](docs/indice-e-embedding.md#artefatti-dellindice-formati-sicuri-ispezionabili-e-versionati-bluegreen) |
+| `#runner-dellagente-…` | [agenti-e-mcp.md](docs/agenti-e-mcp.md#runner-dellagente-claude-ollama-codex-cursor) |
+| `#mcp-locale-di-sola-lettura` | [agenti-e-mcp.md](docs/agenti-e-mcp.md#mcp-locale-di-sola-lettura) |
+
+## Why `rag/docs/` and not root `docs/`
+
+Root / project `docs/` is the Graph-RAG **corpus**. Operational guides here would
+pollute retrieval — same reason as [`adr/`](adr/README.md).

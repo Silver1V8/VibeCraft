@@ -14,10 +14,14 @@ import pytest
 
 
 @pytest.fixture
-def legacy_http_project(monkeypatch):
+def legacy_http_project(monkeypatch, tmp_path):
     from api import routes_retrieval, routes_graph, routes_health
     from core.projects import legacy_project_context
-    project = replace(legacy_project_context(), settings={})
+    # database_dir su tmp: i test /ask con use_thread=true (default VC-3) non
+    # scrivono thread.json nella database/ del repo.
+    database_dir = tmp_path / "legacy-http-database"
+    (database_dir / "ask").mkdir(parents=True)
+    project = replace(legacy_project_context(), settings={}, database_dir=database_dir)
     for routes in (routes_retrieval, routes_graph, routes_health):
         monkeypatch.setattr(routes, "get_project", lambda request: project)
 

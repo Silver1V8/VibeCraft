@@ -4,11 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VibeCraft · Intake</title>
-  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="icon" type="image/png" href="/static/favicon.png?v=3" />
 
   <!-- Asset condivisi (estratti dai template per non duplicare CSS/JS) -->
   <link rel="stylesheet" href="/static/shared.css" />
+  <script src="/static/i18n/messages.js"></script>
   <script src="/static/shared.js"></script>
+  <script src="/static/i18n.js"></script>
 
   <style>
     /* Shell della pagina (body, header, main, section, h2, .desc, scrollbar):
@@ -184,39 +186,39 @@
 <body class="page-doc">
   <!-- Skip link: la nav precede il contenuto, quindi senza questo un utente
        da tastiera attraversa 6 pill a ogni caricamento. -->
-  <a href="#main-content" class="skip-link">Vai al contenuto</a>
+  <a href="#main-content" class="skip-link" data-i18n="intake.skip">Vai al contenuto</a>
 
   <canvas id="matrix-rain" aria-hidden="true"></canvas>
   <div class="scanlines"></div>
 
   <!-- Titolo solo per screen reader: il nome della sezione è già nella nav della
        shell; l'intestazione visibile lo ripeteva e costava ~90 px di altezza. -->
-  <h1 class="sr-only">Intake &amp; Import</h1>
+  <h1 class="sr-only" data-i18n="intake.title.sr">Intake &amp; Import</h1>
 
   <main id="main-content" tabindex="-1">
     <!-- Colonna "cosa entra": genera, importa documenti, importa progetto. -->
     <div class="intake-column">
     <!-- ══════════ (a) GENERA CON OLLAMA ══════════ -->
     <section id="section-genera">
-      <h2>🪄 Genera con Ollama</h2>
+      <h2 data-i18n="intake.gen.h2">🪄 Genera con Ollama</h2>
       <!-- Una riga per capire cosa fa la sezione; il come sta in "Dettagli". -->
-      <p class="desc">Descrivi lo sviluppo: il modello scrive fino a <span id="gen-max-hint">5</span> documenti
+      <p class="desc" data-i18n-html="intake.gen.desc">Descrivi lo sviluppo: il modello scrive fino a <span id="gen-max-hint">5</span> documenti
         Markdown, che entrano in staging per la review.</p>
-      <details class="desc-more"><summary>Dettagli</summary>
-        <p>I documenti sono grounded nel Graph RAG e nelle lezioni delle change precedenti. Come quelli importati,
+      <details class="desc-more"><summary data-i18n="intake.gen.detailsSummary">Dettagli</summary>
+        <p data-i18n-html="intake.gen.detailsBody">I documenti sono grounded nel Graph RAG e nelle lezioni delle change precedenti. Come quelli importati,
           non arrivano mai direttamente in <code>docs/</code>: passano sempre dalla review.</p>
       </details>
-      <label class="field">Descrizione dello sviluppo
-        <textarea id="gen-descrizione" placeholder="Es. form di iscrizione a un evento con validazione lato client e persistenza su backend .NET"></textarea>
+      <label class="field"><span data-i18n="intake.gen.descrLabel">Descrizione dello sviluppo</span>
+        <textarea id="gen-descrizione" placeholder="Es. form di iscrizione a un evento con validazione lato client e persistenza su backend .NET" data-i18n-placeholder="intake.gen.descrPlaceholder"></textarea>
       </label>
       <div class="toolbar">
-        <label class="field">N. documenti
+        <label class="field"><span data-i18n="intake.gen.nFileLabel">N. documenti</span>
           <input id="gen-nfile" type="number" min="1" max="5" value="3" />
         </label>
-        <label class="field">Categoria docs/ target
+        <label class="field"><span data-i18n="intake.gen.categoriaLabel">Categoria docs/ target</span>
           <select id="gen-categoria"></select>
         </label>
-        <button type="button" id="gen-btn" data-click="startGeneration" data-requires="ollama" class="btn btn-primary">▶ Avvia generazione</button>
+        <button type="button" id="gen-btn" data-click="startGeneration" data-requires="ollama" class="btn btn-primary" data-i18n="intake.gen.startBtn">▶ Avvia generazione</button>
         <span id="gen-status" class="status"></span>
       </div>
       <div id="gen-result"></div>
@@ -224,71 +226,71 @@
 
     <!-- ══════════ (b) IMPORTA DOCUMENTI ══════════ -->
     <section id="section-importa">
-      <h2>📥 Importa documenti</h2>
-      <p class="desc">Documenti Office, PDF, dati o testo vengono convertiti in Markdown <strong>su questa
+      <h2 data-i18n="intake.import.h2">📥 Importa documenti</h2>
+      <p class="desc" data-i18n-html="intake.import.desc">Documenti Office, PDF, dati o testo vengono convertiti in Markdown <strong>su questa
         macchina</strong>, senza servizi esterni, ed entrano in staging per la review.</p>
-      <details class="desc-more"><summary>Dettagli sulla conversione</summary>
-        <p>I PDF passano da Docling, che ricostruisce tabelle e titoli e usa l'OCR locale solo sulle pagine
+      <details class="desc-more"><summary data-i18n="intake.import.detailsSummary">Dettagli sulla conversione</summary>
+        <p data-i18n-html="intake.import.detailsBody1">I PDF passano da Docling, che ricostruisce tabelle e titoli e usa l'OCR locale solo sulle pagine
           scansionate (da qualche secondo a qualche minuto). XLSX e XLS vengono letti direttamente dall'originale
           (openpyxl, xlrd): celle con coordinate e valori memorizzati, un foglio per sezione, formule non
           ricalcolate, grafici e immagini esclusi con avviso. Gli altri formati passano da MarkItDown; i
           <code>.md</code> entrano nativi. DOC e PPT vengono prima portati al formato moderno da LibreOffice,
           sempre in locale, con macro e collegamenti esterni disattivati.</p>
-        <p>La preview dice quale motore è stato usato davvero. L'originale resta conservato in staging; dopo la
+        <p data-i18n-html="intake.import.detailsBody2">La preview dice quale motore è stato usato davvero. L'originale resta conservato in staging; dopo la
           review, obbligatoria, in <code>docs/</code> viene pubblicato solo il file <code>.md</code>.</p>
       </details>
       <div id="dropzone" class="dropzone" data-click="pickFiles">
-        📎 Trascina qui i file, oppure clicca per selezionarli
+        <span data-i18n="intake.import.dropzone">📎 Trascina qui i file, oppure clicca per selezionarli</span>
         <div style="margin-top:4px;font-size:var(--text-xs)">md · pdf · docx · pptx · xlsx · doc · xls · ppt · html · txt · csv · json · xml · epub · msg</div>
-        <input id="file-input" type="file" aria-label="Seleziona i file da importare" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.doc,.xls,.ppt,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" data-change="onFilesPicked" />
+        <input id="file-input" type="file" aria-label="Seleziona i file da importare" data-i18n-aria-label="intake.import.fileAria" multiple accept=".md,.pdf,.docx,.pptx,.xlsx,.doc,.xls,.ppt,.html,.htm,.txt,.csv,.json,.xml,.epub,.msg" data-change="onFilesPicked" />
       </div>
       <div id="import-results" aria-live="polite"></div>
     </section>
 
     <!-- ══════════ (d) IMPORTA PROGETTO DA PATH ══════════ -->
     <section id="section-progetti">
-      <h2>📦 Importa progetto da cartella</h2>
-      <p class="desc">Copia un progetto locale in <code>code/&lt;target&gt;</code> senza mai sovrascrivere:
+      <h2 data-i18n="intake.project.h2">📦 Importa progetto da cartella</h2>
+      <p class="desc" data-i18n-html="intake.project.desc">Copia un progetto locale in <code>code/&lt;target&gt;</code> senza mai sovrascrivere:
         prima l'anteprima, poi l'applicazione.</p>
-      <details class="desc-more"><summary>Come vengono trattati i file</summary>
-        <p>Cartella vuota: bootstrap, viene copiato tutto il copiabile. Cartella già popolata: import additivo,
+      <details class="desc-more"><summary data-i18n="intake.project.detailsSummary">Come vengono trattati i file</summary>
+        <p data-i18n-html="intake.project.detailsBody">Cartella vuota: bootstrap, viene copiato tutto il copiabile. Cartella già popolata: import additivo,
           vengono copiati solo i file nuovi. I file esistenti con contenuto diverso sono <strong>conflitti</strong>:
           compaiono nell'anteprima e non vengono mai applicati.</p>
       </details>
       <div class="toolbar">
-        <label class="field" style="flex:1;min-width:min(260px, 100%)">Path assoluto del progetto sorgente
+        <label class="field" style="flex:1;min-width:min(260px, 100%)"><span data-i18n="intake.project.pathLabel">Path assoluto del progetto sorgente</span>
           <span style="display:flex;gap:6px;align-items:center">
-            <input id="prj-path" type="text" placeholder="Es. C:\progetti\mio-backend" style="width:100%"
+            <input id="prj-path" type="text" placeholder="Es. C:\progetti\mio-backend" data-i18n-placeholder="intake.project.pathPlaceholder" style="width:100%"
                    data-input="invalidateProjectPlan" />
             <button type="button" id="prj-browse-btn" data-click="browseProjectPath" class="btn btn-secondary"
-                    title="Apri l'esplora risorse per scegliere la cartella">📁 Sfoglia…</button>
+                    title="Apri l'esplora risorse per scegliere la cartella" data-i18n-title="intake.project.browseTitle" data-i18n="intake.project.browseBtn">📁 Sfoglia…</button>
           </span>
         </label>
         <!-- Le opzioni sono gli ambiti reali di code/ del progetto (loadImportTargets in
              intake.js), gli stessi della tendina "Tipo di sviluppo" della Pipeline. -->
-        <label class="field">Target in code/
+        <label class="field"><span data-i18n="intake.project.targetLabel">Target in code/</span>
           <select id="prj-target" data-change="projectCategoryChanged">
-            <option value="">Caricamento…</option>
+            <option value="" data-i18n="intake.project.loading">Caricamento…</option>
           </select>
         </label>
         <div class="field">
-          <label for="prj-new-target">Nuovo ambito</label>
+          <label for="prj-new-target" data-i18n="intake.project.newTargetLabel">Nuovo ambito</label>
           <span style="display:flex;gap:6px;align-items:center">
-            <input id="prj-new-target" type="text" maxlength="64" placeholder="es. backend" style="width:10rem" />
-            <button type="button" id="prj-new-target-btn" data-click="addImportTarget" class="btn btn-secondary">Aggiungi</button>
+            <input id="prj-new-target" type="text" maxlength="64" placeholder="es. backend" data-i18n-placeholder="intake.project.newTargetPlaceholder" style="width:10rem" />
+            <button type="button" id="prj-new-target-btn" data-click="addImportTarget" class="btn btn-secondary" data-i18n="intake.project.addBtn">Aggiungi</button>
           </span>
         </div>
-        <button type="button" id="prj-plan-btn" data-click="planProjectImport" class="btn btn-secondary">🔍 Anteprima</button>
-        <button type="button" id="prj-apply-btn" data-click="applyProjectImport" disabled class="btn btn-primary">▶ Applica</button>
+        <button type="button" id="prj-plan-btn" data-click="planProjectImport" class="btn btn-secondary" data-i18n="intake.project.planBtn">🔍 Anteprima</button>
+        <button type="button" id="prj-apply-btn" data-click="applyProjectImport" disabled class="btn btn-primary" data-i18n="intake.project.applyBtn">▶ Applica</button>
         <span id="prj-status" class="status"></span>
       </div>
       <div id="prj-plan-result"></div>
       <div id="prj-apply-result"></div>
       <div class="toolbar" style="margin-top:12px">
-        <label class="field">Progetto di cui scrivere il brief
-          <select id="prj-brief-progetto"><option value="">(nessun import registrato)</option></select>
+        <label class="field"><span data-i18n="intake.project.briefSelectLabel">Progetto di cui scrivere il brief</span>
+          <select id="prj-brief-progetto"><option value="" data-i18n="intake.project.noImports">(nessun import registrato)</option></select>
         </label>
-        <button type="button" id="prj-brief-btn" data-click="startProjectBrief" data-requires="ollama" class="btn btn-primary">🧭 Project brief</button>
+        <button type="button" id="prj-brief-btn" data-click="startProjectBrief" data-requires="ollama" class="btn btn-primary" data-i18n="intake.project.briefBtn">🧭 Project brief</button>
         <span id="prj-brief-status" class="status">Genera via Ollama una sintesi architetturale del
           progetto selezionato (grounded sul grafo) che entra in staging come ogni documento.
           L'elenco viene dagli import già riusciti, anche di sessioni precedenti.</span>
@@ -299,11 +301,11 @@
 
     <!-- Colonna "revisione": a destra da 1200 px, sotto nella colonna unica. -->
     <section id="section-staging" class="intake-review">
-      <h2 title="Staging">🗂️ Da revisionare</h2>
-      <p class="desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
+      <h2 title="Staging" data-i18n-title="intake.staging.titleAttr" data-i18n="intake.staging.h2">🗂️ Da revisionare</h2>
+      <p class="desc" data-i18n-html="intake.staging.desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
         approvazioni, premi <strong>Aggiorna indice</strong> nella barra in alto.</p>
       <div class="toolbar">
-        <button type="button" data-click="refreshStaging" class="btn btn-secondary">↻ Ricarica</button>
+        <button type="button" data-click="refreshStaging" class="btn btn-secondary" data-i18n="intake.staging.reload">↻ Ricarica</button>
         <span id="staging-status" class="status"></span>
       </div>
       <div id="staging-list"></div>

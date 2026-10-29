@@ -922,7 +922,8 @@ ASK_ABSTENTION_MARKER = "[ASTENSIONE]"
 
 def build_ask_prompt(context: str, question: str,
                      *, precedences: list[tuple[str, str]] | None = None,
-                     authority_classes: list[tuple[str, float]] | None = None) -> str:
+                     authority_classes: list[tuple[str, float]] | None = None,
+                     thread_block: str | None = None) -> str:
     """Prompt completo della sintesi di /ask, da passare a core.llm con purpose "ask":
     system prompt storico (incluse le regole [REGOLA-DIZIONARIO-RIGIDO]) concatenato al
     messaggio utente nello stesso formato di sempre. Funzione PURA: provider, num_ctx/think
@@ -1022,7 +1023,14 @@ def build_ask_prompt(context: str, question: str,
     # riempire num_ctx). Emerso col chunking a parti (due parti della stessa sezione in
     # finestra): eco su 16 delle 21 varianti drop-one del caso «ultimo posto», 0 su 22 con
     # questa riga — stesso esito di spostare le istruzioni nel campo `system` di Ollama.
-    user_message = (f"Contesto grafo:\n{context}\n\nDomanda: {question}\n\n"
+    #
+    # [FILO-THREAD] (VC-3) è opzionale e DINAMICO: entra solo se il chiamante passa un blocco
+    # già budgetato. Resta fuori dal canarino di costo fisso del system prompt; il retrieval
+    # resta primario — il filo non sostituisce contesto né citazioni.
+    thread_prefix = ""
+    if thread_block and str(thread_block).strip():
+        thread_prefix = f"{str(thread_block).strip()}\n\n"
+    user_message = (f"{thread_prefix}Contesto grafo:\n{context}\n\nDomanda: {question}\n\n"
                     "Rispondi ora alla Domanda qui sopra, senza ripetere il contesto né "
                     "queste istruzioni.")
     return f"{system_prompt}\n\n{user_message}"
