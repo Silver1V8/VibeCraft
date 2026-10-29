@@ -25,6 +25,7 @@ corpus to index.
 | [`RESIDUI.md`](../../archive/adr/RESIDUI.md) | backlog derived from the audit, closed; same folder |
 | [`DISTRIBUTION.md`](DISTRIBUTION.md) | the distribution plan: numbers, forks, and packaging decisions |
 | [`EVOLUZIONE.md`](../../archive/adr/EVOLUZIONE.md) | September 2026 evolution plan, in archive |
+| [`ANALISI_COMPETITIVA.md`](../../archive/adr/ANALISI_COMPETITIVA.md) | 13 September 2026 comparison with managed alternatives (managed graph DBs, cloud GraphRAG pipelines, enterprise-search SaaS): matrix, SWOT, break-even; in archive, numbers and recommendations as of that date (Italian) |
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | proposal for an alternative Docling pipeline to the Granite pilot, with configuration and evaluation criteria |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | improvements and bug fixes from the Docling pilot and independent of it: cause, diff, checks, risk, and rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | operational gate, end-to-end cycle verified on 15 September 2026, measurements, friction log, and open issues |
