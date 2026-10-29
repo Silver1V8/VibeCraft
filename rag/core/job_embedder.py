@@ -232,7 +232,8 @@ class JobEmbedder:
                  min_free_mb: int, enabled: bool, preference: str = "auto",
                  mps_available=lambda: False, apple_memory_mb=None, nvidia_gpus=None,
                  npu_label=lambda: None, npu_runtime=None, amd_gpus=None, intel_gpu=None,
-                 apple_chip=None, mps_env_out=None):
+                 apple_chip=None, mps_env_out=None, reclaim_vram=None):
+        self._reclaim_vram = reclaim_vram
         self._start_worker = start_worker
         self._cpu_model = cpu_model
         self._gpu_available = gpu_available
@@ -277,6 +278,9 @@ class JobEmbedder:
             self._fall_back("VIBECRAFT_REINDEX_DEVICE=cpu")
             return
         decision = self._decision()
+        if (decision.device == "cpu" and self._reclaim_vram is not None
+                and self._preference in {"auto", "cuda"} and self._gpu_available()):
+            decision = self._decision_after_reclaim(decision)
         if decision.device == "cpu":
             self.npu = decision.npu
             self._fall_back(decision.reason or "nessun acceleratore")
@@ -307,6 +311,20 @@ class JobEmbedder:
         logger.info("Embedding del job di reindex su %s in un processo separato "
                     "(memoria libera all'avvio: %s MB, pronto in %.1f s).",
                     decision.torch_device, decision.memory_mb, self.load_seconds)
+
+    def _decision_after_reclaim(self, decision):
+        """Libera la VRAM tenuta dall'LLM locale e ridecide: la memoria torna libera qualche
+        istante dopo la risposta di Ollama, quindi si riprova per alcuni secondi."""
+        freed = self._reclaim_vram()
+        if not freed:
+            return decision
+        logger.info("VRAM sotto soglia per l'embedding: scaricati da Ollama %s.", ", ".join(freed))
+        for _ in range(_RECLAIM_POLLS):
+            time.sleep(1)
+            decision = self._decision()
+            if decision.device != "cpu":
+                break
+        return decision
 
     def _decision(self):
         from core.accelerator import GpuMemory, decide
@@ -419,12 +437,18 @@ def _free_vram_mb() -> int:
 
 
 _start_gpu_worker = start_gpu_worker
+_RECLAIM_POLLS = 5
 
 
 @contextmanager
-def reindex_embedder(cpu_model):
+def reindex_embedder(cpu_model, *, reclaim_vram: bool = False):
     """Embedder di un singolo job: il processo accelerato viene fermato all'uscita,
-    anche su errore, e con lui torna libera la memoria che aveva preso."""
+    anche su errore, e con lui torna libera la memoria che aveva preso.
+
+    `reclaim_vram`: se la VRAM libera è sotto soglia, scarica prima i modelli di Ollama
+    (core.llm.unload_ollama_models). Lo chiede solo il full rebuild: su un delta di pochi
+    chunk la CPU basta, e scaricare l'LLM costerebbe un ricaricamento alla /ask successiva."""
+    from core.llm import unload_ollama_models
     from core.accelerator import (
         detect_npu, query_amd_gpus, query_apple_chip, query_apple_reclaimable_mb,
         query_nvidia_gpus)
@@ -446,7 +470,8 @@ def reindex_embedder(cpu_model):
         mps_available=_mps_available, apple_memory_mb=query_apple_reclaimable_mb,
         nvidia_gpus=query_nvidia_gpus, amd_gpus=query_amd_gpus, npu_label=detect_npu,
         npu_runtime=_query_npu_runtime, intel_gpu=_query_intel_gpu,
-        apple_chip=query_apple_chip, mps_env_out=mps_env)
+        apple_chip=query_apple_chip, mps_env_out=mps_env,
+        reclaim_vram=unload_ollama_models if reclaim_vram else None)
     try:
         yield embedder
     finally:

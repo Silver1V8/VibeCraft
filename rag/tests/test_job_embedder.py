@@ -548,3 +548,101 @@ def test_suite_forces_cpu_even_if_the_shell_exports_auto():
     from core import config
     assert os.environ["VIBECRAFT_REINDEX_DEVICE"] == "cpu"
     assert config.REINDEX_DEVICE == "cpu"
+
+# --- VRAM tenuta dall'LLM locale (2026-10-29): il full rebuild la libera prima di decidere ---
+
+def _reclaim_embedder(free_values, freed, monkeypatch):
+    free = list(free_values)
+    calls, starts, cpu = [], [], FakeModel("cpu")
+    monkeypatch.setattr(job_embedder.time, "sleep", lambda s: None)
+
+    def reclaim():
+        calls.append(1)
+        return freed
+
+    def start_worker(device="cuda:0"):
+        starts.append(device)
+        return FakeWorker()
+
+    embedder = JobEmbedder(start_worker=start_worker, cpu_model=lambda: cpu,
+                           gpu_available=lambda: True,
+                           free_vram_mb=lambda: free.pop(0) if len(free) > 1 else free[0],
+                           min_free_mb=3072, enabled=True, reclaim_vram=reclaim)
+    return embedder, calls, starts
+
+
+def test_low_vram_unloads_the_llm_then_uses_the_gpu(monkeypatch):
+    # la VRAM torna libera un istante dopo lo scarico: si ridecide finché basta
+    embedder, calls, starts = _reclaim_embedder([431, 431, 6000], ["qwen3.5:9b-text"], monkeypatch)
+    assert embedder.encode(["a"])["dense_vecs"] == ["gpu"]
+    assert calls == [1] and starts == ["cuda:0"]
+    assert embedder.report()["embedding_fallback_reason"] is None
+
+
+def test_unload_that_frees_nothing_stays_on_cpu(monkeypatch):
+    embedder, calls, starts = _reclaim_embedder([431], [], monkeypatch)
+    assert embedder.encode(["a"])["dense_vecs"] == ["cpu"]
+    assert calls == [1] and starts == []
+    assert "VRAM" in embedder.report()["embedding_fallback_reason"]
+
+
+def test_enough_vram_never_unloads_the_llm(monkeypatch):
+    embedder, calls, starts = _reclaim_embedder([6000], ["qwen3.5:9b-text"], monkeypatch)
+    assert embedder.encode(["a"])["dense_vecs"] == ["gpu"]
+    assert calls == [] and starts == ["cuda:0"]
+
+
+def test_only_the_full_rebuild_asks_to_unload_the_llm(monkeypatch):
+    from api import routes_reindex
+    from core import llm
+
+    seen = {}
+    real = job_embedder.reindex_embedder
+
+    def spy(cpu_model, **kwargs):
+        cm = real(cpu_model, **kwargs)
+        seen.setdefault("reclaim", []).append(kwargs.get("reclaim_vram", False))
+        return cm
+
+    monkeypatch.setattr(routes_reindex, "reindex_embedder", spy)
+    monkeypatch.setattr(routes_reindex, "ensure_shared_resources", lambda **kwargs: None)
+    monkeypatch.setattr(routes_reindex, "incremental_index", lambda **kwargs: {"noop": True})
+    monkeypatch.setattr(routes_reindex, "build_graph_and_index", lambda **kwargs: kwargs["collector"].update(
+        {"phase_timings_seconds": {p: 0.0 for p in (
+            "init_model", "scan_hash", "load", "parsing_embedding", "qdrant", "relink",
+            "save_hash", "eval_gate", "promote")}, "counts": {}}))
+    routes_reindex._run_reindex(None)
+    routes_reindex._run_full_rebuild(None)
+    assert seen["reclaim"] == [False, True]
+    with real(lambda: FakeModel("cpu"), reclaim_vram=True) as embedder:
+        assert embedder._reclaim_vram is llm.unload_ollama_models
+    with real(lambda: FakeModel("cpu")) as embedder:
+        assert embedder._reclaim_vram is None
+
+
+def test_unload_ollama_models_unloads_each_loaded_model(monkeypatch):
+    import io
+    import json as _json
+    from core import llm
+
+    posted = []
+
+    def fake_urlopen(req, timeout):
+        if isinstance(req, str):  # GET /api/ps
+            return io.BytesIO(_json.dumps({"models": [{"name": "a"}, {"name": "b"}]}).encode())
+        posted.append(_json.loads(req.data))
+        return io.BytesIO(b"{}")
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", fake_urlopen)
+    assert llm.unload_ollama_models() == ["a", "b"]
+    assert posted == [{"model": "a", "keep_alive": 0}, {"model": "b", "keep_alive": 0}]
+
+
+def test_unload_ollama_models_without_ollama_is_a_no_op(monkeypatch):
+    from core import llm
+
+    def down(req, timeout):
+        raise llm.urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", down)
+    assert llm.unload_ollama_models() == []

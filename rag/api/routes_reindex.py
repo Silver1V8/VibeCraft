@@ -214,8 +214,9 @@ def _full_rebuild_with(embed_model, *, project=None) -> dict:
 
 def _run_full_rebuild(changed_paths, *, project=None) -> dict:
     """Job "full" (vedi _full_rebuild_with): embedding sul modello del job, la cui VRAM
-    è liberata a fine job anche se build o gate falliscono. `changed_paths` è ignorato."""
-    with reindex_embedder(_reindex_embed_model) as embed_model:
+    è liberata a fine job anche se build o gate falliscono. `changed_paths` è ignorato.
+    Se l'LLM locale occupa la VRAM, il job la libera prima (reclaim_vram)."""
+    with reindex_embedder(_reindex_embed_model, reclaim_vram=True) as embed_model:
         result = _full_rebuild_with(embed_model, project=project)
     result.update(embed_model.report())
     return result
