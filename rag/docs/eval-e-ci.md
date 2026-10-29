@@ -144,6 +144,15 @@ giudice (sono lo stesso modello, `qwen3.5:9b`, l'unico installato). Sul conto bi
 metrica automatica. Apre **R29** (AUDIT.md, RESIDUI.md): serve un giudice su un modello diverso
 prima di poter promuovere questa misura a gate.
 
+**Il secondo giudice, `qwen3.8:27b` (2026-10-29): 21/24, e non passa neanche lui.** Stesso
+prompt, nessuna nuova taratura, `purposes.judge` solo per la corsa: positivi 16/17, negativi
+ancora 5/7, unanimi 24/24, ma **1 negativo mancato** (05·2) dove il 9b ne mancava 0. Come
+schermo è peggio, e costa 27 minuti per 72 giudizi contro meno di due. Il 07·2 cade sullo
+stesso distrattore di `qwen3.5:9b` e di nimble: il difetto resta dentro la famiglia Qwen.
+Il giudice di default resta quindi il 9b. Per la decisione S8 il passo successivo è un
+provider remoto, che però manda il corpus fuori dalla macchina: va deciso, non eseguito.
+Evidenze in [archive/eval-results/attribution_qwen38_20261029](../../archive/eval-results/attribution_qwen38_20261029/evidence/METHOD.md).
+
 **Quattro casi su 14 non possono passare A, ed è la misura, non un difetto.**
 L'enumerazione chiede 11 fonti a un top-10, e le tre catene che spandono tre documenti si
 fermano a due: è esattamente il gap che ha motivato il router deterministico. Per questo la

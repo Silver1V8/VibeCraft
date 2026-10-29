@@ -43,7 +43,7 @@ llm_settings:
   ollama_temperature: 0.1
 
   # Override opzionale provider/modello PER SINGOLO STEP della pipeline (core/llm.py).
-  # Scopi riconosciuti: drift, canvas, propose, validate, explore, review, ask.
+  # Scopi riconosciuti: drift, canvas, propose, validate, explore, review, ask, judge.
   # Ogni chiave può indicare provider e/o model; ciò che manca ricade su
   # active_provider / models. Esempio: canvas su Claude, il resto su Ollama.
   #
@@ -51,7 +51,10 @@ llm_settings:
   # interamente in VRAM su una 3070 Ti — batte il vecchio 14B (che sborderebbe su CPU) sia in
   # qualità sia in velocità. qwen2.5:7b "annegava" le istruzioni articolate di canvas/propose
   # (stack che spariva, soggetto derivato al documento tecnico). Per differenziare di nuovo
-  # per step (es. un modello più grosso solo per canvas/propose) riattiva `purposes`:
+  # per step (es. un modello più grosso solo per canvas/propose) riattiva `purposes`.
+  # Il giudice di attribuzione (judge) resta sul modello di default: qwen3.8:27b, provato
+  # il 2026-10-29 per R29, non passa S6 e manca un negativo che il 9b non manca
+  # (docs/eval-e-ci.md, R29).
   #purposes:
   #  canvas:
   #    model: "qwen3.5:27b"
