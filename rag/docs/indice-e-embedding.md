@@ -194,6 +194,12 @@ senza alcun beneficio.
      memoria libera. Su una scheda discreta servono almeno
      `VIBECRAFT_REINDEX_GPU_MIN_FREE_MB` liberi; su un chip unificato NVIDIA la
      soglia si applica al totale del pool, purché resti almeno 1 GiB non mappato.
+     Se la VRAM non basta perché Ollama tiene caricato l'LLM (con
+     `OLLAMA_KEEP_ALIVE=-1` succede sempre), il **full rebuild** chiede prima a Ollama
+     di scaricarlo (`keep_alive: 0`, `core.llm.unload_ollama_models`) e ripete la scelta
+     per qualche secondo; il modello si ricarica alla generazione successiva. I delta e
+     l'import di progetti non lo fanno: per pochi chunk la CPU basta. Misurato il
+     29 ottobre 2026: full su CUDA in 104-121 s, contro oltre 30 minuti su CPU.
   2. **Metal (`mps`)** su Apple Silicon, da M1 a M6, base, Pro, Max e Ultra, se
      CUDA non c'è o la scheda NVIDIA non ha memoria libera. Il nome arriva da
      `machdep.cpu.brand_string`, la RAM installata da `hw.memsize` (non il massimo

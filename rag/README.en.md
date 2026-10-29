@@ -7,8 +7,10 @@
 
 # rag/ — Graph-RAG console
 
-**Documented state: `main`, 28 October 2026.**
-Same status note as [`../README.md`](../README.md) / [`README.md`](README.md).
+**Documented state: `main`, 29 October 2026.**
+Same status note as [`../README.md`](../README.md) / [`README.md`](README.md). New on the
+29th: the graph links frontend HTTP calls to backend Minimal API endpoints (`CALLS` edges),
+and a full rebuild frees the VRAM held by Ollama before embedding on GPU.
 
 Pages under `docs/` explain *how* to operate the console. They are not corpus and
 are not indexed.
@@ -25,7 +27,7 @@ are not indexed.
 | [Benchmark](docs/benchmark.md) | Baseline benchmarks |
 | [Streaming & replicas](docs/streaming-repliche.md) | Streaming and local opt-in replicas |
 | [Index & embedding](docs/indice-e-embedding.md) | Blue/green artefacts and BGE-M3 |
-| [Graph & code index](docs/grafo-e-code-index.md) | Drift, exclusions, entities, languages |
+| [Graph & code index](docs/grafo-e-code-index.md) | Drift, exclusions, entities, languages, frontend→backend `CALLS` |
 | [Agents & MCP](docs/agenti-e-mcp.md) | Agent runner, read-only MCP |
 
 ## Stable anchors

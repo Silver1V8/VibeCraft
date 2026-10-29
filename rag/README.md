@@ -7,10 +7,15 @@ Italiano | [English](README.en.md)
 
 # rag/ — Console Graph-RAG
 
-**Stato documentato: `main`, 28 ottobre 2026.**
+**Stato documentato: `main`, 29 ottobre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
-dal 12. I manuali in console sono del 25. I numeri di un gate restano quelli del giorno
-in cui sono stati misurati. Lo stesso stato è in [`../README.md`](../README.md).
+dal 12. I manuali in console sono del 25. Dal 29 il grafo collega le chiamate HTTP del
+frontend agli endpoint Minimal API del backend (archi `CALLS`, vedi
+[Grafo, drift e code index](docs/grafo-e-code-index.md)) e il full rebuild libera la VRAM
+tenuta da Ollama prima di embeddare su GPU (vedi
+[Embedding](docs/indice-e-embedding.md#embedding-bge-m3-cpu-per-le-query-acceleratore-per-il-reindex)).
+I numeri di un gate restano quelli del giorno in cui sono stati misurati. Lo stesso stato
+è in [`../README.md`](../README.md).
 
 Le pagine sotto `docs/` spiegano *come* operare la console (progetti, reindex, eval,
 indice, MCP). Non sono corpus: non vengono indicizzate.
@@ -27,7 +32,7 @@ indice, MCP). Non sono corpus: non vengono indicizzate.
 | [Benchmark baseline](docs/benchmark.md) | `Benchmark baseline` |
 | [Streaming e repliche locali](docs/streaming-repliche.md) | `Streaming e repliche locali opt-in` |
 | [Artefatti dell'indice ed embedding](docs/indice-e-embedding.md) | `Artefatti dell'indice`; `Embedding (bge-m3)` |
-| [Grafo, drift e code index](docs/grafo-e-code-index.md) | `Check drift (Step 4)`; `Esclusioni dalla scansione del codice generato`; `Estrazione entità`; `Code index` |
+| [Grafo, drift e code index](docs/grafo-e-code-index.md) | `Check drift (Step 4)`; `Esclusioni dalla scansione del codice generato`; `Estrazione entità`; `Code index` (incluso il ponte `CALLS` frontend→backend) |
 | [Agenti, MCP e verifica multi-progetto](docs/agenti-e-mcp.md) | `L'indice come acceleratore per l'agente che scri`; `MCP locale di sola lettura`; `Verifica multi-progetto — 5 ottobre 2026` |
 
 ## Perché `rag/docs/` e non `docs/`
