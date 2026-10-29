@@ -472,6 +472,7 @@ graph_trust:
     READS: inferred           # SQL, scanner ibrido tree-sitter + regex
     WRITES: inferred          # SQL, scanner ibrido tree-sitter + regex
     EXECUTES: inferred        # SQL/shell, scanner ibrido tree-sitter + regex
+    CALLS: inferred           # frontend -> endpoint backend, abbinamento di path letterali
 
 # Eval-gate continuo (core/eval_gate.py): prima di promuovere una nuova versione dell'indice
 # (blue/green), misura la recall del retrieval sul golden set. Se scende sotto la soglia, blocca

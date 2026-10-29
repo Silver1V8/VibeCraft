@@ -18,8 +18,8 @@ Angular (estrazione decorator-driven, regex su segmenti di classe):
 file), @Injectable -> kind service, DI via costruttore, @NgModule
 (declarations/imports/providers), routing (component:/loadChildren/
 loadComponent -> routable + moduli lazy), HttpClient con URL letterale ->
-endpoint-esterno (assoluti) o metadato http_calls (relativi, non ancora
-abbinati agli endpoint backend del grafo — limite noto, vedi A12).
+endpoint-esterno (assoluti) o metadato http_calls (relativi), che
+resolve_http_calls abbina agli endpoint backend del grafo con archi CALLS.
 
 I riferimenti che richiedono la vista d'insieme (templateUrl, selector nei
 template, route verso componenti di altri file) passano da chiavi temporanee
@@ -222,10 +222,8 @@ def angular_symbols(text: str, stem: str, suffix: str, rel: str = "") -> list[tu
                 deps.append(host.group(1).lower())
             else:
                 attrs.setdefault("http_calls", []).append(url)
-                # LIMITE NOTO, non pianificato (A12): l'URL relativa non è abbinata agli
-                # endpoint backend noti del grafo (ponte frontend<->backend completo).
-                # Servirebbe un secondo pass dopo la scansione di TUTTO code/ (come
-                # resolve_links per Razor), non implementato per questo linguaggio.
+                # Abbinata agli endpoint del backend dal post-pass resolve_http_calls
+                # (senza metodo: l'HttpClient qui non viene letto, vale ogni metodo).
         snippet = text[max(0, m.start() - 40):m.start() + _CONTEXT_SPAN]
         out.append((_NG_KIND[deco], cls, snippet,
                     {"deps": sorted(set(deps)), "attrs": attrs, "links": links}))
@@ -318,3 +316,31 @@ def resolve_frontend(symbols: list[dict]) -> None:
     # pulizia: template mai raggiunti da un componente
     for sym in symbols:
         (sym.get("attrs") or {}).pop("_used_selectors", None)
+
+
+def _route_segments(path: str) -> list[str]:
+    return [s.lower() for s in path.split("?", 1)[0].split("/") if s]
+
+
+def resolve_http_calls(symbols: list[dict]) -> None:
+    """Ponte frontend->backend: ogni `http_calls` ("METHOD /path" da ts.http_calls_by_symbol,
+    o URL relativa senza metodo dall'HttpClient Angular) diventa un link ("CALLS", endpoint)
+    verso gli endpoint con method+route (oggi le Minimal API C#). Segmento per segmento: `*`
+    del chiamante e `{param}` della route valgono qualunque segmento; senza metodo noto si
+    abbina ogni metodo. Euristica sul testo, quindi arco `inferred` (rag_config.yaml)."""
+    endpoints = [(a["method"], _route_segments(a["route"]), s["name"]) for s in symbols
+                 if s["kind"] == "endpoint" and "method" in (a := s.get("attrs") or {}) and "route" in a]
+    if not endpoints:
+        return
+    for s in symbols:
+        calls = (s.get("attrs") or {}).get("http_calls") or []
+        found = set()
+        for call in calls:
+            method, _, path = call.rpartition(" ")
+            segs = _route_segments(path)
+            for ep_method, ep_segs, ep_name in endpoints:
+                if ((not method or method == ep_method) and len(segs) == len(ep_segs)
+                        and all(a in ("*", b) or b.startswith("{") for a, b in zip(segs, ep_segs))):
+                    found.add(("CALLS", ep_name))
+        if found:
+            s["links"] = sorted(set(s["links"]) | found)

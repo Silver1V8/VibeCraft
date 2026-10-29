@@ -126,7 +126,9 @@ riconosciute per nome — nodi pipeline/job, archi verso template, progetti
 buildati e repo esterni dai trigger),
 [code_index/frontend.py](../code_index/frontend.py) (semantica React/Angular
 sopra il parser TS: componenti, hook, DI, route, template — framework
-rilevato dal package.json del progetto, non dall'estensione) e
+rilevato dal package.json del progetto, non dall'estensione; in più il ponte
+frontend→backend: le chiamate HTTP con path letterale diventano archi CALLS
+`inferred` verso gli endpoint `METHOD /route` delle Minimal API C#) e
 [code_index/docker.py](../code_index/docker.py) (artefatti di containerizzazione
 riconosciuti per nome — Docker Compose via pyyaml e Dockerfile via scanner
 riga-per-riga: nodi service/image, archi service→service da `depends_on` e

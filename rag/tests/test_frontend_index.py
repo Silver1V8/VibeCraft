@@ -193,7 +193,7 @@ def test_angular_routing_and_http(angular_project):
     # HttpClient con URL assoluto -> nodo endpoint-esterno
     assert syms["api.esterna.example.com"]["kind"] == "external-endpoint"
     assert ("ApiService", "api.esterna.example.com") in dep
-    # URL relativa: metadato http_calls (TODO match con endpoint backend)
+    # URL relativa: metadato http_calls, abbinato agli endpoint da resolve_http_calls
     assert "/api/eventi" in syms["ApiService"]["attrs"]["http_calls"]
 
 
@@ -203,3 +203,69 @@ def test_framework_detection_avoids_cross_false_positives(tmp_path):
         "export function Comp() { return <div/> }", encoding="utf-8")
     syms = {s["name"]: s for s in ci.collect_code_symbols(tmp_path)}
     assert syms["Comp"]["kind"] == "function"  # niente semantica component
+
+
+PROGRAM_CS = """var app = WebApplication.Create(args);
+var events = app.MapGroup("/api/events");
+var admin = events.MapGroup("/admin");
+events.MapGet("/", () => Results.Ok());
+events.MapPost("/", () => Results.Ok());
+events.MapGet("/{id:guid}", (Guid id) => Results.Ok());
+admin.MapPost("/{id:guid}/archive", (Guid id) => Results.Ok());
+app.MapGet("/api/health", () => "ok");
+"""
+
+ROUTE_TS = """import { backendFetch } from "@/lib/api/backend";
+export async function GET() {
+  return backendFetch("/api/events?status=ATTIVO");
+}
+export async function POST(request: Request) {
+  return backendFetch("/api/events", { method: "POST", body: await request.text() });
+}
+export async function PUT(request: Request, init: RequestInit) {
+  return backendFetch(`/api/events/admin/${request.url}/archive`, init);
+}
+"""
+
+PAGE_TSX = """import { redirect } from "next/navigation";
+export default async function EventoPage({ params }: { params: { id: string } }) {
+  if (!params.id) redirect("/eventi");
+  const evento = await backendJson(`/api/events/${params.id}`);
+  return <div>{evento.titolo}</div>;
+}
+"""
+
+
+def test_frontend_calls_link_to_minimal_api_endpoints(tmp_path):
+    """Ponte frontend->backend (5a): le Minimal API C# diventano endpoint METHOD /route e
+    le chiamate con path letterale del frontend le raggiungono con archi CALLS."""
+    (tmp_path / "backend").mkdir()
+    (tmp_path / "backend" / "Program.cs").write_text(PROGRAM_CS, encoding="utf-8")
+    front = tmp_path / "frontend"
+    (front / "src" / "app" / "eventi").mkdir(parents=True)
+    (front / "package.json").write_text('{"dependencies": {"react": "18", "next": "14"}}', encoding="utf-8")
+    (front / "src" / "app" / "eventi" / "route.ts").write_text(ROUTE_TS, encoding="utf-8")
+    (front / "src" / "app" / "eventi" / "page.tsx").write_text(PAGE_TSX, encoding="utf-8")
+
+    syms = ci.collect_code_symbols(tmp_path)
+    endpoints = {s["name"] for s in syms if s["kind"] == "endpoint"}
+    # prefissi dei MapGroup risolti, anche annidati; route a livello di app senza gruppo
+    assert endpoints == {"GET /api/events", "POST /api/events", "GET /api/events/{id:guid}",
+                         "POST /api/events/admin/{id:guid}/archive", "GET /api/health"}
+
+    G = _graph(syms)
+    calls = {(G.nodes[u]["file"].rsplit("/", 1)[-1] + "::" + G.nodes[u]["name"], G.nodes[v]["name"])
+             for u, v, d in G.edges(data=True) if d.get("relation") == "CALLS"}
+    assert calls == {
+        # query string tolta; il metodo distingue GET e POST sulla stessa route
+        ("route.ts::GET", "GET /api/events"),
+        ("route.ts::POST", "POST /api/events"),
+        # init non letterale: metodo ignoto, abbina ogni metodo; ${...} vale un segmento
+        ("route.ts::PUT", "POST /api/events/admin/{id:guid}/archive"),
+        # componente React: la chiamata appartiene alla funzione che la contiene
+        ("page.tsx::EventoPage", "GET /api/events/{id:guid}"),
+    }
+    # la navigazione resta una chiamata candidata ma non raggiunge alcun endpoint
+    assert "GET /eventi" in next(s for s in syms if s["name"] == "EventoPage")["attrs"]["http_calls"]
+    # euristica sul testo: arco inferred, non una dichiarazione curata
+    assert {d["nature"] for _, _, d in G.edges(data=True) if d.get("relation") == "CALLS"} == {"inferred"}
