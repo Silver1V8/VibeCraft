@@ -304,7 +304,7 @@ cp rag/.env.example rag/.env.local
 
 `rag/.env.local` is gitignored and loaded automatically at startup.
 
-LLM provider and model are chosen in [`rag/rag_config.yaml`](rag/rag_config.yaml), also **per pipeline step**: for example you can generate the canvas with Claude and keep everything else on local Ollama.
+LLM provider and model are chosen in the console's **Settings** menu (next to Guide): all local, all cloud, or **per activity**, with key and model for each cloud provider; for example you can generate the canvas with Claude and keep everything else on local Ollama. Choices go to `rag/database/llm_settings.json`, on top of the defaults in [`rag/rag_config.yaml`](rag/rag_config.yaml); API keys go to `rag/database/secrets/` (or `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `rag/.env.local`, which take precedence). **Claude on your subscription** needs no key, just the Claude Code login on the machine (`claude`, then `/login`). Details: [LLM](rag/docs/llm.md).
 
 To import PDF with Docling, from `rag/` download and verify the weights:
 

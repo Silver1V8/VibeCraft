@@ -7,13 +7,16 @@ Italiano | [English](README.en.md)
 
 # rag/ — Console Graph-RAG
 
-**Stato documentato: `main`, 29 ottobre 2026.**
+**Stato documentato: `main`, 30 ottobre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
 dal 12. I manuali in console sono del 25. Dal 29 il grafo collega le chiamate HTTP del
 frontend agli endpoint Minimal API del backend (archi `CALLS`, vedi
 [Grafo, drift e code index](docs/grafo-e-code-index.md)) e il full rebuild libera la VRAM
 tenuta da Ollama prima di embeddare su GPU (vedi
 [Embedding](docs/indice-e-embedding.md#embedding-bge-m3-cpu-per-le-query-acceleratore-per-il-reindex)).
+Dal 30 un menu **Impostazioni** sceglie i modelli LLM, locali, cloud o per attività, anche
+Claude con l'abbonamento (vedi [LLM](docs/llm.md#menu-impostazioni-della-console-2026-10-30)),
+e il giudice di attribuzione Claude chiude R29 (vedi [Eval](docs/eval-e-ci.md)).
 I numeri di un gate restano quelli del giorno in cui sono stati misurati. Lo stesso stato
 è in [`../README.md`](../README.md).
 
@@ -25,7 +28,7 @@ indice, MCP). Non sono corpus: non vengono indicizzate.
 | Pagina | Contenuto |
 |---|---|
 | [Progetti separati](docs/progetti.md) | `Progetti separati` |
-| [LLM: layer unico, provider per step](docs/llm.md) | `LLM` |
+| [LLM: layer unico, provider per step](docs/llm.md) | `LLM`; `Menu Impostazioni della console` |
 | [Reindex automatico](docs/reindex.md) | `Reindex automatico` |
 | [Intake & Import](docs/intake.md) | `Intake & Import` |
 | [Eval del retrieval e CI](docs/eval-e-ci.md) | `Eval del retrieval`; `CI` |

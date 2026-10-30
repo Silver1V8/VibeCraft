@@ -9,6 +9,9 @@ llm_settings:
   # Modelli specifici per provider
   models:
     anthropic: "claude-sonnet-5"
+    # Claude via Claude Code / Agent SDK con il login dell'abbonamento (menu Impostazioni,
+    # 2026-10-30): niente API key, consuma i limiti del piano.
+    claude_code: "claude-sonnet-5-5"
     # qwen3.5:9b SENZA proiettore vision (2026-10-29): stessi pesi, ma l'mmproj riservava
     # ~1,15 GB di VRAM e spingeva il layer di output sulla CPU (32/33 layer, 88/12 GPU/CPU).
     # Senza: 100% GPU sulla 3070 Ti a num_ctx 16384, generazione 58,7 → 77,3 tok/s, prompt

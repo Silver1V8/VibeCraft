@@ -1,5 +1,5 @@
 """Modelli Pydantic di request per gli endpoint della console Graph-RAG."""
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from core.open_points import Text
@@ -124,3 +124,23 @@ class OpenPointDecisionRequest(BaseModel):
         if len(self.coverage_finding_hashes) != len(set(self.coverage_finding_hashes)):
             raise ValueError('Associazione duplicata')
         return self
+
+
+class LLMSettingsRequest(BaseModel):
+    """Modulo «Modelli LLM» del menu Impostazioni (core.llm_settings_store.build_overlay
+    valida i contenuti: modalità, provider, URL, prezzi, budget)."""
+    model_config = ConfigDict(extra='forbid')
+    mode: Literal['local', 'cloud', 'custom']
+    cloud_provider: Literal['anthropic', 'openai', 'claude_code'] = 'anthropic'
+    models: dict[str, Annotated[str, Field(max_length=200)]] = Field(default_factory=dict, max_length=10)
+    purposes: dict[str, dict[str, Annotated[str, Field(max_length=200)]]] = Field(default_factory=dict, max_length=20)
+    openai_base_url: str | None = Field(default=None, max_length=500)
+    pricing: dict[str, dict[str, float | None]] = Field(default_factory=dict, max_length=20)
+    budget_daily_usd: float | None = Field(default=None, ge=0)
+
+
+class LLMKeyRequest(BaseModel):
+    """API key di un provider cloud: stringa vuota = cancella la chiave salvata."""
+    model_config = ConfigDict(extra='forbid')
+    provider: Literal['anthropic', 'openai']
+    api_key: str = Field(default='', max_length=512)

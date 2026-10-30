@@ -7,10 +7,12 @@
 
 # rag/ — Graph-RAG console
 
-**Documented state: `main`, 29 October 2026.**
+**Documented state: `main`, 30 October 2026.**
 Same status note as [`../README.md`](../README.md) / [`README.md`](README.md). New on the
 29th: the graph links frontend HTTP calls to backend Minimal API endpoints (`CALLS` edges),
-and a full rebuild frees the VRAM held by Ollama before embedding on GPU.
+and a full rebuild frees the VRAM held by Ollama before embedding on GPU. New on the 30th: a
+**Settings** menu picks LLM models (local, cloud or per activity, including Claude on your
+subscription), and the Claude attribution judge closes R29.
 
 Pages under `docs/` explain *how* to operate the console. They are not corpus and
 are not indexed.
@@ -20,10 +22,10 @@ are not indexed.
 | Page | Topic |
 |---|---|
 | [Progetti](docs/progetti.md) | Separate projects |
-| [LLM](docs/llm.md) | Single LLM layer, providers per step |
+| [LLM](docs/llm.md) | Single LLM layer, providers per step, Settings menu |
 | [Reindex](docs/reindex.md) | Automatic reindex |
 | [Intake](docs/intake.md) | Intake & Import |
-| [Eval & CI](docs/eval-e-ci.md) | Retrieval eval and CI |
+| [Eval & CI](docs/eval-e-ci.md) | Retrieval eval, CI, attribution judge |
 | [Benchmark](docs/benchmark.md) | Baseline benchmarks |
 | [Streaming & replicas](docs/streaming-repliche.md) | Streaming and local opt-in replicas |
 | [Index & embedding](docs/indice-e-embedding.md) | Blue/green artefacts and BGE-M3 |

@@ -52,7 +52,6 @@ import math
 import json
 import os
 import queue
-import shutil
 import sys
 import threading
 from pathlib import Path
@@ -299,11 +298,8 @@ def _build_agent_options(mode: str, model: str, *, project=None) -> ClaudeAgentO
 
     # L'SDK rifiuta gli shim .cmd; npm può già contenere il binario nativo
     # senza esporlo direttamente nel PATH. Non eseguire lo shim tramite shell.
-    if sys.platform == "win32" and (cli := shutil.which("claude")):
-        if Path(cli).suffix.lower() in (".cmd", ".bat"):
-            native = Path(cli).parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
-            if native.is_file():
-                kwargs["cli_path"] = str(native)
+    if cli := llm.claude_cli_path():
+        kwargs["cli_path"] = cli
 
     if mode != "oneshot":
         kwargs["max_turns"] = _max_turns()

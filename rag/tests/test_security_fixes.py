@@ -43,6 +43,7 @@ from api import (
     routes_pipeline,
     routes_reindex,
     routes_retrieval,
+    routes_settings,
 )
 from api.models import (
     ArchiveRequest,
@@ -796,6 +797,9 @@ _ANTI_XSITE_ROUTES = [
     (routes_intake.router, "POST", "/api/intake/project/plan"),
     (routes_intake.router, "POST", "/api/intake/project/apply"),
     (routes_intake.router, "POST", "/api/intake/project/brief"),
+    # Menu Impostazioni (2026-10-30): cambiano il provider LLM e scrivono le API key cloud.
+    (routes_settings.router, "POST", "/api/settings/llm"),
+    (routes_settings.router, "POST", "/api/settings/llm/key"),
 ]
 
 # POST deliberatamente FUORI dalla matrice, con la motivazione della matrice §2C. Lista
@@ -809,7 +813,7 @@ _ANTI_XSITE_EXCLUDED = [
 
 _ALL_ROUTERS = [routes_pages.router, routes_pipeline.router, routes_reindex.router,
                 routes_retrieval.router, routes_graph.router, routes_health.router,
-                routes_intake.router, routes_projects.router]
+                routes_intake.router, routes_projects.router, routes_settings.router]
 
 
 def _concrete(path: str) -> str:
@@ -921,7 +925,8 @@ def xsite_client(monkeypatch, tmp_path):
     monkeypatch.setattr(artifacts, "DATABASE_DIR", tmp_path)  # rollback => 404, mai il reale
     monkeypatch.setattr(routes_intake, "_native_folder_dialog", lambda: None)
     return _make_client(routes_pipeline.router, routes_reindex.router,
-                        routes_retrieval.router, routes_intake.router, routes_projects.router)
+                        routes_retrieval.router, routes_intake.router, routes_projects.router,
+                        routes_settings.router)
 
 
 @pytest.mark.parametrize("router,method,path", _ANTI_XSITE_ROUTES)
@@ -1112,7 +1117,7 @@ def _parse_matrix_routes() -> set[tuple[str, str]]:
 
 def _parse_appendix_a_routes() -> set[tuple[str, str]]:
     """(metodo, path) dell'Appendice A: route montate direttamente su `app` in server.py,
-    fuori dai 8 router applicativi. `/static/*` (riga leggibile per un umano) è
+    fuori dai 9 router applicativi. `/static/*` (riga leggibile per un umano) è
     normalizzato al path del Mount vero, `/static` (nessuna route letterale con quel
     path esiste: è StaticFiles)."""
     text = _security_surface_text()
@@ -1127,7 +1132,7 @@ def _parse_appendix_a_routes() -> set[tuple[str, str]]:
 
 
 def _all_router_routes() -> set[tuple[str, str]]:
-    """(metodo, path) di OGNI route registrata sui 8 router applicativi (ruolo
+    """(metodo, path) di OGNI route registrata sui 9 router applicativi (ruolo
     standalone/writer: è il superinsieme che include anche tutto ciò che il ruolo
     `reader` monta — vedi server.py, `if ROLE != "reader"`), con TUTTI i metodi
     dichiarati — non solo POST. HEAD è escluso: FastAPI lo aggiunge da sé a ogni GET,
@@ -1146,7 +1151,7 @@ def _app_level_extra_routes() -> set[tuple[str, str]]:
     router applicativi: le due route esplicite shared.css/shared.js, il mount /static e
     le route di default di FastAPI (/docs, /redoc, /openapi.json, /docs/oauth2-redirect)
     — esattamente l'Appendice A. Importa il modulo server reale (stesso pattern di
-    tests/test_host_header.py) e ne ispeziona app.routes filtrando via i 8 router
+    tests/test_host_header.py) e ne ispeziona app.routes filtrando via i 9 router
     applicativi (`_IncludedRouter`, già coperti da _all_router_routes)."""
     import server as _server
     from starlette.routing import Mount
@@ -1229,9 +1234,10 @@ def test_declared_route_counts_match_code():
         "routes_health.py": routes_health.router,
         "routes_projects.py": routes_projects.router,
         "routes_intake.py": routes_intake.router,
+        "routes_settings.py": routes_settings.router,
     }
     assert set(per_file_declared) == set(module_by_filename), (
-        "l'elenco per-file di §Metodologia non elenca esattamente i 8 router applicativi"
+        "l'elenco per-file di §Metodologia non elenca esattamente i 9 router applicativi"
     )
     for filename, declared_count in per_file_declared.items():
         actual_count = len(module_by_filename[filename].routes)

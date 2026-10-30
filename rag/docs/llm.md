@@ -16,14 +16,48 @@ review) passano da [core/llm.py](../core/llm.py): `generate(prompt, purpose=...)
 `llm_settings.purposes` (esempio commentato nel file). Così si può ad esempio
 generare il canvas con Claude e tenere il drift su Ollama locale.
 
-Provider disponibili: `ollama` (endpoint locale `/api/generate`) e `anthropic`
-(SDK ufficiale — richiede `uv add anthropic` e la variabile d'ambiente
-`ANTHROPIC_API_KEY`; se mancano l'errore è esplicito). Gli errori di rete/timeout
+Provider disponibili: `ollama` (endpoint locale `/api/generate`), `anthropic` (SDK
+ufficiale, dipendenza del progetto dal 2026-10-30) e `openai`, cioè qualunque endpoint
+compatibile con `/chat/completions` (OpenAI, Mistral, OpenRouter, Groq…), uno alla volta
+con base URL configurabile. Le chiavi arrivano da `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
+o dal menu Impostazioni; se mancano l'errore è esplicito. Gli errori di rete/timeout
 sollevano `LLMError` con messaggio leggibile: i chiamanti restano tolleranti come
 prima (il check drift mette il messaggio nel report, l'archive salta la review
 con un warning, gli step della pipeline restituiscono il messaggio come testo via
 `pipeline.generate_tolerant`). Nei test si inietta un provider fake con
 `llm.register_provider` — nessun HTTP (vedi [tests/test_llm.py](../tests/test_llm.py)).
+
+
+## Menu Impostazioni della console (2026-10-30)
+
+Il pulsante **Impostazioni** (accanto a Guida; nella home dei progetti in alto a destra)
+raggruppa lingua, tema e rain, e la scelta dei modelli LLM per tutti i progetti:
+
+- **Tutto locale**: ogni attività su Ollama, con il modello locale scelto;
+- **Tutto in cloud**: ogni attività sul provider cloud scelto (Anthropic,
+  OpenAI-compatibile o Claude con l'abbonamento) e sul suo modello;
+- **Per attività**: provider e modello per ciascuno degli scopi di `core.llm.PURPOSES`
+  (drift, canvas, propose, validate, explore, review, ask, judge); un modello vuoto
+  usa quello predefinito del provider.
+
+**Claude (abbonamento)**, provider `claude_code`: chiama Claude attraverso la CLI di Claude
+Code (Agent SDK, un turno, nessuno strumento) con il login della macchina, quindi senza API
+key e dentro i limiti del piano Claude. Il login si fa una volta con `claude` → `/login`. Se
+`ANTHROPIC_API_KEY` è nell'ambiente la CLI usa quella. Uso personale: per offrire
+vibecraft ad altri i termini dell'Agent SDK chiedono l'API key.
+
+Per i provider con API key si impostano chiave, modello (l'elenco arriva dall'API del
+provider, o è scrivibile a mano), prezzi per milione di token e un budget giornaliero
+che, raggiunto, riporta le chiamate su Ollama (`_budget_fallback`).
+
+Dove finiscono le scelte: [core/llm_settings_store.py](../core/llm_settings_store.py)
+scrive `database/llm_settings.json`, un overlay sopra `llm_settings` di
+`rag_config.yaml`, che resta la fonte dei default commentati e non viene mai riscritto.
+L'overlay vale subito, senza riavvio, e al boot viene validato come il YAML: un file
+illeggibile ferma l'avvio. Le chiavi stanno in `database/secrets/llm_keys.json`, fuori da
+git; la variabile d'ambiente, se c'è, vince, e nessuna risposta HTTP restituisce la
+chiave. Route e rischi in [SECURITY_SURFACE.md](../SECURITY_SURFACE.md), righe 73–76.
+Una replica `reader` non monta queste route.
 
 Anche `POST /ask` (sintesi della risposta RAG) passa da questo layer, con purpose
 `ask`: il prompt (system storico + contesto + domanda + una riga di chiusura

@@ -8,6 +8,9 @@ __pycache__/
 # Segreti locali di sviluppo (VIBECRAFT_API_KEY ecc.), letti da scripts/run_server.ps1:
 # mai da committare, ogni sviluppatore ha la propria copia locale.
 rag/.env.local
+# Menu Impostazioni della console: scelte LLM e API key dei provider cloud (mai in git)
+rag/database/llm_settings.json
+rag/database/secrets/
 
 # Dati Locali del RAG (Generati dagli script)
 rag/database/qdrant_data/

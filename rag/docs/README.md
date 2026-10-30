@@ -8,10 +8,10 @@ indicizzato (quello è `docs/` del progetto). Italiano canonico.
 | Pagina | Tema |
 |---|---|
 | [Progetti separati](progetti.md) | root, ID e isolamento dei progetti |
-| [LLM: layer unico, provider per step](llm.md) | provider e modello per scopo, budget |
+| [LLM: layer unico, provider per step](llm.md) | provider e modello per scopo, menu Impostazioni, budget |
 | [Reindex automatico](reindex.md) | coda, journal, writer lock, webhook |
 | [Intake & Import](intake.md) | conversione, staging, import di progetti |
-| [Eval del retrieval e CI](eval-e-ci.md) | golden set, eval gate, CI |
+| [Eval del retrieval e CI](eval-e-ci.md) | golden set, eval gate, CI, giudice di attribuzione |
 | [Benchmark baseline](benchmark.md) | misure di latenza e di delta |
 | [Streaming e repliche locali](streaming-repliche.md) | streaming, repliche opt-in, limiti |
 | [Artefatti dell'indice ed embedding](indice-e-embedding.md) | blue/green, bge-m3, embedding su GPU |
