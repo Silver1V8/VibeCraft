@@ -28,9 +28,9 @@
 </p>
 
 <p align="center">
-  <strong>Adversarial cases right at rank 1: from 0 of 5 to 4 of 5.</strong><br>
+  <strong>Adversarial cases right at rank 1: from 0 of 5 to 5 of 5.</strong><br>
   <strong>recall@1 0.690 → 0.741 &middot; recall@10 0.983 → 1.000</strong><br>
-  <sub>Same system with authority nearly off (α 0.1) and calibrated (α 0.3), 58-case golden set, 7 September 2026 (S11). Held out, at k=1: +0.038, positive on 5 seeds out of 5. Since 30 October 5 of 5, after a corpus fix. <a href="#numbers">Details</a>.</sub>
+  <sub>Same system with authority nearly off (α 0.1) and calibrated (α 0.3), 58-case golden set, 7 September 2026 (S11): adversarial 0 → 4 of 5; held out, at k=1: +0.038, positive on 5 seeds out of 5. The fifth on 30 October, with a corpus fix. <a href="#numbers">Details</a>.</sub>
 </p>
 
 ---
@@ -192,9 +192,9 @@ No, and be wary of any system that tells you otherwise. Answers carry their sour
 </p>
 
 <p align="center">
-  <strong>Casi avversariali giusti al primo posto: da 0 su 5 a 4 su 5.</strong><br>
+  <strong>Casi avversariali giusti al primo posto: da 0 su 5 a 5 su 5.</strong><br>
   <strong>recall@1 0,690 → 0,741 &middot; recall@10 0,983 → 1,000</strong><br>
-  <sub>Stesso sistema con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3), golden set di 58 casi, 7 settembre 2026 (S11). Fuori campione, a k=1: +0,038, positivo su 5 seed su 5. Dal 30 ottobre 5 su 5, dopo una correzione del corpus. <a href="#i-numeri">Dettagli</a>.</sub>
+  <sub>Stesso sistema con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3), golden set di 58 casi, 7 settembre 2026 (S11): avversariali da 0 a 4 su 5; fuori campione, a k=1: +0,038, positivo su 5 seed su 5. Il quinto il 30 ottobre, con una correzione del corpus. <a href="#i-numeri">Dettagli</a>.</sub>
 </p>
 
 ---
