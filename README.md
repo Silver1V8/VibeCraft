@@ -45,12 +45,13 @@ Everything runs locally by default: your documents leave the machine only if you
 
 The golden set contains **adversarial** cases, built on purpose: in each one a low-authority source (a methodology note, an unclassified historical file) is closer to the question than the rule that answers it. Each one is verified by running the query. They are the test a generic RAG fails by design.
 
-| Measured 7 September 2026, 58 cases | recall@1 | recall@2 | recall@5 | recall@10 | adversarial at rank 1 |
+| 58 cases | recall@1 | recall@2 | recall@5 | recall@10 | adversarial at rank 1 |
 |---|---|---|---|---|---|
-| Authority nearly off (α 0.1) | 0.690 | 0.862 | 0.948 | 0.983 | **0 of 5** |
-| **Authority calibrated (α 0.3), in production** | **0.741** | 0.862 | **0.966** | **1.000** | **4 of 5** |
+| Authority nearly off (α 0.1), 7 September 2026 | 0.690 | 0.862 | 0.948 | 0.983 | 0 of 5 |
+| Authority calibrated (α 0.3), 7 September 2026 | 0.741 | 0.862 | 0.966 | 1.000 | 4 of 5 |
+| **In production (α 0.3), 30 October 2026** | **0.724** | **0.828** | **0.948** | **0.983** | **5 of 5** |
 
-Latest check, 30 October 2026, same 58 cases on the current corpus: recall@1 0.724 · recall@2 0.828 · recall@5 0.948 · recall@10 0.983, adversarial at rank 1 **5 of 5**. The fifth was lost because the rule wrote its chunk limit only as a placeholder, while the methodology note spelled out the number: fixed in the corpus (the rule now states its default, the note cites the rules it explains), not in the ranking. The table above is the S11 comparison, kept with the date it was measured.
+The first two rows are the S11 comparison: same corpus, only α changes. The third is the current corpus. The fifth adversarial case was lost because the rule wrote its chunk limit only as a placeholder, while the methodology note spelled out the number: fixed in the corpus (the rule now states its default, the note cites the rules it explains), not in the ranking. The other recalls differ from September because the corpus has changed since, not the weights.
 
 Source attribution has an automatic judge since 30 October 2026: `claude-opus-5-5` agrees with the human verdict on all 24 archived answers, including the 7 wrong ones (R29). It is optional and, like any cloud model, sends those answers to the provider.
 
@@ -209,12 +210,13 @@ Di default tutto gira in locale: i documenti escono dalla macchina solo se nelle
 
 Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una fonte a bassa autorità (una nota di metodologia, un file storico senza classificazione) somiglia alla domanda più della norma che risponde. Ognuno è verificato eseguendo la query. Sono il test che un RAG generico sbaglia per costruzione.
 
-| Misura del 7 settembre 2026, 58 casi | recall@1 | recall@2 | recall@5 | recall@10 | avversariali al primo posto |
+| 58 casi | recall@1 | recall@2 | recall@5 | recall@10 | avversariali al primo posto |
 |---|---|---|---|---|---|
-| Autorità quasi spenta (α 0,1) | 0,690 | 0,862 | 0,948 | 0,983 | **0 su 5** |
-| **Autorità calibrata (α 0,3), in produzione** | **0,741** | 0,862 | **0,966** | **1,000** | **4 su 5** |
+| Autorità quasi spenta (α 0,1), 7 settembre 2026 | 0,690 | 0,862 | 0,948 | 0,983 | 0 su 5 |
+| Autorità calibrata (α 0,3), 7 settembre 2026 | 0,741 | 0,862 | 0,966 | 1,000 | 4 su 5 |
+| **In produzione (α 0,3), 30 ottobre 2026** | **0,724** | **0,828** | **0,948** | **0,983** | **5 su 5** |
 
-Ultimo controllo, 30 ottobre 2026, stessi 58 casi sul corpus attuale: recall@1 0,724 · recall@2 0,828 · recall@5 0,948 · recall@10 0,983, avversariali al primo posto **5 su 5**. Il quinto si perdeva perché la regola scriveva il limite dei chunk solo come segnaposto, mentre la nota di metodologia riportava il numero: corretto nel corpus (la regola dice il suo default, la nota cita le regole che spiega), non nel ranking. La tabella sopra è il confronto S11, conservato con la data in cui è stato misurato.
+Le prime due righe sono il confronto S11: stesso corpus, cambia solo α. La terza è il corpus attuale. Il quinto caso avversariale si perdeva perché la regola scriveva il limite dei chunk solo come segnaposto, mentre la nota di metodologia riportava il numero: corretto nel corpus (la regola dice il suo default, la nota cita le regole che spiega), non nel ranking. Le altre recall differiscono da settembre perché da allora è cambiato il corpus, non i pesi.
 
 L'attribuzione della fonte ha un giudice automatico dal 30 ottobre 2026: `claude-opus-5-5` concorda con il verdetto umano su tutte le 24 risposte d'archivio, comprese le 7 sbagliate (R29). È facoltativo e, come ogni modello cloud, manda quelle risposte al provider.
 
