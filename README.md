@@ -30,7 +30,7 @@
 <p align="center">
   <strong>Adversarial cases right at rank 1: from 0 of 5 to 4 of 5.</strong><br>
   <strong>recall@1 0.690 → 0.741 &middot; recall@10 0.983 → 1.000</strong><br>
-  <sub>Same system with authority nearly off (α 0.1) and calibrated (α 0.3), 58-case golden set, 7 September 2026 (S11). Held out, at k=1: +0.038, positive on 5 seeds out of 5. <a href="#numbers">Details</a>.</sub>
+  <sub>Same system with authority nearly off (α 0.1) and calibrated (α 0.3), 58-case golden set, 7 September 2026 (S11). Held out, at k=1: +0.038, positive on 5 seeds out of 5. Since 30 October 5 of 5, after a corpus fix. <a href="#numbers">Details</a>.</sub>
 </p>
 
 ---
@@ -50,7 +50,7 @@ The golden set contains **adversarial** cases, built on purpose: in each one a l
 | Authority nearly off (α 0.1) | 0.690 | 0.862 | 0.948 | 0.983 | **0 of 5** |
 | **Authority calibrated (α 0.3), in production** | **0.741** | 0.862 | **0.966** | **1.000** | **4 of 5** |
 
-Latest check, 29 October 2026, same 58 cases on the current corpus: recall@1 0.707 · recall@2 0.828 · recall@5 0.948 · recall@10 0.983, adversarial at rank 1 still 4 of 5. The table above is the S11 comparison, kept with the date it was measured.
+Latest check, 30 October 2026, same 58 cases on the current corpus: recall@1 0.724 · recall@2 0.828 · recall@5 0.948 · recall@10 0.983, adversarial at rank 1 **5 of 5**. The fifth was lost because the rule wrote its chunk limit only as a placeholder, while the methodology note spelled out the number: fixed in the corpus (the rule now states its default, the note cites the rules it explains), not in the ranking. The table above is the S11 comparison, kept with the date it was measured.
 
 Source attribution has an automatic judge since 30 October 2026: `claude-opus-5-5` agrees with the human verdict on all 24 archived answers, including the 7 wrong ones (R29). It is optional and, like any cloud model, sends those answers to the provider.
 
@@ -194,7 +194,7 @@ No, and be wary of any system that tells you otherwise. Answers carry their sour
 <p align="center">
   <strong>Casi avversariali giusti al primo posto: da 0 su 5 a 4 su 5.</strong><br>
   <strong>recall@1 0,690 → 0,741 &middot; recall@10 0,983 → 1,000</strong><br>
-  <sub>Stesso sistema con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3), golden set di 58 casi, 7 settembre 2026 (S11). Fuori campione, a k=1: +0,038, positivo su 5 seed su 5. <a href="#i-numeri">Dettagli</a>.</sub>
+  <sub>Stesso sistema con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3), golden set di 58 casi, 7 settembre 2026 (S11). Fuori campione, a k=1: +0,038, positivo su 5 seed su 5. Dal 30 ottobre 5 su 5, dopo una correzione del corpus. <a href="#i-numeri">Dettagli</a>.</sub>
 </p>
 
 ---
@@ -214,7 +214,7 @@ Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una 
 | Autorità quasi spenta (α 0,1) | 0,690 | 0,862 | 0,948 | 0,983 | **0 su 5** |
 | **Autorità calibrata (α 0,3), in produzione** | **0,741** | 0,862 | **0,966** | **1,000** | **4 su 5** |
 
-Ultimo controllo, 29 ottobre 2026, stessi 58 casi sul corpus attuale: recall@1 0,707 · recall@2 0,828 · recall@5 0,948 · recall@10 0,983, avversariali al primo posto ancora 4 su 5. La tabella sopra è il confronto S11, conservato con la data in cui è stato misurato.
+Ultimo controllo, 30 ottobre 2026, stessi 58 casi sul corpus attuale: recall@1 0,724 · recall@2 0,828 · recall@5 0,948 · recall@10 0,983, avversariali al primo posto **5 su 5**. Il quinto si perdeva perché la regola scriveva il limite dei chunk solo come segnaposto, mentre la nota di metodologia riportava il numero: corretto nel corpus (la regola dice il suo default, la nota cita le regole che spiega), non nel ranking. La tabella sopra è il confronto S11, conservato con la data in cui è stato misurato.
 
 L'attribuzione della fonte ha un giudice automatico dal 30 ottobre 2026: `claude-opus-5-5` concorda con il verdetto umano su tutte le 24 risposte d'archivio, comprese le 7 sbagliate (R29). È facoltativo e, come ogni modello cloud, manda quelle risposte al provider.
 

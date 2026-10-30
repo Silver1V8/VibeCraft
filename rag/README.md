@@ -16,7 +16,8 @@ tenuta da Ollama prima di embeddare su GPU (vedi
 [Embedding](docs/indice-e-embedding.md#embedding-bge-m3-cpu-per-le-query-acceleratore-per-il-reindex)).
 Dal 30 un menu **Impostazioni** sceglie i modelli LLM, locali, cloud o per attività, anche
 Claude con l'abbonamento (vedi [LLM](docs/llm.md#menu-impostazioni-della-console-2026-10-30)),
-e il giudice di attribuzione Claude chiude R29 (vedi [Eval](docs/eval-e-ci.md)).
+e il giudice di attribuzione Claude chiude R29 (vedi [Eval](docs/eval-e-ci.md)). Sempre dal 30
+i casi avversariali sono 5 su 5 al primo posto, con una correzione del corpus e non dei pesi.
 I numeri di un gate restano quelli del giorno in cui sono stati misurati. Lo stesso stato
 è in [`../README.md`](../README.md).
 

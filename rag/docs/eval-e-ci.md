@@ -69,7 +69,15 @@ La corsa standard riporta il recall a **k ∈ {1, 2, 5, 10}**, e non per complet
   `adversarial: true` nel golden-set (oggi 5 su 58) contrappongono una fonte a
   bassa autorità che matcha lessicalmente *meglio* della normativa che risponde:
   sono l'unico posto dove il boost di autorità può essere falsificato, e nella
-  media coi casi facili il loro movimento sarebbe invisibile.
+  media coi casi facili il loro movimento sarebbe invisibile. **Dal 2026-10-30 sono 5 su 5
+  al primo posto**: il quinto («quanti caratteri al massimo può avere un chunk…») perdeva
+  0,511 a 0,479 contro la nota di metodologia perché [REGOLA-VAL-02] e [REGOLA-VAL-06]
+  scrivevano la soglia solo come segnaposto e la nota il numero. Corretto nel corpus, non
+  nei pesi: la regola riporta il default, la nota cita le regole che spiega e diventa una
+  riformulazione (peso di sezione 0,92). Simulato prima con bge-m3 (margine +0,036),
+  misurato dopo il reindex: recall@1 0,707 → 0,724, le altre invariate. Il prezzo: a k=1 il
+  sottoinsieme ora è **saturo**, quindi segnala una regressione ma non misura più un
+  miglioramento; servono casi avversariali nuovi per tornare a discriminare.
 - **i pesi di autorità si calibrano con [eval/calibrate_authority.py](../eval/calibrate_authority.py)**,
   che gira in-process (niente server) e **non applica nulla**: scrive una proposta
   in `eval/results/authority_calibrated.yaml` da rivedere a mano. Calibrare

@@ -2,8 +2,8 @@
 id: "meta-change-log-v1.0"
 title: "Registro delle Modifiche — Change Log di VibeCraft"
 project: "cross-project"
-version: "2.1.0"
-date: "2026-09-07"
+version: "2.1.1"
+date: "2026-10-30"
 status: "ENFORCED"
 classification: "METADATA"
 path: "docs/00_meta_governance/change_log.md"
@@ -67,6 +67,17 @@ Ogni modifica ai contratti di sicurezza, alle regole enforceable dei documenti n
 ---
 
 ## 3. Storico delle Versioni Rilasciate
+
+### Versione 2.1.1 (30 Ottobre 2026)
+* **Autore:** manutenzione della knowledge base (caso avversariale del golden set)
+* **File Modificati:**
+  * `docs/02_specs_normative/spec_graph_rag_ingestion.md` (2.2.1)
+  * `docs/04_knowledge_informative/graph_rag_ingestion_strategy.md` (1.0.1)
+  * `docs/00_meta_governance/change_log.md`
+* **Descrizione Modifiche:** [REGOLA-VAL-02] e [REGOLA-VAL-06] riportano il default della
+  propria soglia accanto al segnaposto, invece di rimandare alla Sezione 0. La nota
+  metodologica cita le regole che motiva, come già dichiara di fare nel suo avviso iniziale.
+  **Bump patch**: chiarimenti, nessun contratto cambia.
 
 ### Versione 2.1.0 (07 Settembre 2026)
 * **Autore:** manutenzione della knowledge base (Run S8-S10, tracciamento del registro)

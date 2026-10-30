@@ -370,6 +370,11 @@ cases:
     expected:
       - {doc: spec_graph_rag_ingestion, section: "Aggiornamento Incrementale"}
 
+  # 2026-10-30: per mesi l'unico avversariale perso (rango 2). La spec scriveva la soglia
+  # solo come <<SOGLIA_CHUNK>> e la nota il numero; corretto nel CORPUS (spec 2.2.1: default
+  # accanto al segnaposto; nota 1.0.1: cita [REGOLA-VAL-02]/[REGOLA-VAL-06], quindi
+  # riformulazione). Il caso e l'atteso non cambiano; cambia il distrattore, che è parte
+  # dello strumento di misura: rag/docs/eval-e-ci.md, sottoinsieme avversariale.
   - q: "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento"
     adversarial: true
     distractor: 04_knowledge_informative/graph_rag_ingestion_strategy.md

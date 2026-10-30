@@ -3,13 +3,17 @@ id: "spec-graph-rag-ingestion-v2.0"
 title: "Specifica Normativa — Strategia di Ingestion e Indicizzazione Graph-RAG (Baseline Cross-Progetto)"
 project: "cross-project"
 scope: "cross-project"
-version: "2.2.0"
-date: "2026-08-24"
+version: "2.2.1"
+date: "2026-10-30"
 status: "ENFORCED"
 classification: "REQUIREMENTS"
 path: "docs/02_specs_normative/spec_graph_rag_ingestion.md"
 authority: 0.87
 changelog:
+  - version: "2.2.1"
+    date: "2026-10-30"
+    changes:
+      - "[REGOLA-VAL-02] e [REGOLA-VAL-06] riportano il valore di default accanto al segnaposto della soglia, che prima stava solo nella Sezione 0: la regola si legge da sola (chiarimento, nessun cambio di contratto)"
   - version: "2.2.0"
     date: "2026-08-24"
     changes:
@@ -107,7 +111,7 @@ Rinominare o rimuovere una di queste cartelle cambia la classificazione dei docu
 ## 2. Requisiti di Chunking Dinamico e Compressione
 
 ### [REGOLA-VAL-02] Limite dimensionale dei chunk
-- **Descrizione:** La segmentazione deve produrre blocchi semantici sotto `<<SOGLIA_CHUNK>>` caratteri, per preservare la densità informativa.
+- **Descrizione:** La segmentazione deve produrre blocchi semantici sotto `<<SOGLIA_CHUNK>>` caratteri (default 1500), per preservare la densità informativa.
 - **Effetto in caso di violazione (Failure Mode):** Diluizione della firma semantica del vettore ed errori di accuratezza nel Dense Retrieval.
 - **Entità Target:** Nessuna.
 
@@ -127,7 +131,7 @@ Rinominare o rimuovere una di queste cartelle cambia la classificazione dei docu
 - **Entità Target:** Nessuna.
 
 ### [REGOLA-VAL-06] Compressione controllata lossy
-- **Descrizione:** Se un blocco atomico supera `<<SOGLIA_CHUNK>>`, l'indicizzatore applica una compressione conservando identificatore, invariante ed entità coinvolte; al superamento di `<<SOGLIA_CHUNK_ASSOLUTA>>` blocca l'ingestion con severity `WARNING`.
+- **Descrizione:** Se un blocco atomico supera `<<SOGLIA_CHUNK>>`, l'indicizzatore applica una compressione conservando identificatore, invariante ed entità coinvolte; al superamento di `<<SOGLIA_CHUNK_ASSOLUTA>>` (default 2500 caratteri) blocca l'ingestion con severity `WARNING`.
 - **Effetto in caso di violazione (Failure Mode):** Rigetto del blocco normativo o crash della pipeline di pre-processing.
 - **Entità Target:** Nessuna.
 
