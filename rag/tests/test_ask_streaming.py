@@ -640,8 +640,17 @@ def test_cancel_durante_cpu_non_libera_slot_prima_della_fine_del_thread(ask_app,
             raise RuntimeError("release del test non arrivato in tempo")
         return {"dense": np.array([1.0]), "lexical": {}, "colbert": np.zeros((1, 1))}
 
+    shield_calls = 0
+    real_shield = asyncio.shield
+
+    def counting_shield(arg):
+        nonlocal shield_calls
+        shield_calls += 1
+        return real_shield(arg)
+
     monkeypatch.setattr(retrieval, "encode_query", blocked_encode)
     monkeypatch.setattr(routes_retrieval.question_router, "route_question", lambda _q: "hybrid")
+    monkeypatch.setattr(asyncio, "shield", counting_shield)
 
     async def scenario():
         transport = httpx.ASGITransport(app=app)
@@ -650,12 +659,17 @@ def test_cancel_durante_cpu_non_libera_slot_prima_della_fine_del_thread(ask_app,
                 "/ask", json={"question": "cpu", "stream": True},
             ))
             assert await asyncio.to_thread(entered.wait, 5)
+            calls_before_cancel = shield_calls
             task.cancel()
             # Niente shield+Event orfani: asyncio.wait basta a provare che la
             # cancel non completa mentre il thread CPU è ancora dentro encode.
             done, _pending = await asyncio.wait({task}, timeout=0.05)
             assert not done, "cancel completata prima della fine del thread CPU"
             assert runtime.active == 1
+            # Il task group anyio della StreamingResponse ri-cancella lo stream a ogni giro:
+            # se la cancel rimbalza sul producer, l'attesa del worker diventa uno spin
+            # (~1500 shield in 50 ms) che affama il thread CPU e in CI sforava il timeout.
+            assert shield_calls - calls_before_cancel <= 2, "attesa del thread CPU in spin"
             release.set()
             with pytest.raises(asyncio.CancelledError):
                 await asyncio.wait_for(task, timeout=10)

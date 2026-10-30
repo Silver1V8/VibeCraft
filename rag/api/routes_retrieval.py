@@ -14,6 +14,7 @@ import logging
 import types
 from contextlib import aclosing as aclosing  # noqa: F401 — seam rebind /ask
 
+import anyio
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
@@ -142,10 +143,14 @@ async def _ask_stream(request: Request, query: AskQuery, runtime, resources):
     finally:
         if not producer.done():
             producer.cancel()
-        try:
-            await producer
-        except asyncio.CancelledError:
-            pass
+        # Il task group anyio della StreamingResponse ri-cancella questo task a ogni giro
+        # del loop finché non termina: senza schermo ogni cancel rimbalzava sul producer,
+        # che girava a vuoto (100% CPU, GIL conteso) fino alla fine del thread CPU.
+        with anyio.CancelScope(shield=True):
+            try:
+                await producer
+            except asyncio.CancelledError:
+                pass
 
 
 class _AskStreamingResponse(StreamingResponse):
