@@ -1,0 +1,59 @@
+name: Bug report · Segnalazione di bug
+description: Something does not work as documented · Qualcosa non funziona come documentato
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security vulnerabilities go through [SECURITY.md](https://github.com/Silver1V8/VibeCraft/blob/main/SECURITY.md), not here.
+        Le vulnerabilità di sicurezza passano da [SECURITY.md](https://github.com/Silver1V8/VibeCraft/blob/main/SECURITY.md), non da qui.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened · Cosa è successo
+      description: Expected vs actual behaviour · Comportamento atteso e ottenuto
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce · Passi per riprodurre
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit · Versione o commit
+      placeholder: v0.2.0 / abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: Installation · Installazione
+      options:
+        - Docker (CPU)
+        - Docker (NVIDIA GPU)
+        - GHCR image
+        - Native (uv)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and GPU · Sistema operativo e GPU
+      placeholder: Windows 11, RTX 3070 Ti / Ubuntu 24.04, CPU only
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `uv run python scripts/doctor.py` · Output di doctor.py
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs · Log
+      description: Remove API keys and document contents · Togli chiavi API e contenuti dei documenti
+      render: text
