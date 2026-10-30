@@ -193,17 +193,18 @@ per l'importazione PDF richiedono spazio aggiuntivo:
 | `qwen3.5:9b` (LLM locale) | 6,6 GB, via Ollama; la variante `qwen3.5:9b-text` usata dalla configurazione ne riusa i pesi |
 | Spazio disco consigliato | ~20 GB |
 
-**Una GPU NVIDIA cambia molto le cose.** Misurato su una RTX 3070 Ti contro la CPU della
-stessa macchina:
+**Una GPU NVIDIA cambia molto le cose.** Misurato il 30 ottobre 2026 su una RTX 3070 Ti
+contro la CPU della stessa macchina, sul corpus di esempio (50 documenti → 384 chunk, 399
+file di codice → 1.220 simboli):
 
 | | GPU | CPU |
 |---|---|---|
-| Embedding | 46 chunk/s | **1 chunk/s (45× più lento)** |
-| Indicizzazione completa (corpus di esempio, 612 elementi) | ~13 s | **~10 min** |
+| Embedding | tutto il corpus in ~70 s | **~0,4 chunk/s** |
+| Indicizzazione completa | ~1 min 45 s | **oltre 16 min** (solo i documenti) |
 
 Senza GPU il sistema **funziona**, ma reindicizzare diventa un'operazione da prendere con
-calma. Le singole domande restano usabili: l'embedding della query costa circa un secondo,
-dentro i ~30 s che l'LLM locale impiega comunque a rispondere.
+calma. Le singole domande restano usabili: su CPU l'embedding della query costa circa
+0,25 s e un retrieval mezzo secondo, dentro i 7–12 s che l'LLM locale impiega a rispondere.
 
 I prerequisiti dipendono da come lo installi:
 

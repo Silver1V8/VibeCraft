@@ -85,14 +85,14 @@ Details and limits: [agent runner](rag/README.md#runner-dellagente-claude-ollama
 | `qwen3.5:9b` (local LLM) | 6.6 GB, via Ollama; the `qwen3.5:9b-text` variant the config uses reuses its weights |
 | Recommended disk space | ~20 GB |
 
-**An NVIDIA GPU changes a lot.** Measured on an RTX 3070 Ti against the CPU of the same machine:
+**An NVIDIA GPU changes a lot.** Measured on 30 October 2026 on an RTX 3070 Ti against the CPU of the same machine, on the sample corpus (50 documents → 384 chunks, 399 code files → 1,220 symbols):
 
 | | GPU | CPU |
 |---|---|---|
-| Embedding | 46 chunks/s | **1 chunk/s (45× slower)** |
-| Full indexing (sample corpus, 612 items) | ~13 s | **~10 min** |
+| Embedding | the whole corpus in ~70 s | **~0.4 chunks/s** |
+| Full indexing | ~1 min 45 s | **over 16 min** (documents alone) |
 
-Without a GPU the system **works**, but reindexing becomes an operation to take calmly. Single questions remain usable: query embedding costs about a second, inside the ~30 s the local LLM already needs to answer.
+Without a GPU the system **works**, but reindexing becomes an operation to take calmly. Single questions remain usable: on CPU the query embedding takes about 0.25 s and a retrieval half a second, inside the 7–12 s the local LLM needs to answer.
 
 Prerequisites depend on how you install it:
 

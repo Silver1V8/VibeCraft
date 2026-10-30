@@ -28,9 +28,9 @@
 </p>
 
 <p align="center">
-  <strong>Adversarial cases right at rank 1: from 0 of 5 to 4 of 5.</strong><br>
-  <strong>recall@1 0.690 → 0.741 &middot; recall@10 0.983 → 1.000</strong><br>
-  <sub>Same system with authority nearly off (α 0.1) and calibrated (α 0.3), 58-case golden set, 7 September 2026 (S11). Held out, at k=1: +0.038, positive on 5 seeds out of 5. Since 30 October 5 of 5, after a corpus fix. <a href="#numbers">Details</a>.</sub>
+  <strong>Adversarial cases right at rank 1: from 2 of 5 to 5 of 5.</strong><br>
+  <strong>recall@1 0.690 → 0.724 &middot; MRR 0.802 → 0.818</strong><br>
+  <sub>Same system, same corpus and index, with authority nearly off (α 0.1) and calibrated (α 0.3, in production): 58-case golden set, measured 30 October 2026. <a href="#numbers">Details</a>.</sub>
 </p>
 
 ---
@@ -45,16 +45,16 @@ Everything runs locally by default: your documents leave the machine only if you
 
 The golden set contains **adversarial** cases, built on purpose: in each one a low-authority source (a methodology note, an unclassified historical file) is closer to the question than the rule that answers it. Each one is verified by running the query. They are the test a generic RAG fails by design.
 
-| Measured 7 September 2026, 58 cases | recall@1 | recall@2 | recall@5 | recall@10 | adversarial at rank 1 |
-|---|---|---|---|---|---|
-| Authority nearly off (α 0.1) | 0.690 | 0.862 | 0.948 | 0.983 | **0 of 5** |
-| **Authority calibrated (α 0.3), in production** | **0.741** | 0.862 | **0.966** | **1.000** | **4 of 5** |
+| Measured 30 October 2026, 58 cases | recall@1 | recall@2 | recall@5 | recall@10 | MRR | adversarial at rank 1 |
+|---|---|---|---|---|---|---|
+| Authority nearly off (α 0.1) | 0.690 | 0.828 | 0.966 | 0.983 | 0.802 | 2 of 5 |
+| **Authority calibrated (α 0.3), in production** | **0.724** | 0.828 | 0.948 | 0.983 | **0.818** | **5 of 5** |
 
-Latest check, 30 October 2026, same 58 cases on the current corpus: recall@1 0.724 · recall@2 0.828 · recall@5 0.948 · recall@10 0.983, adversarial at rank 1 **5 of 5**. The fifth was lost because the rule wrote its chunk limit only as a placeholder, while the methodology note spelled out the number: fixed in the corpus (the rule now states its default, the note cites the rules it explains), not in the ranking. The table above is the S11 comparison, kept with the date it was measured.
+Same corpus and index, only α changes. Authority wins at the top (rank 1, MRR) and costs one case at k=5. Even with authority nearly off, 2 of 5 adversarial cases are right: the section weight and the corpus itself do part of the work. The fifth case was lost until 30 October because the rule wrote its chunk limit only as a placeholder, while the methodology note spelled out the number: fixed in the corpus (the rule now states its default, the note cites the rules it explains), not in the ranking.
 
 Source attribution has an automatic judge since 30 October 2026: `claude-opus-5-5` agrees with the human verdict on all 24 archived answers, including the 7 wrong ones (R29). It is optional and, like any cloud model, sends those answers to the provider.
 
-α was not picked by gut feeling: a joint grid of 2,160 points, 5-fold × 5 seeds, with the winner confirmed held out. And sometimes the measurement said no: full multiplication (α 1), the one the governing rule prescribed, cost 15 points of recall@5. The rule was amended, not the numbers. Full story in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) (Italian) and in the `authority:` block of [rag_config.yaml](rag/rag_config.yaml).
+α was not picked by gut feeling (S11, 7 September 2026): a joint grid of 2,160 points, 5-fold × 5 seeds, with the winner confirmed held out. And sometimes the measurement said no: full multiplication (α 1), the one the governing rule prescribed, cost 15 points of recall@5. The rule was amended, not the numbers. Full story in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) (Italian) and in the `authority:` block of [rag_config.yaml](rag/rag_config.yaml).
 
 **Answers are grounded in sources, not guaranteed.** Citations, partial results, and open points still need checking, and retrieval does not promise it found everything the corpus contains.
 
@@ -127,10 +127,10 @@ NVIDIA GPU, Ollama on the host, native install, the ready-made GHCR image, updat
 |---|---|
 | Download | about **11 GB**: `bge-m3` 4.3 GB + `qwen3.5:9b` 6.6 GB, plus the Docling models for PDF |
 | Recommended disk | ~20 GB |
-| NVIDIA GPU | optional, but it changes a lot: embedding at 46 chunks/s versus **1 chunk/s** on CPU. A full reindex unloads the local LLM to make room, and it reloads on the next question |
-| Full indexing (612 items) | ~13 s with a GPU, **~10 min** on CPU |
+| NVIDIA GPU | optional, but it changes a lot: the whole embedding phase of a full reindex takes ~70 s on the GPU, while on CPU documents go at **~0.4 chunks/s**. A full reindex unloads the local LLM to make room, and it reloads on the next question |
+| Full indexing (50 documents → 384 chunks, 399 code files → 1,220 symbols) | ~1 min 45 s with a GPU (RTX 3070 Ti), **over 16 min** on CPU (documents alone) |
 
-Without a GPU everything works. Reindexing becomes something to do calmly, but questions stay usable: query embedding costs about a second, inside the ~30 s the local LLM needs to answer anyway.
+Without a GPU everything works. Reindexing becomes something to do calmly, but questions stay usable: on CPU the query embedding takes about 0.25 s and a retrieval half a second, inside the 7–12 s the local LLM needs to answer (measured 30 October 2026).
 
 ## Security
 
@@ -192,9 +192,9 @@ No, and be wary of any system that tells you otherwise. Answers carry their sour
 </p>
 
 <p align="center">
-  <strong>Casi avversariali giusti al primo posto: da 0 su 5 a 4 su 5.</strong><br>
-  <strong>recall@1 0,690 → 0,741 &middot; recall@10 0,983 → 1,000</strong><br>
-  <sub>Stesso sistema con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3), golden set di 58 casi, 7 settembre 2026 (S11). Fuori campione, a k=1: +0,038, positivo su 5 seed su 5. Dal 30 ottobre 5 su 5, dopo una correzione del corpus. <a href="#i-numeri">Dettagli</a>.</sub>
+  <strong>Casi avversariali giusti al primo posto: da 2 su 5 a 5 su 5.</strong><br>
+  <strong>recall@1 0,690 → 0,724 &middot; MRR 0,802 → 0,818</strong><br>
+  <sub>Stesso sistema, stesso corpus e stesso indice, con l'autorità quasi spenta (α 0,1) e calibrata (α 0,3, in produzione): golden set di 58 casi, misura del 30 ottobre 2026. <a href="#i-numeri">Dettagli</a>.</sub>
 </p>
 
 ---
@@ -209,16 +209,16 @@ Di default tutto gira in locale: i documenti escono dalla macchina solo se nelle
 
 Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una fonte a bassa autorità (una nota di metodologia, un file storico senza classificazione) somiglia alla domanda più della norma che risponde. Ognuno è verificato eseguendo la query. Sono il test che un RAG generico sbaglia per costruzione.
 
-| Misura del 7 settembre 2026, 58 casi | recall@1 | recall@2 | recall@5 | recall@10 | avversariali al primo posto |
-|---|---|---|---|---|---|
-| Autorità quasi spenta (α 0,1) | 0,690 | 0,862 | 0,948 | 0,983 | **0 su 5** |
-| **Autorità calibrata (α 0,3), in produzione** | **0,741** | 0,862 | **0,966** | **1,000** | **4 su 5** |
+| Misura del 30 ottobre 2026, 58 casi | recall@1 | recall@2 | recall@5 | recall@10 | MRR | avversariali al primo posto |
+|---|---|---|---|---|---|---|
+| Autorità quasi spenta (α 0,1) | 0,690 | 0,828 | 0,966 | 0,983 | 0,802 | 2 su 5 |
+| **Autorità calibrata (α 0,3), in produzione** | **0,724** | 0,828 | 0,948 | 0,983 | **0,818** | **5 su 5** |
 
-Ultimo controllo, 30 ottobre 2026, stessi 58 casi sul corpus attuale: recall@1 0,724 · recall@2 0,828 · recall@5 0,948 · recall@10 0,983, avversariali al primo posto **5 su 5**. Il quinto si perdeva perché la regola scriveva il limite dei chunk solo come segnaposto, mentre la nota di metodologia riportava il numero: corretto nel corpus (la regola dice il suo default, la nota cita le regole che spiega), non nel ranking. La tabella sopra è il confronto S11, conservato con la data in cui è stato misurato.
+Stesso corpus e stesso indice, cambia solo α. L'autorità vince in cima (primo posto, MRR) e a k=5 costa un caso. Anche con l'autorità quasi spenta 2 avversariali su 5 sono giusti: il peso di sezione e il corpus stesso fanno una parte del lavoro. Il quinto caso si perdeva fino al 30 ottobre perché la regola scriveva il limite dei chunk solo come segnaposto, mentre la nota di metodologia riportava il numero: corretto nel corpus (la regola dice il suo default, la nota cita le regole che spiega), non nel ranking.
 
 L'attribuzione della fonte ha un giudice automatico dal 30 ottobre 2026: `claude-opus-5-5` concorda con il verdetto umano su tutte le 24 risposte d'archivio, comprese le 7 sbagliate (R29). È facoltativo e, come ogni modello cloud, manda quelle risposte al provider.
 
-α non è stato scelto a intuito: griglia congiunta di 2.160 punti, 5-fold × 5 seed, con il vincitore confermato fuori campione. E a volte la misura ha detto di no: la moltiplicazione piena (α 1), quella che la norma prescriveva, costava 15 punti di recall@5. Si è emendata la norma, non i numeri. Storia completa in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) e nel blocco `authority:` di [rag_config.yaml](rag/rag_config.yaml).
+α non è stato scelto a intuito (S11, 7 settembre 2026): griglia congiunta di 2.160 punti, 5-fold × 5 seed, con il vincitore confermato fuori campione. E a volte la misura ha detto di no: la moltiplicazione piena (α 1), quella che la norma prescriveva, costava 15 punti di recall@5. Si è emendata la norma, non i numeri. Storia completa in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) e nel blocco `authority:` di [rag_config.yaml](rag/rag_config.yaml).
 
 **Le risposte sono ancorate alle fonti, non garantite.** Citazioni, risultati parziali e punti aperti restano da verificare, e il retrieval non promette di aver trovato tutto ciò che il corpus contiene.
 
@@ -291,10 +291,10 @@ GPU NVIDIA, Ollama sull'host, installazione nativa, immagine pronta su GHCR, agg
 |---|---|
 | Download | circa **11 GB**: `bge-m3` 4,3 GB + `qwen3.5:9b` 6,6 GB, più i modelli Docling per i PDF |
 | Disco consigliato | ~20 GB |
-| GPU NVIDIA | facoltativa, ma cambia molto: embedding a 46 chunk/s contro **1 chunk/s** su CPU. Un reindex completo scarica l'LLM locale per farsi spazio, e l'LLM si ricarica alla domanda successiva |
-| Indicizzazione completa (612 elementi) | ~13 s con GPU, **~10 min** su CPU |
+| GPU NVIDIA | facoltativa, ma cambia molto: l'intera fase di embedding di un reindex completo dura ~70 s sulla GPU, mentre su CPU i documenti vanno a **~0,4 chunk/s**. Un reindex completo scarica l'LLM locale per farsi spazio, e l'LLM si ricarica alla domanda successiva |
+| Indicizzazione completa (50 documenti → 384 chunk, 399 file di codice → 1.220 simboli) | ~1 min 45 s con GPU (RTX 3070 Ti), **oltre 16 min** su CPU (solo i documenti) |
 
-Senza GPU funziona tutto. Reindicizzare diventa un'operazione da fare con calma, ma le domande restano usabili: l'embedding della query costa circa un secondo, dentro i ~30 s che l'LLM locale impiega comunque a rispondere.
+Senza GPU funziona tutto. Reindicizzare diventa un'operazione da fare con calma, ma le domande restano usabili: su CPU l'embedding della query costa circa 0,25 s e un retrieval mezzo secondo, dentro i 7–12 s che l'LLM locale impiega a rispondere (misure del 30 ottobre 2026).
 
 ## Sicurezza
 
