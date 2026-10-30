@@ -19,6 +19,7 @@
     <symbol id="icon-open" viewBox="0 0 24 24"><path d="M3 17V7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v2M3 20h15l4-8H7Z"/></symbol>
     <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
     <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></symbol>
   </svg>
   <header id="project-bar" class="project-bar" data-i18n-aria-label="workspace.barAria" aria-label="Progetti">
     <button class="workspace-brand" type="button" data-click="showProjects" data-i18n-aria-label="workspace.brandAria" aria-label="VibeCraft, schermata progetti">
@@ -49,16 +50,16 @@
       <!-- L'infografica è documentazione dell'architettura, non una sezione di lavoro:
            sta a destra, separata. Lo stato del progetto che conteneva è in Console. -->
       <a href="/infografica" class="workspace-guide" data-i18n="workspace.navGuide">Guida</a>
+      <!-- Accanto a Guida; nella home dei progetti la nav è nascosta e setWelcomeView()
+           sposta lo stesso pulsante in #workspace-settings-slot, in alto a destra. -->
+      <button id="settings-open" type="button" class="workspace-settings" data-click="openSettings" aria-haspopup="dialog"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-settings"/></svg><span data-i18n="workspace.navSettings">Impostazioni</span></button>
     </nav>
     <div id="project-toolbar" class="project-toolbar" hidden>
       <button id="project-home" type="button" class="btn btn-secondary" data-click="showProjects"><svg class="workspace-icon" aria-hidden="true"><use href="#icon-folder"/></svg><span data-i18n="workspace.projectsBtn">Progetti</span></button>
       <button id="project-new" type="button" class="btn btn-secondary btn-icon" data-click="newProject" data-i18n-aria-label="workspace.newProjectAria" data-i18n-title="workspace.newProjectAria" aria-label="Nuovo progetto" title="Nuovo progetto" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-plus"/></svg></button>
       <button id="project-open" type="button" class="btn btn-secondary btn-icon" data-click="openProject" data-i18n-aria-label="workspace.openProjectAria" data-i18n-title="workspace.openProjectAria" aria-label="Apri progetto esistente" title="Apri progetto esistente" disabled><svg class="workspace-icon" aria-hidden="true"><use href="#icon-open"/></svg></button>
     </div>
-    <div id="workspace-theme" class="workspace-theme">
-      <label class="workspace-sr-only" for="theme-switcher" data-i18n="shell.theme">Tema</label>
-      <select id="theme-switcher" data-change="setUiTheme"><option value="classic" data-i18n="shell.themeClassic">Classico</option><option value="matrix" data-i18n="shell.themeMatrix">Matrix</option></select>
-    </div>
+    <div id="workspace-settings-slot" class="workspace-theme"></div>
   </header>
   <main id="project-welcome" class="project-welcome" aria-labelledby="welcome-title" tabindex="-1">
     <div class="welcome-content">
@@ -148,6 +149,96 @@
       <div class="confirm-actions">
         <button type="button" class="btn btn-secondary" data-click="cancelDeleteProject" data-i18n="workspace.cancel">Annulla</button>
         <button id="project-delete-submit" type="submit" class="btn btn-danger" data-i18n="workspace.deleteConfirmAction" disabled>Elimina definitivamente</button>
+      </div>
+    </form>
+  </dialog>
+  <!-- Impostazioni (2026-10-30): interfaccia (lingua, tema, rain) e modelli LLM. Lingua e
+       rain sono iniettati da i18n.js / shared.js dentro #workspace-theme, come prima. -->
+  <dialog id="settings-dialog" class="confirm-dialog settings-dialog" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <h2 id="settings-title" class="confirm-title" data-i18n="settings.title">Impostazioni</h2>
+      <section class="settings-section" aria-labelledby="settings-ui-title">
+        <h3 id="settings-ui-title" data-i18n="settings.uiTitle">Interfaccia</h3>
+        <div id="workspace-theme" class="settings-ui-controls">
+          <label class="workspace-sr-only" for="theme-switcher" data-i18n="shell.theme">Tema</label>
+          <select id="theme-switcher" data-change="setUiTheme"><option value="classic" data-i18n="shell.themeClassic">Classico</option><option value="matrix" data-i18n="shell.themeMatrix">Matrix</option></select>
+        </div>
+      </section>
+      <section class="settings-section" aria-labelledby="settings-llm-title">
+        <h3 id="settings-llm-title" data-i18n="settings.llmTitle">Modelli LLM</h3>
+        <fieldset class="settings-modes">
+          <legend data-i18n="settings.modeLegend">Dove girano i modelli</legend>
+          <label><input type="radio" name="llm-mode" value="local" data-change="renderLlmMode"> <span data-i18n="settings.modeLocal">Tutto locale (Ollama)</span></label>
+          <label><input type="radio" name="llm-mode" value="cloud" data-change="renderLlmMode"> <span data-i18n="settings.modeCloud">Tutto in cloud</span></label>
+          <label><input type="radio" name="llm-mode" value="custom" data-change="renderLlmMode"> <span data-i18n="settings.modeCustom">Per attività</span></label>
+        </fieldset>
+        <div class="settings-grid">
+          <label id="llm-local-label" for="llm-model-ollama" data-i18n="settings.localModel">Modello locale</label>
+          <input id="llm-model-ollama" list="llm-models-ollama" autocomplete="off" spellcheck="false">
+          <label id="llm-cloud-label" for="llm-cloud-provider" data-i18n="settings.cloudProvider">Provider cloud</label>
+          <select id="llm-cloud-provider" data-change="renderLlmMode"><option value="anthropic">Anthropic (Claude)</option><option value="openai" data-i18n="settings.openaiName">OpenAI-compatibile</option><option value="claude_code" data-i18n="settings.providerName.claude_code">Claude (abbonamento)</option></select>
+        </div>
+        <table id="llm-activities" class="settings-activities">
+          <thead><tr><th scope="col" data-i18n="settings.activity">Attività</th><th scope="col" data-i18n="settings.provider">Provider</th><th scope="col" data-i18n="settings.model">Modello</th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <fieldset class="settings-provider" data-provider="anthropic">
+          <legend>Anthropic (Claude)</legend>
+          <p id="llm-key-status-anthropic" class="settings-note"></p>
+          <label for="llm-key-anthropic" data-i18n="settings.apiKey">API key</label>
+          <div class="settings-inline">
+            <input id="llm-key-anthropic" type="password" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn btn-secondary" data-click="saveLlmKey" data-arg="anthropic" data-i18n="settings.saveKey">Salva chiave</button>
+            <button type="button" class="btn btn-secondary" data-click="removeLlmKey" data-arg="anthropic" data-i18n="settings.removeKey">Rimuovi</button>
+          </div>
+          <label for="llm-model-anthropic" data-i18n="settings.model">Modello</label>
+          <input id="llm-model-anthropic" list="llm-models-anthropic" autocomplete="off" spellcheck="false" data-input="syncLlmPrice" data-arg="anthropic">
+          <p id="llm-models-note-anthropic" class="settings-note"></p>
+          <div class="settings-inline settings-prices">
+            <label><span data-i18n="settings.priceIn">Input $/Mtok</span> <input id="llm-price-in-anthropic" type="number" min="0" step="0.01"></label>
+            <label><span data-i18n="settings.priceOut">Output $/Mtok</span> <input id="llm-price-out-anthropic" type="number" min="0" step="0.01"></label>
+          </div>
+        </fieldset>
+        <fieldset class="settings-provider" data-provider="openai">
+          <legend data-i18n="settings.openaiName">OpenAI-compatibile</legend>
+          <label for="llm-base-url-openai" data-i18n="settings.baseUrl">Base URL (OpenAI, Mistral, OpenRouter, Groq…)</label>
+          <input id="llm-base-url-openai" type="url" autocomplete="off" spellcheck="false" placeholder="https://api.openai.com/v1">
+          <p id="llm-key-status-openai" class="settings-note"></p>
+          <label for="llm-key-openai" data-i18n="settings.apiKey">API key</label>
+          <div class="settings-inline">
+            <input id="llm-key-openai" type="password" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn btn-secondary" data-click="saveLlmKey" data-arg="openai" data-i18n="settings.saveKey">Salva chiave</button>
+            <button type="button" class="btn btn-secondary" data-click="removeLlmKey" data-arg="openai" data-i18n="settings.removeKey">Rimuovi</button>
+          </div>
+          <label for="llm-model-openai" data-i18n="settings.model">Modello</label>
+          <input id="llm-model-openai" list="llm-models-openai" autocomplete="off" spellcheck="false" data-input="syncLlmPrice" data-arg="openai">
+          <p id="llm-models-note-openai" class="settings-note"></p>
+          <div class="settings-inline settings-prices">
+            <label><span data-i18n="settings.priceIn">Input $/Mtok</span> <input id="llm-price-in-openai" type="number" min="0" step="0.01"></label>
+            <label><span data-i18n="settings.priceOut">Output $/Mtok</span> <input id="llm-price-out-openai" type="number" min="0" step="0.01"></label>
+          </div>
+        </fieldset>
+        <fieldset class="settings-provider" data-provider="claude_code">
+          <legend data-i18n="settings.providerName.claude_code">Claude (abbonamento)</legend>
+          <p class="settings-note" data-i18n="settings.claudeCodeNote">Usa il login di Claude Code su questa macchina: nessuna API key, consuma i limiti del tuo piano Claude. Per accedere: claude, poi /login nel terminale.</p>
+          <p id="llm-claude-code-warning" class="settings-note" hidden></p>
+          <label for="llm-model-claude_code" data-i18n="settings.model">Modello</label>
+          <input id="llm-model-claude_code" list="llm-models-claude_code" autocomplete="off" spellcheck="false">
+          <p id="llm-models-note-claude_code" class="settings-note"></p>
+        </fieldset>
+        <div id="llm-budget-row" class="settings-grid">
+          <label for="llm-budget" data-i18n="settings.budget">Budget cloud giornaliero (USD)</label>
+          <input id="llm-budget" type="number" min="0" step="0.5" data-i18n-placeholder="settings.budgetNone" placeholder="nessun tetto">
+        </div>
+        <datalist id="llm-models-ollama"></datalist>
+        <datalist id="llm-models-anthropic"></datalist>
+        <datalist id="llm-models-openai"></datalist>
+        <datalist id="llm-models-claude_code"></datalist>
+        <p id="llm-settings-status" class="settings-note" role="status" aria-live="polite"></p>
+      </section>
+      <div class="confirm-actions">
+        <button type="button" class="btn btn-secondary" data-click="closeSettings" data-i18n="settings.close">Chiudi</button>
+        <button id="llm-settings-save" type="submit" class="btn btn-primary" data-i18n="settings.saveLlm">Salva modelli</button>
       </div>
     </form>
   </dialog>

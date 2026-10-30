@@ -32,7 +32,7 @@ from api.deps import API_KEY, NO_CACHE_HEADERS, HostHeaderGuard, SecurityHeaders
 from api import routes_graph, routes_health, routes_pages, routes_retrieval, routes_projects
 
 if ROLE != "reader":
-    from api import routes_intake, routes_pipeline, routes_reindex
+    from api import routes_intake, routes_pipeline, routes_reindex, routes_settings
 
 # OpenAPI/Swagger: aperti sul bind locale (threat model localhost). Su bind non-loopback
 # restano spenti (info-disclosure dello schema — SECURITY_SURFACE.md §4 #5). Override:
@@ -126,6 +126,7 @@ app.include_router(routes_graph.reader_router if ROLE == "reader" else routes_gr
 app.include_router(routes_health.reader_router if ROLE == "reader" else routes_health.router)
 if ROLE != "reader":
     app.include_router(routes_intake.router)
+    app.include_router(routes_settings.router)
 
 
 # ---------------------------------------------------------------------------

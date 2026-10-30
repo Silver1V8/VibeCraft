@@ -32,6 +32,8 @@ function setWelcomeView(visible) {
   document.getElementById('project-context').hidden = visible;
   document.getElementById('project-toolbar').hidden = visible;
   document.getElementById('workspace-nav').hidden = visible;
+  (visible ? document.getElementById('workspace-settings-slot') : document.getElementById('workspace-nav'))
+    .append(document.getElementById('settings-open'));
 }
 /* La pagina corrente nella nav della shell: aria-current per gli screen reader,
    href con ?project= perché "apri in nuova scheda" porti allo stesso progetto. */
@@ -721,6 +723,201 @@ registerActions({
   cancelDeleteProject: () => document.getElementById('project-delete-dialog').close(),
   updateProjectIndex,
 });
+/* ──────────── IMPOSTAZIONI: interfaccia e modelli LLM (2026-10-30) ────────────
+   Le scelte LLM vivono sul server (/api/settings/llm, core/llm_settings_store.py) e
+   valgono per tutti i progetti; le API key si scrivono e basta: il server risponde solo
+   da dove arrivano (ambiente, file, nessuna). */
+const LLM_PROVIDERS = ['ollama', 'anthropic', 'openai', 'claude_code'];
+// Provider con API key e prezzo per token; claude_code usa il login dell'abbonamento.
+const LLM_CLOUD = ['anthropic', 'openai'];
+let llmView = null;
+function settingsError(data, response) {
+  if (Array.isArray(data.detail)) return data.detail.map(item => item.msg).join('; ');
+  return projectError(data, response);
+}
+function llmMode() {
+  return document.querySelector('input[name="llm-mode"]:checked')?.value || 'local';
+}
+function llmKeyStatus(provider) {
+  const info = llmView.providers[provider];
+  const key = info.key === 'env' ? t('settings.keyEnv', { env: info.key_env })
+    : info.key === 'file' ? t('settings.keyFile') : t('settings.keyMissing', { env: info.key_env });
+  document.getElementById('llm-key-status-' + provider).textContent = key;
+}
+function syncLlmPrice(el) {
+  const provider = el.dataset.arg;
+  const price = (llmView?.pricing || {})[el.value.trim()] || {};
+  document.getElementById('llm-price-in-' + provider).value = price.input_per_mtok ?? '';
+  document.getElementById('llm-price-out-' + provider).value = price.output_per_mtok ?? '';
+}
+function renderLlmActivities() {
+  const body = document.querySelector('#llm-activities tbody');
+  body.replaceChildren(...llmView.activities.map(activity => {
+    const choice = llmView.purposes[activity] || {};
+    const row = document.createElement('tr');
+    const name = document.createElement('th');
+    name.scope = 'row';
+    name.textContent = t('settings.act.' + activity);
+    const provider = document.createElement('select');
+    provider.dataset.activity = activity;
+    provider.dataset.change = 'syncLlmActivity';
+    provider.setAttribute('aria-label', t('settings.providerFor', { activity: name.textContent }));
+    for (const value of LLM_PROVIDERS) provider.add(new Option(t('settings.providerName.' + value), value));
+    provider.value = choice.provider || 'ollama';
+    const model = document.createElement('input');
+    model.autocomplete = 'off';
+    model.spellcheck = false;
+    model.placeholder = t('settings.modelDefault');
+    model.setAttribute('aria-label', t('settings.modelFor', { activity: name.textContent }));
+    model.setAttribute('list', 'llm-models-' + provider.value);
+    model.value = choice.model || '';
+    row.append(name, ...[provider, model].map(control => { const cell = document.createElement('td'); cell.append(control); return cell; }));
+    return row;
+  }));
+}
+function syncLlmActivity(el) {
+  const model = el.closest('tr').querySelector('input');
+  model.setAttribute('list', 'llm-models-' + el.value);
+  model.value = '';
+}
+function renderLlmMode() {
+  const mode = llmMode();
+  const cloud = document.getElementById('llm-cloud-provider').value;
+  const show = (id, visible) => { document.getElementById(id).hidden = !visible; };
+  show('llm-local-label', mode !== 'cloud');
+  show('llm-model-ollama', mode !== 'cloud');
+  show('llm-cloud-label', mode === 'cloud');
+  show('llm-cloud-provider', mode === 'cloud');
+  show('llm-activities', mode === 'custom');
+  show('llm-budget-row', mode !== 'local');
+  document.querySelectorAll('.settings-provider').forEach(box => {
+    box.hidden = mode === 'local' || (mode === 'cloud' && box.dataset.provider !== cloud);
+  });
+}
+async function loadLlmModels(provider) {
+  const note = document.getElementById('llm-models-note-' + provider);
+  try {
+    const response = await fetch('/api/settings/llm/models?provider=' + encodeURIComponent(provider));
+    const data = await response.json();
+    if (!response.ok) throw new Error(settingsError(data, response));
+    document.getElementById('llm-models-' + provider).replaceChildren(...data.models.map(name => new Option(name, name)));
+    if (note) note.textContent = data.error ? t('settings.modelsError', { error: data.error }) : data.source === 'default' ? t('settings.modelsDefault') : '';
+  } catch (error) {
+    if (note) note.textContent = t('settings.modelsError', { error: error.message });
+  }
+}
+async function loadLlmSettings() {
+  const status = document.getElementById('llm-settings-status');
+  status.textContent = t('settings.loading');
+  try {
+    const response = await fetch('/api/settings/llm');
+    const data = await response.json();
+    if (!response.ok) throw new Error(settingsError(data, response));
+    llmView = data;
+  } catch (error) {
+    status.textContent = t('settings.loadError', { error: error.message });
+    return;
+  }
+  status.textContent = '';
+  document.querySelector(`input[name="llm-mode"][value="${llmView.mode}"]`).checked = true;
+  document.getElementById('llm-cloud-provider').value = llmView.cloud_provider;
+  for (const provider of LLM_PROVIDERS) document.getElementById('llm-model-' + provider).value = llmView.models[provider] || '';
+  for (const provider of LLM_CLOUD) {
+    llmKeyStatus(provider);
+    syncLlmPrice(document.getElementById('llm-model-' + provider));
+  }
+  document.getElementById('llm-base-url-openai').value = llmView.providers.openai.base_url;
+  const claudeCode = llmView.providers.claude_code;
+  const warning = document.getElementById('llm-claude-code-warning');
+  warning.textContent = !claudeCode.cli ? t('settings.claudeCodeNoCli') : claudeCode.api_key_env ? t('settings.claudeCodeEnvKey') : '';
+  warning.hidden = !warning.textContent;
+  document.getElementById('llm-budget').value = llmView.budget_daily_usd ?? '';
+  renderLlmActivities();
+  renderLlmMode();
+  LLM_PROVIDERS.forEach(loadLlmModels);
+}
+async function openSettings() {
+  document.getElementById('settings-dialog').showModal();
+  await loadLlmSettings();
+}
+function llmPayload() {
+  const mode = llmMode();
+  const models = {};
+  for (const provider of LLM_PROVIDERS) {
+    const value = document.getElementById('llm-model-' + provider).value.trim();
+    if (value) models[provider] = value;
+  }
+  const purposes = {};
+  if (mode === 'custom') {
+    for (const row of document.querySelectorAll('#llm-activities tbody tr')) {
+      const provider = row.querySelector('select');
+      const model = row.querySelector('input').value.trim();
+      purposes[provider.dataset.activity] = model ? { provider: provider.value, model } : { provider: provider.value };
+    }
+  }
+  const pricing = {};
+  for (const provider of LLM_CLOUD) {
+    const input = document.getElementById('llm-price-in-' + provider).value;
+    if (models[provider] && input !== '') {
+      pricing[models[provider]] = { input_per_mtok: Number(input), output_per_mtok: Number(document.getElementById('llm-price-out-' + provider).value || 0) };
+    }
+  }
+  const budget = document.getElementById('llm-budget').value;
+  return {
+    mode, cloud_provider: document.getElementById('llm-cloud-provider').value, models, purposes, pricing,
+    openai_base_url: document.getElementById('llm-base-url-openai').value.trim() || null,
+    budget_daily_usd: mode === 'local' || budget === '' ? null : Number(budget),
+  };
+}
+async function saveLlmSettings(event) {
+  event.preventDefault();
+  const payload = llmPayload();
+  const status = document.getElementById('llm-settings-status');
+  const save = document.getElementById('llm-settings-save');
+  save.disabled = true;
+  try {
+    const response = await fetch('/api/settings/llm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(settingsError(data, response));
+    llmView = data;
+    status.textContent = t('settings.saved');
+    toast(t('settings.saved'), 'success');
+    const used = payload.mode === 'cloud' ? [payload.cloud_provider] : Object.values(payload.purposes).map(choice => choice.provider);
+    const missing = LLM_CLOUD.filter(provider => used.includes(provider) && !llmView.providers[provider].key);
+    // Anche nella riga di stato: i toast stanno sotto il dialogo modale aperto.
+    if (missing.length) status.textContent += ' ' + t('settings.keyNeeded', { provider: missing.map(p => t('settings.providerName.' + p)).join(', ') });
+  } catch (error) {
+    status.textContent = t('settings.saveError', { error: error.message });
+  } finally {
+    save.disabled = false;
+  }
+}
+async function sendLlmKey(provider, apiKey) {
+  const status = document.getElementById('llm-settings-status');
+  try {
+    const response = await fetch('/api/settings/llm/key', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, api_key: apiKey }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(settingsError(data, response));
+    llmView.providers[provider].key = data.key;
+    llmKeyStatus(provider);
+    document.getElementById('llm-key-' + provider).value = '';
+    status.textContent = apiKey ? t('settings.keySaved') : t('settings.keyRemoved');
+    loadLlmModels(provider);
+  } catch (error) {
+    status.textContent = t('settings.saveError', { error: error.message });
+  }
+}
+function saveLlmKey(el) {
+  const input = document.getElementById('llm-key-' + el.dataset.arg);
+  if (!input.value.trim()) { input.focus(); return; }
+  return sendLlmKey(el.dataset.arg, input.value.trim());
+}
+registerActions({
+  openSettings, renderLlmMode, syncLlmActivity, syncLlmPrice, saveLlmKey,
+  removeLlmKey: el => sendLlmKey(el.dataset.arg, ''),
+  closeSettings: () => document.getElementById('settings-dialog').close(),
+});
+document.getElementById('settings-form').addEventListener('submit', saveLlmSettings);
 document.getElementById('project-form').addEventListener('submit', submitProject);
 document.getElementById('project-rename-form').addEventListener('submit', submitRenameProject);
 document.getElementById('project-delete-form').addEventListener('submit', submitDeleteProject);

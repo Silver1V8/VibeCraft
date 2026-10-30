@@ -1,5 +1,9 @@
 """Explicit legacy seam for historical HTTP tests; A/B tests use the real registry."""
 import os
+import tempfile
+from dataclasses import replace
+
+import pytest
 
 # I test non caricano mai bge-m3 sulla GPU: i job di reindex restano su CPU (modelli
 # finti) salvo i test che lo abilitano esplicitamente con monkeypatch. Il valore viene
@@ -8,9 +12,11 @@ import os
 if os.environ.get("VIBECRAFT_TEST_GPU") != "1":
     os.environ["VIBECRAFT_REINDEX_DEVICE"] = "cpu"
 
-from dataclasses import replace
-
-import pytest
+# Le impostazioni LLM e le API key salvate dal menu Impostazioni della macchina non devono
+# cambiare i provider dei test: percorsi inesistenti, i test che li usano li sostituiscono.
+_NO_LLM_FILES = os.path.join(tempfile.gettempdir(), f"vibecraft-test-no-llm-{os.getpid()}")
+os.environ["VIBECRAFT_LLM_SETTINGS_FILE"] = os.path.join(_NO_LLM_FILES, "llm_settings.json")
+os.environ["VIBECRAFT_LLM_SECRETS_FILE"] = os.path.join(_NO_LLM_FILES, "llm_keys.json")
 
 
 @pytest.fixture

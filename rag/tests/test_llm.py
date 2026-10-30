@@ -227,7 +227,7 @@ def test_valid_llm_providers_sincronizzati_con_registry():
     esattamente (la discrepanza è un errore di sincronizzazione)."""
     from core.config import VALID_LLM_PROVIDERS
 
-    assert VALID_LLM_PROVIDERS == {"ollama", "anthropic"}
+    assert VALID_LLM_PROVIDERS == {"ollama", "anthropic", "openai", "claude_code"}
     assert VALID_LLM_PROVIDERS <= set(llm._PROVIDERS)
 
 
@@ -240,13 +240,13 @@ def test_llm_settings_active_provider_non_registrato_errore_al_boot():
 
     with pytest.raises(ValidationError) as exc:
         validate_llm_settings(
-            {"active_provider": "openai", "models": {"openai": "gpt-4o"}}, boot=True)
+            {"active_provider": "gemini", "models": {"gemini": "gemini-pro"}}, boot=True)
     err_msg = str(exc.value)
     assert "active_provider" in err_msg
-    assert "openai" in err_msg
+    assert "gemini" in err_msg
     assert "non è registrato" in err_msg
     # Verifica che il messaggio elenchi i provider ammessi in ordine alfabetico
-    assert "Provider ammessi: anthropic, ollama" in err_msg
+    assert "Provider ammessi: anthropic, claude_code, ollama, openai" in err_msg
 
 
 def test_llm_settings_purpose_provider_non_registrato_errore_al_boot():
@@ -261,12 +261,12 @@ def test_llm_settings_purpose_provider_non_registrato_errore_al_boot():
                 "active_provider": "ollama",
                 "models": {"ollama": "qwen3.5:9b"},
                 "purposes": {
-                    "canvas": {"provider": "openai", "model": "gpt-4o"},
+                    "canvas": {"provider": "gemini", "model": "gemini-pro"},
                 },
             },
             boot=True)
     err_msg = str(exc.value)
-    assert "openai" in err_msg
+    assert "gemini" in err_msg
     assert "canvas" in err_msg
     assert "non è registrato" in err_msg
 
@@ -937,8 +937,8 @@ def _fake_anthropic_module(message):
     import types
 
     fake = types.SimpleNamespace()
-    fake.Anthropic = lambda timeout=None: _FakeAnthropicClient(message, timeout=timeout)
-    fake.AsyncAnthropic = lambda timeout=None: _FakeAsyncAnthropicClient(message, timeout=timeout)
+    fake.Anthropic = lambda timeout=None, **_: _FakeAnthropicClient(message, timeout=timeout)
+    fake.AsyncAnthropic = lambda timeout=None, **_: _FakeAsyncAnthropicClient(message, timeout=timeout)
     fake.AuthenticationError = type("AuthenticationError", (Exception,), {})
     fake.APITimeoutError = type("APITimeoutError", (Exception,), {})
     fake.APIConnectionError = type("APIConnectionError", (Exception,), {})

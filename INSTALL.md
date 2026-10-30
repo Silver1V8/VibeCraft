@@ -19,7 +19,7 @@ git sparse-checkout set '/*' '!archive/eval-results'
 
 La guida operativa della console non sta più in un monolite: indice in [`rag/README.md`](rag/README.md), pagine in [`rag/docs/`](rag/docs/) (fuori dal corpus, come gli ADR). Italiano canonico; `rag/README.en.md` è un indice breve.
 
-**Stato documentato: `main`, 28 ottobre 2026.**
+**Stato documentato: `main`, 30 ottobre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
 dal 12. I manuali in console sono del 25. I numeri di un gate restano quelli del giorno
 in cui sono stati misurati. Lo stesso stato è in [`rag/README.md`](rag/README.md).
@@ -495,9 +495,14 @@ cp rag/.env.example rag/.env.local
 
 `rag/.env.local` è gitignorato e viene caricato automaticamente all'avvio.
 
-Provider e modello LLM si scelgono in [`rag/rag_config.yaml`](rag/rag_config.yaml), anche
-**per singolo step** della pipeline: si può ad esempio generare il canvas con Claude e
-tenere tutto il resto su Ollama locale.
+Provider e modello LLM si scelgono dal menu **Impostazioni** della console (accanto a Guida):
+tutto locale, tutto in cloud o **per singola attività**, con chiave e modello di ogni provider
+cloud. Si può ad esempio generare il canvas con Claude e tenere tutto il resto su Ollama locale.
+Le scelte finiscono in `rag/database/llm_settings.json`, sopra i default di
+[`rag/rag_config.yaml`](rag/rag_config.yaml); le API key in `rag/database/secrets/` (oppure
+`ANTHROPIC_API_KEY` / `OPENAI_API_KEY` in `rag/.env.local`, che hanno la precedenza). Per
+**Claude con l'abbonamento** non serve una chiave: basta il login di Claude Code sulla
+macchina (`claude`, poi `/login`). Dettagli: [LLM](rag/docs/llm.md).
 
 Per importare PDF con Docling, dalla directory `rag/` scarica e verifica i pesi:
 

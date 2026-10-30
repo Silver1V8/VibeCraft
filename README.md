@@ -39,7 +39,7 @@ You know it. The methodology note: well written, discursive, full of the right w
 
 **VibeCraft knows who is in charge.** It is a Graph-RAG console for document governance: it indexes normative documents and the code that should implement them, and when it answers it weighs how authoritative each source is, which one prevails when two contradict each other, and how far to trust the graph path that led there.
 
-Everything runs locally. Your documents never leave the machine.
+Everything runs locally by default: your documents leave the machine only if you pick a cloud model in the console's Settings.
 
 ## Numbers
 
@@ -51,6 +51,8 @@ The golden set contains **adversarial** cases, built on purpose: in each one a l
 | **Authority calibrated (α 0.3), in production** | **0.741** | 0.862 | **0.966** | **1.000** | **4 of 5** |
 
 Latest check, 29 October 2026, same 58 cases on the current corpus: recall@1 0.707 · recall@2 0.828 · recall@5 0.948 · recall@10 0.983, adversarial at rank 1 still 4 of 5. The table above is the S11 comparison, kept with the date it was measured.
+
+Source attribution has an automatic judge since 30 October 2026: `claude-opus-5-5` agrees with the human verdict on all 24 archived answers, including the 7 wrong ones (R29). It is optional and, like any cloud model, sends those answers to the provider.
 
 α was not picked by gut feeling: a joint grid of 2,160 points, 5-fold × 5 seeds, with the winner confirmed held out. And sometimes the measurement said no: full multiplication (α 1), the one the governing rule prescribed, cost 15 points of recall@5. The rule was amended, not the numbers. Full story in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) (Italian) and in the `authority:` block of [rag_config.yaml](rag/rag_config.yaml).
 
@@ -152,7 +154,7 @@ Without a GPU everything works. Reindexing becomes something to do calmly, but q
 ## FAQ
 
 **Do my documents leave the machine?**
-Not with Ollama. The provider is chosen per step in `rag_config.yaml`: if a step uses Claude, that step's context goes to the provider.
+Not with Ollama, the default. Models are chosen in the console's **Settings** menu: all local, all cloud (Anthropic, an OpenAI-compatible endpoint, or Claude on your subscription) or per activity. An activity on a cloud model sends its context to that provider.
 
 **Does it work without a GPU?**
 Yes. Questions stay as fast as the LLM; it is the full reindex that goes from seconds to minutes.
@@ -173,7 +175,7 @@ No, and be wary of any system that tells you otherwise. Answers carry their sour
 
 [Apache-2.0](LICENSE). The model weights downloaded at runtime (`bge-m3`, `qwen3.5`) each have their own license: check it before commercial use.
 
-<sub>Documented status: `main`, 29 October 2026.</sub>
+<sub>Documented status: `main`, 30 October 2026.</sub>
 
 </details>
 
@@ -201,7 +203,7 @@ Lo conosci. È il documento di metodologia: scritto bene, discorsivo, pieno dell
 
 **VibeCraft sa chi comanda.** È una console Graph-RAG per la governance documentale: indicizza i documenti normativi e il codice che dovrebbe implementarli, e quando risponde pesa quanto è autorevole ogni fonte, quale prevale quando due si contraddicono e quanto ci si può fidare del cammino sul grafo che l'ha portata lì.
 
-Tutto gira in locale. I documenti non escono dalla macchina.
+Di default tutto gira in locale: i documenti escono dalla macchina solo se nelle Impostazioni della console scegli un modello cloud.
 
 ## I numeri
 
@@ -213,6 +215,8 @@ Il golden set contiene casi **avversariali**, costruiti apposta: per ognuno una 
 | **Autorità calibrata (α 0,3), in produzione** | **0,741** | 0,862 | **0,966** | **1,000** | **4 su 5** |
 
 Ultimo controllo, 29 ottobre 2026, stessi 58 casi sul corpus attuale: recall@1 0,707 · recall@2 0,828 · recall@5 0,948 · recall@10 0,983, avversariali al primo posto ancora 4 su 5. La tabella sopra è il confronto S11, conservato con la data in cui è stato misurato.
+
+L'attribuzione della fonte ha un giudice automatico dal 30 ottobre 2026: `claude-opus-5-5` concorda con il verdetto umano su tutte le 24 risposte d'archivio, comprese le 7 sbagliate (R29). È facoltativo e, come ogni modello cloud, manda quelle risposte al provider.
 
 α non è stato scelto a intuito: griglia congiunta di 2.160 punti, 5-fold × 5 seed, con il vincitore confermato fuori campione. E a volte la misura ha detto di no: la moltiplicazione piena (α 1), quella che la norma prescriveva, costava 15 punti di recall@5. Si è emendata la norma, non i numeri. Storia completa in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) e nel blocco `authority:` di [rag_config.yaml](rag/rag_config.yaml).
 
@@ -316,7 +320,7 @@ I manuali esistono anche in inglese: [guided walkthrough](rag/static/manuale/per
 ## FAQ
 
 **I miei documenti escono dalla macchina?**
-No, con Ollama. Il provider si sceglie per singolo step in `rag_config.yaml`: se uno step usa Claude, il contesto di quello step va al provider.
+No, con Ollama, che è il default. I modelli si scelgono dal menu **Impostazioni** della console: tutto locale, tutto in cloud (Anthropic, un endpoint OpenAI-compatibile o Claude con l'abbonamento) o per attività. Un'attività su un modello cloud manda il suo contesto a quel provider.
 
 **Funziona senza GPU?**
 Sì. Le domande restano veloci quanto l'LLM; è il reindex completo che passa da secondi a minuti.
@@ -337,6 +341,6 @@ No, e diffida di qualunque sistema che ti dica il contrario. Le risposte portano
 
 [Apache-2.0](LICENSE). I pesi dei modelli scaricati a runtime (`bge-m3`, `qwen3.5`) hanno ciascuno la propria licenza: verificala prima di un uso commerciale.
 
-<sub>Stato documentato: `main`, 29 ottobre 2026.</sub>
+<sub>Stato documentato: `main`, 30 ottobre 2026.</sub>
 
 </details>

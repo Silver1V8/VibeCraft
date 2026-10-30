@@ -153,6 +153,16 @@ Il giudice di default resta quindi il 9b. Per la decisione S8 il passo successiv
 provider remoto, che però manda il corpus fuori dalla macchina: va deciso, non eseguito.
 Evidenze in [archive/eval-results/attribution_qwen38_20261029](../../archive/eval-results/attribution_qwen38_20261029/evidence/METHOD.md).
 
+**R29 chiuso il 2026-10-30: `claude-opus-5-5` passa, 24/24.** Positivi 17/17, negativi
+**7/7**, unanimi 24/24, nessun falso allarme e nessun negativo mancato, con il prompt di S14
+invariato. Il 07·2 che tutta la famiglia Qwen sbagliava qui è giusto. Il giudice si sceglie
+dal menu Impostazioni (scopo «Giudice di attribuzione»); questa corsa usava il provider
+`claude_code`, cioè Claude Code con l'abbonamento, senza API key. Il giudice locale resta il
+default: senza scelta nel menu l'harness usa Ollama. Limiti: stessi 24 record su cui il
+prompt era stato tarato, campione piccolo. Per la decisione S8 ora il modo (b), `--live`,
+può entrare nelle tabelle. Evidenze in
+[archive/eval-results/attribution_claude_20261030](../../archive/eval-results/attribution_claude_20261030/evidence/METHOD.md).
+
 **Quattro casi su 14 non possono passare A, ed è la misura, non un difetto.**
 L'enumerazione chiede 11 fonti a un top-10, e le tre catene che spandono tre documenti si
 fermano a due: è esattamente il gap che ha motivato il router deterministico. Per questo la

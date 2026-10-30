@@ -1,6 +1,8 @@
 """Configurazione centralizzata del package RAG: percorsi, connessione Qdrant,
 provider LLM e costanti condivise. Unico punto di verità importato dal server FastAPI
 (api/), dalla logica pura (core/) e dagli entrypoint CLI (index.py, server.py)."""
+import copy
+import json
 import logging
 import os
 from pathlib import Path
@@ -215,7 +217,7 @@ EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 
 # Provider LLM registrati (core/llm.py _PROVIDERS): lista di provider supportati.
 # Viene usata per validare il blocco llm_settings al boot.
-VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"ollama", "anthropic"})
+VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"ollama", "anthropic", "openai", "claude_code"})
 
 
 class BudgetSettings(BaseModel):
@@ -314,11 +316,53 @@ def validate_llm_settings(raw, *, boot: bool = False) -> LLMSettings:
     return LLMSettings.model_validate(raw or {}, context={"boot": boot} if boot else None)
 
 
+# Scelte del menu Impostazioni della console (2026-10-30): un overlay JSON sopra il blocco
+# llm_settings del YAML, non una riscrittura di rag_config.yaml, che perderebbe i commenti
+# di calibrazione. Le API key dei provider cloud stanno in un file a parte, mai in git.
+# Entrambi i percorsi sono sovrascrivibili per i test, che non devono leggere quelli veri.
+LLM_SETTINGS_FILE = Path(os.environ.get("VIBECRAFT_LLM_SETTINGS_FILE")
+                         or DATABASE_DIR / "llm_settings.json").expanduser()
+LLM_SECRETS_FILE = Path(os.environ.get("VIBECRAFT_LLM_SECRETS_FILE")
+                        or DATABASE_DIR / "secrets" / "llm_keys.json").expanduser()
+
+
+def merge_llm_overlay(base: dict | None, overlay: dict | None) -> dict:
+    """llm_settings del YAML con l'overlay della UI sopra: `models` e `pricing` si fondono
+    per chiave (cambiare il modello cloud non cancella quello locale), ogni altra chiave
+    dell'overlay sostituisce quella del YAML."""
+    merged = copy.deepcopy(base or {})
+    for key, value in (overlay or {}).items():
+        if key in ("models", "pricing") and isinstance(value, dict):
+            merged[key] = {**(merged.get(key) or {}), **value}
+        else:
+            merged[key] = copy.deepcopy(value)
+    return merged
+
+
+def read_llm_overlay(path: Path = LLM_SETTINGS_FILE) -> dict:
+    """Overlay salvato dal menu Impostazioni; {} se non è mai stato salvato. Un file
+    illeggibile ferma il boot come un YAML malformato: ignorarlo cambierebbe in silenzio
+    il provider con cui girano pipeline e /ask."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, ValueError) as exc:
+        raise RuntimeError(f"Impostazioni LLM illeggibili in {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError(f"Impostazioni LLM in {path}: atteso un oggetto JSON.")
+    return data
+
+
+# Il blocco del YAML resta da parte: ogni salvataggio della UI ricalcola il merge da qui.
+LLM_SETTINGS_BASE: dict = copy.deepcopy(config.get("llm_settings") or {})
+config["llm_settings"] = merge_llm_overlay(LLM_SETTINGS_BASE, read_llm_overlay())
+
 try:
     LLM_SETTINGS: LLMSettings = validate_llm_settings(config.get("llm_settings"), boot=True)
 except ValidationError as _e:
     raise RuntimeError(
-        f"Blocco 'llm_settings' non valido in {CONFIG_PATH}:\n{_e}"
+        f"Blocco 'llm_settings' non valido in {CONFIG_PATH} (con {LLM_SETTINGS_FILE}):\n{_e}"
     ) from _e
 
 LLM_PROVIDER: str = LLM_SETTINGS.active_provider

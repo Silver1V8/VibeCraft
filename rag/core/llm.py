@@ -13,6 +13,8 @@ messaggio come testo). Per i test si inietta un provider fake con `register_prov
 import asyncio
 import json
 import logging
+import shutil
+import sys
 import threading
 import time
 import urllib.error
@@ -36,6 +38,7 @@ from core.config import (
     config,
     validate_llm_settings,
 )
+from core.llm_settings_store import KEY_PROVIDERS, api_key, openai_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -268,11 +271,11 @@ def seconds_to_utc_midnight() -> int:
 
 def _budget_fallback(provider: str, model: str, settings: LLMSettings) -> tuple[str, str]:
     """Devia (provider, model) sul `fallback_provider` quando il provider risolto è
-    anthropic e la spesa del giorno ha raggiunto `budget.daily_usd`. Restituisce la
+    un provider cloud (anthropic, openai) e la spesa del giorno ha raggiunto `budget.daily_usd`. Restituisce la
     coppia originale in ogni altro caso: blocco budget assente, soglia non raggiunta,
     fallback senza un modello in `models` (degradare su un provider non configurato
     trasformerebbe un problema di costo in un fallimento di generazione)."""
-    if provider != "anthropic":
+    if provider not in KEY_PROVIDERS:
         return provider, model
     try:
         budget = settings.budget
@@ -441,7 +444,8 @@ async def _ollama_astream(model: str, prompt: str, timeout: float):
 
 
 # ---------------------------------------------------------------------------
-# Provider: anthropic (Claude API — SDK ufficiale, API key da ANTHROPIC_API_KEY)
+# Provider: anthropic (Claude API — SDK ufficiale, API key da ANTHROPIC_API_KEY o
+# dal menu Impostazioni: core.llm_settings_store.api_key)
 # ---------------------------------------------------------------------------
 
 def _anthropic_module():
@@ -471,6 +475,13 @@ def _anthropic_pricing(model: str) -> tuple[float, float] | None:
         return None
 
 
+def _cloud_key_kwargs(provider: str) -> dict:
+    """La chiave delle Impostazioni, se c'è; altrimenti nessun argomento e l'SDK legge
+    la variabile d'ambiente come ha sempre fatto."""
+    key = api_key(provider)
+    return {"api_key": key} if key else {}
+
+
 def _log_anthropic_usage(model: str, message) -> None:
     """Logga a INFO la spesa della chiamata Anthropic: token di input/output e, se
     llm_settings.pricing configura un prezzo per questo modello, il costo stimato in
@@ -483,17 +494,21 @@ def _log_anthropic_usage(model: str, message) -> None:
     viene contabilizzata, quindi solo le chiamate RIUSCITE e con un prezzo configurato
     incidono sul tetto. L'altra fonte è il costo di fine run dell'agente Claude
     (agent_bridge), riportato direttamente dall'SDK senza bisogno di `pricing`."""
+    usage = getattr(message, "usage", None)
+    if usage is not None:
+        _log_usage("anthropic", model, getattr(usage, "input_tokens", None),
+                   getattr(usage, "output_tokens", None))
+
+
+def _log_usage(provider: str, model: str, input_tokens, output_tokens) -> None:
+    """Riga di spesa comune ai provider cloud, e contatore del budget giornaliero. Non
+    deve mai far fallire la generazione: ogni errore di calcolo/logging è inghiottito."""
     try:
-        usage = getattr(message, "usage", None)
-        if usage is None:
-            return
-        input_tokens = usage.input_tokens
-        output_tokens = usage.output_tokens
         pricing = _anthropic_pricing(model)
         if pricing is None:
             logger.info(
-                "llm_usage provider=anthropic model=%s input_tokens=%s output_tokens=%s",
-                model, input_tokens, output_tokens,
+                "llm_usage provider=%s model=%s input_tokens=%s output_tokens=%s",
+                provider, model, input_tokens, output_tokens,
             )
             return
         input_per_mtok, output_per_mtok = pricing
@@ -501,18 +516,18 @@ def _log_anthropic_usage(model: str, message) -> None:
             (input_tokens * input_per_mtok + output_tokens * output_per_mtok) / 1_000_000, 6,
         )
         logger.info(
-            "llm_usage provider=anthropic model=%s input_tokens=%s output_tokens=%s cost_usd=%s",
-            model, input_tokens, output_tokens, cost_usd,
+            "llm_usage provider=%s model=%s input_tokens=%s output_tokens=%s cost_usd=%s",
+            provider, model, input_tokens, output_tokens, cost_usd,
         )
         _record_spend(cost_usd)
     except Exception:
-        logger.warning("Impossibile loggare la spesa Anthropic (usage/pricing malformati).", exc_info=True)
+        logger.warning("Impossibile loggare la spesa di %s (usage/pricing malformati).", provider, exc_info=True)
 
 
 def _anthropic_generate(model: str, prompt: str, timeout: float) -> str:
     anthropic = _anthropic_module()
     try:
-        client = anthropic.Anthropic(timeout=timeout)
+        client = anthropic.Anthropic(timeout=timeout, **_cloud_key_kwargs("anthropic"))
         message = client.messages.create(
             model=model,
             max_tokens=ANTHROPIC_MAX_TOKENS,
@@ -521,7 +536,7 @@ def _anthropic_generate(model: str, prompt: str, timeout: float) -> str:
         _log_anthropic_usage(model, message)
         return _anthropic_text(message)
     except anthropic.AuthenticationError as e:
-        raise LLMError("[ERRORE ANTHROPIC]: API key mancante o non valida. Imposta la variabile d'ambiente ANTHROPIC_API_KEY.") from e
+        raise LLMError("[ERRORE ANTHROPIC]: API key mancante o non valida. Inseriscila in Impostazioni → Modelli LLM o imposta ANTHROPIC_API_KEY.") from e
     except anthropic.APITimeoutError as e:
         raise LLMError("[ERRORE DI TIMEOUT]: l'API Anthropic sta impiegando troppo tempo a rispondere.") from e
     except anthropic.APIConnectionError as e:
@@ -535,7 +550,7 @@ def _anthropic_generate(model: str, prompt: str, timeout: float) -> str:
 async def _anthropic_agenerate(model: str, prompt: str, timeout: float) -> str:
     anthropic = _anthropic_module()
     try:
-        client = anthropic.AsyncAnthropic(timeout=timeout)
+        client = anthropic.AsyncAnthropic(timeout=timeout, **_cloud_key_kwargs("anthropic"))
         message = await client.messages.create(
             model=model,
             max_tokens=ANTHROPIC_MAX_TOKENS,
@@ -544,7 +559,7 @@ async def _anthropic_agenerate(model: str, prompt: str, timeout: float) -> str:
         _log_anthropic_usage(model, message)
         return _anthropic_text(message)
     except anthropic.AuthenticationError as e:
-        raise LLMError("[ERRORE ANTHROPIC]: API key mancante o non valida. Imposta la variabile d'ambiente ANTHROPIC_API_KEY.") from e
+        raise LLMError("[ERRORE ANTHROPIC]: API key mancante o non valida. Inseriscila in Impostazioni → Modelli LLM o imposta ANTHROPIC_API_KEY.") from e
     except anthropic.APITimeoutError as e:
         raise LLMError("[ERRORE DI TIMEOUT]: l'API Anthropic sta impiegando troppo tempo a rispondere.") from e
     except anthropic.APIConnectionError as e:
@@ -556,6 +571,124 @@ async def _anthropic_agenerate(model: str, prompt: str, timeout: float) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Provider: openai (qualunque endpoint compatibile con /chat/completions: OpenAI, Mistral,
+# OpenRouter, Groq, ...; base URL e chiave dal menu Impostazioni o da OPENAI_API_KEY).
+# shortcut: un solo endpoint OpenAI-compatibile alla volta; per usarne due insieme
+# servirebbero provider con nome (openai:mistral, ...) in VALID_LLM_PROVIDERS.
+# ---------------------------------------------------------------------------
+
+_OPENAI_KEY_ERROR = ("[ERRORE OPENAI]: API key mancante o non valida. Inseriscila in "
+                     "Impostazioni → Modelli LLM o imposta OPENAI_API_KEY.")
+
+
+def _openai_request(model: str, prompt: str) -> tuple[str, dict, dict]:
+    key = api_key("openai")
+    if not key:
+        raise LLMError(_OPENAI_KEY_ERROR)
+    payload = {"model": model, "messages": [{"role": "user", "content": prompt}]}
+    return f"{openai_base_url()}/chat/completions", {"Authorization": f"Bearer {key}"}, payload
+
+
+def _openai_text(model: str, response) -> str:
+    if response.status_code in (401, 403):
+        raise LLMError(_OPENAI_KEY_ERROR)
+    if response.status_code != 200:
+        raise LLMError(f"[ERRORE OPENAI {response.status_code}]: {response.text[:300]}")
+    try:
+        data = response.json()
+        text = data["choices"][0]["message"]["content"] or ""
+    except (ValueError, KeyError, IndexError, TypeError) as e:
+        raise LLMError(f"[ERRORE GENERICO OPENAI]: risposta inattesa ({e}).") from e
+    usage = data.get("usage") or {}
+    _log_usage("openai", model, usage.get("prompt_tokens"), usage.get("completion_tokens"))
+    return text
+
+
+def _openai_generate(model: str, prompt: str, timeout: float) -> str:
+    url, headers, payload = _openai_request(model, prompt)
+    try:
+        with httpx2.Client(timeout=timeout, follow_redirects=False) as client:
+            response = client.post(url, headers=headers, json=payload)
+    except httpx2.TimeoutException as e:
+        raise LLMError("[ERRORE DI TIMEOUT]: l'endpoint OpenAI-compatibile sta impiegando troppo tempo a rispondere.") from e
+    except httpx2.HTTPError as e:
+        raise LLMError("[ERRORE DI CONNESSIONE]: impossibile raggiungere l'endpoint OpenAI-compatibile.") from e
+    return _openai_text(model, response)
+
+
+async def _openai_agenerate(model: str, prompt: str, timeout: float) -> str:
+    url, headers, payload = _openai_request(model, prompt)
+    try:
+        async with httpx2.AsyncClient(timeout=timeout, follow_redirects=False) as client:
+            response = await client.post(url, headers=headers, json=payload)
+    except httpx2.TimeoutException as e:
+        raise LLMError("[ERRORE DI TIMEOUT]: l'endpoint OpenAI-compatibile sta impiegando troppo tempo a rispondere.") from e
+    except httpx2.HTTPError as e:
+        raise LLMError("[ERRORE DI CONNESSIONE]: impossibile raggiungere l'endpoint OpenAI-compatibile.") from e
+    return _openai_text(model, response)
+
+
+# ---------------------------------------------------------------------------
+# Provider: claude_code (Claude via Claude Code / Agent SDK con il login dell'abbonamento,
+# menu Impostazioni 2026-10-30). Nessuna API key: consuma i limiti del piano Claude, gli
+# stessi di claude.ai e di Claude Code. Una sola chiamata, nessuno strumento, nessuna
+# impostazione utente/progetto. Attenzione: se ANTHROPIC_API_KEY è nell'ambiente la CLI
+# usa quella e non l'abbonamento. Uso personale: per offrire vibecraft ad altri i termini
+# dell'Agent SDK chiedono l'API key.
+# ---------------------------------------------------------------------------
+
+def claude_cli_path() -> str | None:
+    """CLI di Claude Code da passare all'SDK. Su Windows l'SDK rifiuta lo shim .cmd di npm,
+    che può però contenere il binario nativo; None = quella inclusa nell'SDK."""
+    cli = shutil.which("claude")
+    if sys.platform == "win32" and cli and Path(cli).suffix.lower() in (".cmd", ".bat"):
+        native = Path(cli).parent / "node_modules" / "@anthropic-ai" / "claude-code" / "bin" / "claude.exe"
+        return str(native) if native.is_file() else None
+    return None
+
+
+async def _claude_code_query(model: str, prompt: str) -> str:
+    try:
+        from claude_agent_sdk import ClaudeAgentOptions, query
+        from claude_agent_sdk.types import AssistantMessage, ResultMessage, TextBlock
+    except ImportError as e:
+        raise LLMError("[ERRORE CLAUDE CODE]: pacchetto 'claude-agent-sdk' non installato.") from e
+    options = {"setting_sources": [], "tools": [], "allowed_tools": [], "permission_mode": "dontAsk",
+               "model": model, "strict_mcp_config": True, "max_turns": 1}
+    if cli := claude_cli_path():
+        options["cli_path"] = cli
+    parts: list[str] = []
+    result = None
+    async for message in query(prompt=prompt, options=ClaudeAgentOptions(**options)):
+        if isinstance(message, AssistantMessage):
+            parts.extend(block.text for block in message.content if isinstance(block, TextBlock))
+        elif isinstance(message, ResultMessage):
+            result = message
+    if result is not None and result.is_error:
+        raise LLMError(f"[ERRORE CLAUDE CODE]: {(result.result or result.subtype)[:300]}")
+    return result.result if result is not None and result.result else "".join(parts)
+
+
+def _claude_code_generate(model: str, prompt: str, timeout: float) -> str:
+    """Sempre su un event loop proprio: quello di uvicorn su Windows può non saper avviare
+    sottoprocessi, e la CLI è un sottoprocesso (stesso motivo del loop dedicato di agent_bridge)."""
+    async def run():
+        return await asyncio.wait_for(_claude_code_query(model, prompt), timeout)
+    try:
+        return asyncio.run(run())
+    except LLMError:
+        raise
+    except TimeoutError as e:
+        raise LLMError("[ERRORE DI TIMEOUT]: Claude Code sta impiegando troppo tempo a rispondere.") from e
+    except Exception as e:
+        raise LLMError(f"[ERRORE CLAUDE CODE]: {type(e).__name__}: {str(e)[:300]}") from e
+
+
+async def _claude_code_agenerate(model: str, prompt: str, timeout: float) -> str:
+    return await asyncio.to_thread(_claude_code_generate, model, prompt, timeout)
+
+
+# ---------------------------------------------------------------------------
 # Registry e API pubblica
 # ---------------------------------------------------------------------------
 
@@ -563,6 +696,8 @@ async def _anthropic_agenerate(model: str, prompt: str, timeout: float) -> str:
 _PROVIDERS: dict[str, tuple] = {
     "ollama": (_ollama_generate, _ollama_agenerate),
     "anthropic": (_anthropic_generate, _anthropic_agenerate),
+    "openai": (_openai_generate, _openai_agenerate),
+    "claude_code": (_claude_code_generate, _claude_code_agenerate),
 }
 _STREAM_PROVIDERS: dict[str, object] = {"ollama": _ollama_astream}
 

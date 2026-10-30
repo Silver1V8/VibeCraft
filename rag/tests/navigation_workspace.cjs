@@ -102,7 +102,9 @@ const { chromium } = require('playwright');
     await page.goForward();
     await pipeline.locator('#agent-output').waitFor({ state: 'visible' });
     // Tema e nav esistono solo nella shell: la pagina mostrata dopo si allinea.
+    await page.locator('#settings-open').click();
     await page.locator('#theme-switcher').selectOption('classic');
+    await page.locator('#settings-dialog [data-click="closeSettings"]').click();
     await page.locator('#workspace-nav a[href^="/?project="]').click();
     assert.equal(await consolePage.locator('html').getAttribute('data-theme'), 'classic');
     assert.equal(await page.locator('#workspace-nav a[aria-current="page"]').textContent(), 'Console');

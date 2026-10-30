@@ -319,6 +319,9 @@ async function browserChecks() {
       return canvas.toDataURL() !== before;
     });
     assert.equal(await rainChanges(), true, 'Rain on must animate the welcome background');
+    // Lingua, tema e rain stanno nel menu Impostazioni (2026-10-30).
+    await chooser.locator('#settings-open').click();
+    await chooser.locator('#settings-dialog').waitFor();
     await chooser.locator('#motion-toggle').click();
     assert.equal(await rainChanges(), false, 'Rain off must stop the animation');
     await chooser.locator('#motion-toggle').click();
@@ -330,6 +333,7 @@ async function browserChecks() {
     await chooser.locator('#theme-switcher').selectOption('matrix');
     await rain.waitFor({ state: 'visible' });
     assert.equal(await rainChanges(), true, 'Explicit Rain on must override reduced motion');
+    await chooser.locator('#settings-dialog [data-click="closeSettings"]').click();
     assert.equal(await chooser.locator('#project-list .project-card').count(), 3);
     assert.equal(await chooser.locator('#project-list img').count(), 0, 'Project names must remain text on the welcome screen');
     await chooser.locator('#project-search').fill('nessun risultato');
@@ -403,7 +407,7 @@ async function browserChecks() {
       await preview.goto(base);
       await preview.locator('#project-list button.project-card-main').first().waitFor();
       for (const theme of ['classic', 'matrix']) {
-        await preview.locator('#theme-switcher').selectOption(theme);
+        await preview.evaluate(value => setUiTheme(value), theme);
         // Il CSS reduced-motion conserva transizioni di 0.01ms: attendere il paint
         // effettivo evita screenshot con font nuovo e colori del frame precedente.
         await preview.waitForFunction(background => getComputedStyle(document.body).backgroundColor === background,
@@ -418,7 +422,7 @@ async function browserChecks() {
         assert.equal(palette.background, theme === 'classic' ? 'rgb(2, 6, 23)' : 'rgb(4, 20, 10)', JSON.stringify(palette));
         await preview.screenshot({ path: path.join(output, `welcome-${theme}.png`) });
       }
-      await preview.locator('#theme-switcher').selectOption('classic');
+      await preview.evaluate(() => setUiTheme('classic'));
       await preview.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(2, 6, 23)');
       await preview.setViewportSize({ width: 390, height: 844 });
       assert.equal(await preview.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile welcome must not overflow');
@@ -427,7 +431,7 @@ async function browserChecks() {
       await preview.locator(`#project-list button.project-card-main[data-arg="${A}"]`).click();
       await preview.frameLocator('iframe').locator('#question-input').waitFor();
       await preview.evaluate(() => setUiTheme('classic'));
-      assert.equal(await preview.locator('#workspace-theme').isVisible(), true, 'The theme control lives in the workspace shell');
+      assert.equal(await preview.locator('#settings-open').isVisible(), true, 'The settings menu lives in the workspace shell');
       assert.equal(await preview.frameLocator('iframe').locator('#theme-switcher, .app-nav').count(), 0, 'Pages must not duplicate shell controls');
       assert.ok((await preview.locator('#project-select').evaluate(el => getComputedStyle(el).fontFamily)).includes('Inter'));
       await preview.screenshot({ path: path.join(output, 'workspace-classic.png') });

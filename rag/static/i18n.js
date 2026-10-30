@@ -118,7 +118,7 @@ function initLangSwitcher() {
     const themeLabel = host.querySelector('label[for="theme-switcher"]');
     if (themeLabel) host.insertBefore(label, themeLabel);
     else host.insertBefore(label, theme);
-    host.insertBefore(sel, theme);
+    host.insertBefore(sel, themeLabel || theme);
   } else {
     host.append(label, sel);
   }

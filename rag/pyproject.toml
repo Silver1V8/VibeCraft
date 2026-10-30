@@ -62,6 +62,7 @@ dependencies = [
     "tree-sitter-language-pack==1.22.1",
     "tree-sitter-typescript>=0.23.2",
     "uvicorn==0.54.0",
+    "anthropic>=2.3.0",
 ]
 
 [dependency-groups]

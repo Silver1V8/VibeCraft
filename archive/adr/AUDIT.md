@@ -4198,6 +4198,11 @@ nimble. Il giudice resta il 9b. Per l'ordine fissato qui, la prossima scelta è 
 remoto: va presa come decisione, perché il corpus esce dalla macchina
 ([evidenze](../eval-results/attribution_qwen38_20261029/evidence/METHOD.md)).
 
+**Chiusa il 2026-10-30.** Decisione presa dall'owner: giudice remoto, `claude-opus-5-5`
+via Claude Code con l'abbonamento (provider `claude_code`, scelto dal menu Impostazioni).
+**24/24**, negativi **7/7**, unanimi 24/24, prompt invariato. Passa S6: il modo (b) può
+entrare nelle tabelle ([evidenze](../eval-results/attribution_claude_20261030/evidence/METHOD.md)).
+
 ## Bilancio
 
 | | |
