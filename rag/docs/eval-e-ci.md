@@ -23,10 +23,10 @@ di autorità** (server su):
 uv run python -m eval.run
 ```
 
-Ultima misura (2026-08-25, 59 casi, corpus 26 documenti / 181 chunk, baseline
-ripristinato, `safeguards_security.md` istanziato sul dominio v2.2.0 e scheda
-`BUDGET_ANNUO` aggiunta al glossario):
-`recall@1 0.576 · @2 0.797 · @5 0.983 · @10 1.000`.
+Ultima misura (2026-10-30, 58 casi, corpus di esempio 50 documenti / 384 chunk, indice
+`v20261030T111436`): `recall@1 0.724 · @2 0.828 · @5 0.948 · @10 0.983`, MRR 0.818,
+avversariali al primo posto 5 su 5. Con l'autorità quasi spenta (α 0.1) sullo stesso indice:
+`recall@1 0.690 · @2 0.828 · @5 0.966 · @10 0.983`, MRR 0.802, avversariali 2 su 5.
 
 **Il guardrail asserisce sulla `k` dell'eval-gate, e con la sua soglia** — entrambe lette
 da `eval_gate` in [rag_config.yaml](../rag_config.yaml), oggi `recall@2 ≥ 0.75`. `--k`

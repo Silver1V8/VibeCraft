@@ -93,8 +93,8 @@ severo, è un gate cieco — lo supera qualunque candidata, anche una peggiorata
 Non blocca (non è una regressione), ma va letto come "abbassare `eval_gate.k` a un
 k che discrimina". Non è teorico: sul golden-set di 49 casi, misurato a luglio
 sul corpus di allora (11 documenti), il recall@10 era saturo a 1.000 su tutta la
-griglia di calibrazione. Oggi è 0.983 e discrimina, per due ragioni che vale la
-pena tenere distinte: il corpus è cresciuto a 26 documenti (e un caso classico non
+griglia di calibrazione. Oggi (30 ottobre 2026) è 0.983 e discrimina, per due ragioni che vale la
+pena tenere distinte: il corpus è cresciuto a 50 documenti (e un caso classico non
 arriva più in top-10, vedi sotto) e i casi avversariali abbassano il recall@1. Il server rileva ogni
 spostamento di CURRENT (`maybe_reload_graph`) e ricarica lo snapshot alla prima
 richiesta.
