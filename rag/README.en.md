@@ -12,7 +12,8 @@ Same status note as [`../README.md`](../README.md) / [`README.md`](README.md). N
 29th: the graph links frontend HTTP calls to backend Minimal API endpoints (`CALLS` edges),
 and a full rebuild frees the VRAM held by Ollama before embedding on GPU. New on the 30th: a
 **Settings** menu picks LLM models (local, cloud or per activity, including Claude on your
-subscription), and the Claude attribution judge closes R29.
+subscription), and the Claude attribution judge closes R29. Adversarial cases are now 5 of 5 at rank 1,
+after a corpus fix rather than a weight change.
 
 Pages under `docs/` explain *how* to operate the console. They are not corpus and
 are not indexed.

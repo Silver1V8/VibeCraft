@@ -2,8 +2,8 @@
 id: "graph-rag-ingestion-strategy-v1.0"
 title: "Razionale Strategico — Perché la Pipeline di Ingestion Graph-RAG è Progettata Così"
 project: "cross-project"
-version: "1.0.0"
-date: "2026-07-12"
+version: "1.0.1"
+date: "2026-10-30"
 status: "ENFORCED"
 classification: "METHODOLOGY"
 path: "docs/04_knowledge_informative/graph_rag_ingestion_strategy.md"
@@ -44,6 +44,8 @@ Il compromesso è tra due failure mode opposti:
 - **Chunk troppo piccoli** → si perde il contesto necessario perché il chunk sia comprensibile da solo, il che è fatale per i blocchi atomici (definizioni di entità, safeguard, scenari BDD) che devono restare interi.
 
 1500 caratteri è stato scelto empiricamente come la soglia oltre la quale BGE-M3 comincia a perdere precisione su testo normativo denso in italiano; 2500 è il punto oltre il quale si preferisce bloccare l'ingestion (severity `WARNING`) piuttosto che accettare una compressione lossy che potrebbe silenziosamente alterare il significato di una regola.
+
+Le regole che fissano questi limiti sono [REGOLA-VAL-02] e [REGOLA-VAL-06] della spec di ingestion: qui se ne spiega solo il perché.
 
 ## 3. Perché la segmentazione è a cascata e non "sempre per paragrafo"
 
