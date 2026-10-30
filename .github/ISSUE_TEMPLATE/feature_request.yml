@@ -1,0 +1,30 @@
+name: Feature request · Proposta di funzionalità
+description: Suggest an improvement · Proponi un miglioramento
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem · Problema
+      description: What are you trying to do, and what gets in the way? · Cosa vuoi fare, e cosa lo impedisce?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution · Soluzione proposta
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered · Alternative valutate
+  - type: checkboxes
+    id: impact
+    attributes:
+      label: Areas touched · Aree toccate
+      options:
+        - label: Retrieval ranking or calibrated parameters · Ranking o parametri calibrati
+        - label: HTTP routes or MCP tools (security surface) · Route HTTP o tool MCP (superficie di sicurezza)
+        - label: Indexing · Indicizzazione
+        - label: Web console · Console web

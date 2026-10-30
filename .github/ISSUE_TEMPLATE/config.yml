@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a vulnerability · Segnala una vulnerabilità
+    url: https://github.com/Silver1V8/VibeCraft/security/advisories/new
+    about: Private report, never a public issue · Segnalazione privata, mai una issue pubblica
