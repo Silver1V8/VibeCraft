@@ -797,16 +797,23 @@ def apply_precedence(results: list[dict], *, graph,
     opaco sommato a quello di autorità, e renderebbe illeggibile il contributo di ciascuno.
     Qui la relazione è booleana («precede»), e va applicata come tale.
 
-    PERMUTAZIONE STABILE: l'ordine relativo di tutto ciò che non è coinvolto in una
-    precedenza resta identico, e il subordinato scende del minimo necessario. Un sort a
-    chiave composita (`key=(è_subordinato, indice)`) sembra equivalente e NON lo è: spinge
-    il subordinato in fondo, oltre documenti che con quella precedenza non c'entrano nulla.
-    Verificato: su `[B, X, A, Y]` con `A > B`, la chiave composita produce `[X, A, Y, B]`
-    (B scavalcato anche da Y, estraneo), questa funzione produce `[X, A, B, Y]`.
-    L'implementazione è un ordinamento topologico STABILE (Kahn con scelta del minimo indice
-    originale fra i nodi liberi) sui soli DOCUMENTI, seguito da un sort stabile dei chunk
-    sulla posizione del loro documento — così i chunk di uno stesso documento non si
-    rimescolano fra loro.
+    PERMUTAZIONE STABILE, a due grane. Un documento che è estremo di una precedenza
+    rimasta (dopo la rimozione dei cicli) è un blocco: i suoi chunk restano insieme,
+    nell'ordine in cui sono arrivati, e il blocco del subordinato scende del minimo
+    necessario — appena sotto il prevalente, non in fondo alla lista. Un documento che
+    non è in nessuna precedenza non è un blocco: ogni suo chunk resta un elemento a sé.
+    Accorparli cambierebbe l'ordine relativo di chunk estranei intercalati
+    (`B1, X1, A1, Y1, X2` con `A > B` diventerebbe `X1, X2, A1, B1, Y1`, e Y può uscire
+    dal top-k senza aver partecipato al vincolo). La funzione produce invece
+    `X1, A1, B1, Y1, X2`.
+
+    Un sort a chiave composita (`key=(è_subordinato, indice)`) sembra equivalente e NON
+    lo è: spinge il subordinato in fondo, oltre documenti che con quella precedenza non
+    c'entrano nulla. Verificato: su `[B, X, A, Y]` con `A > B` la chiave composita
+    produce `[X, A, Y, B]` (B scavalcato anche da Y, estraneo); questa funzione produce
+    `[X, A, B, Y]`. L'ordinamento è un Kahn STABILE (a ogni passo il libero con indice
+    originale minimo) sugli atomi: un blocco per ogni documento coinvolto, un atomo per
+    ogni chunk degli altri.
 
     CICLI: `A > B` e `B > A` è un corpus malformato, non un errore di richiesta. Gli archi
     del ciclo vengono rimossi PRIMA dell'ordinamento (con un warning che nomina i doc_id) e
@@ -838,27 +845,47 @@ def apply_precedence(results: list[dict], *, graph,
         )
         vincoli.remove_edges_from(ciclo)
 
-    rango = {d: i for i, d in enumerate(doc_order)}
-    grado_entrante = {d: vincoli.in_degree(d) for d in doc_order}
-    liberi = [rango[d] for d in doc_order if grado_entrante[d] == 0]
-    heapq.heapify(liberi)
-    nuovo_ordine: list[str] = []
-    while liberi:
-        doc = doc_order[heapq.heappop(liberi)]
-        nuovo_ordine.append(doc)
-        for succ in vincoli.successors(doc):
-            grado_entrante[succ] -= 1
-            if grado_entrante[succ] == 0:
-                heapq.heappush(liberi, rango[succ])
-    # Difesa: con i cicli già rimossi il grafo è aciclico e Kahn li colloca tutti. Se non
-    # fosse così, i residui tornano nell'ordine originale invece di sparire dai risultati.
-    if len(nuovo_ordine) < len(doc_order):
-        collocati = set(nuovo_ordine)
-        nuovo_ordine += [d for d in doc_order if d not in collocati]
+    coinvolti = {d for d in doc_order if vincoli.degree(d) > 0}
+    # Atomo = blocco di un documento dentro una precedenza, oppure un singolo chunk
+    # estraneo. La chiave è l'indice del primo chunk dell'atomo: Kahn sceglie il minimo.
+    atomi: list[list[int]] = []
+    chiave: list[int] = []
+    doc_atomo: dict[str, int] = {}
+    for i, r in enumerate(results):
+        doc = str(r.get("doc_id") or "")
+        if doc in coinvolti:
+            slot = doc_atomo.get(doc)
+            if slot is None:
+                doc_atomo[doc] = len(atomi)
+                atomi.append([i])
+                chiave.append(i)
+            else:
+                atomi[slot].append(i)
+        else:
+            atomi.append([i])
+            chiave.append(i)
 
-    posizione = {d: i for i, d in enumerate(nuovo_ordine)}
-    # sorted() è STABILE: i chunk di uno stesso documento conservano il loro ordine relativo.
-    return sorted(results, key=lambda r: posizione.get(str(r.get("doc_id") or ""), len(posizione)))
+    archi: dict[int, list[int]] = {i: [] for i in range(len(atomi))}
+    grado = [0] * len(atomi)
+    for a, b in vincoli.edges:
+        ia, ib = doc_atomo[a], doc_atomo[b]
+        archi[ia].append(ib)
+        grado[ib] += 1
+    da_chiave = {k: i for i, k in enumerate(chiave)}
+    liberi = [k for i, k in enumerate(chiave) if grado[i] == 0]
+    heapq.heapify(liberi)
+    ordine: list[int] = []
+    while liberi:
+        ia = da_chiave[heapq.heappop(liberi)]
+        ordine.append(ia)
+        for succ in archi[ia]:
+            grado[succ] -= 1
+            if grado[succ] == 0:
+                heapq.heappush(liberi, chiave[succ])
+    if len(ordine) < len(atomi):
+        messi = set(ordine)
+        ordine += [i for i in range(len(atomi)) if i not in messi]
+    return [results[i] for ia in ordine for i in atomi[ia]]
 
 
 def colbert_maxsim(colbert_query, chunk_vectors) -> float | None:

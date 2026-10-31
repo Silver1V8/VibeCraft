@@ -663,6 +663,26 @@ def test_precedenza_su_chunk_multipli_dello_stesso_documento():
     assert [r["chunk_id"] for r in out if r["doc_id"] == "B.md"] == chunk_b
 
 
+def test_precedenza_non_riavvicina_i_chunk_estranei_intercalati():
+    """Contratto esplicito: si raggruppano solo i documenti che sono estremi di una
+    precedenza. I chunk di un documento estraneo restano nell'ordine in cui sono
+    arrivati, anche se intercalati con altri estranei. Accorparli per documento
+    cambierebbe chi può entrare nel top-k senza che quel documento sia nel vincolo.
+
+    Ingresso B1, X1, A1, Y1, X2 con la sola relazione A > B.
+    """
+    results = [
+        {"chunk_id": "B1", "doc_id": "B.md"},
+        {"chunk_id": "X1", "doc_id": "X.md"},
+        {"chunk_id": "A1", "doc_id": "A.md"},
+        {"chunk_id": "Y1", "doc_id": "Y.md"},
+        {"chunk_id": "X2", "doc_id": "X.md"},
+    ]
+    out = retrieval.apply_precedence(
+        results, graph=_grafo_prec(("A.md", "B.md")), relation=_REL)
+    assert [r["chunk_id"] for r in out] == ["X1", "A1", "B1", "Y1", "X2"]
+
+
 def test_regola_precedenza_assente_dal_prompt_senza_conflitto():
     """Una regola inerte insegna al modello a ignorarla: [PRECEDENZA-FONTI] non compare
     quando nessuna precedenza si applica."""
