@@ -245,11 +245,47 @@ def full_graph(graph: nx.DiGraph, rule_descriptions: dict) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+_IMPACT_NATURES = frozenset({"structural", "curated", "inferred"})
+
+
+def impact_edge_view(u: str, v: str, data: dict) -> dict:
+    """Vista additiva di un arco per l'Impact Ripple.
+
+    Copia solo ciò che l'arco ha già. `nature` è una delle tre registrate, altrimenti
+    None: una relazione nota non diventa «curated» o «verificata», e il fallback di
+    edge_reliability() non riempie un'affidabilità che il grafo non ha salvato.
+    `weight`, `reliability` e `provenance` restano None se la chiave manca o non è
+    del tipo atteso."""
+    recorded = data.get("nature")
+    nature = recorded if isinstance(recorded, str) and recorded in _IMPACT_NATURES else None
+    weight = _impact_number(data.get("weight")) if "weight" in data else None
+    reliability = _impact_number(data.get("reliability")) if "reliability" in data else None
+    provenance = data.get("provenance") if "provenance" in data else None
+    provenance = provenance.strip() if isinstance(provenance, str) else None
+    return {
+        "from": u,
+        "to": v,
+        "relation": data.get("relation") or "",
+        "nature": nature,
+        "weight": weight,
+        "reliability": reliability,
+        "provenance": provenance or None,
+    }
+
+
+def _impact_number(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
 def impact(graph: nx.DiGraph, node: str, depth: int = 3) -> dict:
     """Impact Ripple: espansione BFS a cerchi concentrici da un nodo. Ogni 'ring' è
-    un livello di distanza (1 hop, 2 hop, ...). Risponde 'cosa viene impattato se
-    modifico questo nodo?' in modo deterministico (nessun LLM). Presuppone node ∈ graph
-    (la validazione dell'esistenza è a carico del chiamante, che risponde 404)."""
+    un livello di distanza (1 hop, 2 hop, ...), non un impatto funzionale accertato.
+    Attraversamento, direzioni e profondità restano quelli di prima. Gli archi
+    aggiungono natura, peso, affidabilità e provenienza solo quando sono già
+    sull'arco. Presuppone node ∈ graph (la validazione dell'esistenza è a carico
+    del chiamante, che risponde 404)."""
     rings: list[list[str]] = [[node]]
     visited: set[str] = {node}
     frontier: set[str] = {node}
@@ -276,7 +312,7 @@ def impact(graph: nx.DiGraph, node: str, depth: int = 3) -> dict:
         for n in visited
     ]
     edges = [
-        {"from": u, "to": v, "relation": d.get("relation", "")}
+        impact_edge_view(u, v, d)
         for u, v, d in graph.edges(data=True)
         if u in visited and v in visited
     ]

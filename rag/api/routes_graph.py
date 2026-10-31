@@ -50,8 +50,9 @@ async def graph_impact(
     depth: int = Query(default=3, ge=1, le=6),
 ):
     """Impact Ripple: espansione BFS a cerchi concentrici da un nodo. Ogni 'ring' è
-    un livello di distanza (1 hop, 2 hop, ...). Risponde 'cosa viene impattato se
-    modifico questo nodo?' in modo deterministico (nessun LLM).
+    un livello di distanza nel grafo (impatto potenziale, non un effetto accertato).
+    Il payload degli archi aggiunge natura, peso, affidabilità e provenienza quando
+    il grafo li ha già; non li deduce.
 
     Input validato: `node` non vuoto, `depth` in [1, 6] (evita BFS incontrollate)."""
     project = get_project(request)

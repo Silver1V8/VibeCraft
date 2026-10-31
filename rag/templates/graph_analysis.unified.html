@@ -124,6 +124,11 @@
     .legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 10px; font-size: var(--text-xs); color: var(--legend-text); }
     .legend span { display: inline-flex; align-items: center; gap: 5px; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .edge-sample { width: 22px; height: 0; border-top-width: 2px; border-top-color: currentColor; display: inline-block; }
+    .edge-structural { border-top-style: solid; }
+    .edge-curated { border-top-style: dashed; }
+    .edge-inferred { border-top-style: dotted; }
+    .edge-unspecified { border-top-style: double; border-top-width: 4px; }
     .tooltip {
       position: absolute; pointer-events: none; display: none; z-index: 10;
       background: var(--tooltip-bg); border: 1px solid var(--tooltip-border); border-radius: 6px; padding: 5px 8px;
@@ -211,9 +216,8 @@
         <p id="node-name" class="node-name"></p>
         <h3><span data-i18n="analysis.node.relations">Relazioni</span> <span id="rel-status" class="status"></span></h3>
         <ul id="node-relations" class="relations"></ul>
-        <h3 title="Impact Ripple" data-i18n-title="analysis.node.rippleTitleAttr"><span data-i18n="analysis.node.ripple">Propagazione dell'impatto</span> <span id="ripple-status" class="status"></span></h3>
-        <p class="desc" data-i18n="analysis.node.rippleDesc">Anelli concentrici: il centro è il nodo scelto, ogni anello un passo di distanza nel grafo.
-          Clicca un nodo per selezionarlo.</p>
+        <h3 title="Impact Ripple — impatto potenziale" data-i18n-title="analysis.node.rippleTitleAttr"><span data-i18n="analysis.node.ripple">Impatto potenziale</span> <span id="ripple-status" class="status"></span></h3>
+        <p class="desc" data-i18n="analysis.node.rippleDesc">Anelli concentrici: il centro è il nodo scelto, ogni anello un passo nel grafo, non un effetto accertato. Il tratto dell'arco dice la natura della relazione. Clicca un nodo per selezionarlo.</p>
         <label class="status"><span data-i18n="analysis.node.depth">Profondità</span>
           <select id="ripple-depth" data-change="loadImpact">
             <option>1</option><option selected>2</option><option>3</option><option>4</option>
@@ -228,6 +232,9 @@
           <span><i class="dot" style="background:var(--type-entity)"></i> <span data-i18n="analysis.legend.entity">entità</span></span>
           <span><i class="dot" style="background:var(--type-code)"></i> <span data-i18n="analysis.legend.code">codice</span></span>
         </div>
+        <div id="ripple-edge-legend" class="legend"></div>
+        <p id="ripple-caveat" class="desc"></p>
+        <ul id="ripple-edges" class="relations"></ul>
       </div>
     </section>
   </main>

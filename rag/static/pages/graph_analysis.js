@@ -345,12 +345,24 @@
         });
       });
 
-      // Archi
-      ctx.strokeStyle = rippleEdgeColor; ctx.lineWidth = 1;
+      // Archi: il tratto distingue la natura. Il colore è lo stesso, così la differenza
+      // non sta solo nella tinta. Un punteggio alto non cambia un arco inferito.
+      const dash = {
+        structural: [],
+        curated: [7, 4],
+        inferred: [1, 3],
+        unspecified: [8, 3, 1, 3],
+      };
+      ctx.lineWidth = 1.5;
       for (const e of data.edges) {
         const a = pos[e.from], b = pos[e.to];
-        if (a && b) { ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+        if (!a || !b) continue;
+        const kind = edgeNatureKind(e.nature);
+        ctx.setLineDash(dash[kind]);
+        ctx.strokeStyle = rippleEdgeColor;
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
       }
+      ctx.setLineDash([]);
 
       // Nodi
       rippleNodes = [];
@@ -366,7 +378,63 @@
       // Etichetta del centro
       ctx.fillStyle = textColor; ctx.font = `12px ${fontFamily}`; ctx.textAlign = 'center';
       ctx.fillText(data.center.length > 30 ? data.center.slice(0, 28) + '…' : data.center, cx, cy - 16);
+      renderRippleDetails(data);
     }
+
+    /* ── impact evidence (fase 1) ── */
+    function edgeNatureKind(nature) {
+      if (nature === 'structural' || nature === 'curated' || nature === 'inferred') return nature;
+      return 'unspecified';
+    }
+
+    function rippleApproachText(node, data) {
+      if (!node || node.ring === 0) return t('analysis.ripple.tooltipCenter');
+      const into = (data.edges || []).filter(e => {
+        const other = e.to === node.id ? e.from : (e.from === node.id ? e.to : null);
+        if (!other) return false;
+        const otherNode = (data.nodes || []).find(n => n.id === other);
+        return otherNode && otherNode.ring === node.ring - 1;
+      });
+      const list = into.map(e => {
+        const rel = e.relation || t('analysis.node.linkedTo');
+        return rel + ' (' + t('analysis.ripple.nature.' + edgeNatureKind(e.nature)) + ')';
+      });
+      return t('analysis.ripple.tooltipReached', {
+        list: list.join(', ') || t('analysis.ripple.nature.unspecified'),
+      });
+    }
+
+    function renderRippleDetails(data) {
+      const legend = document.getElementById('ripple-edge-legend');
+      const list = document.getElementById('ripple-edges');
+      const caveat = document.getElementById('ripple-caveat');
+      if (caveat) caveat.textContent = t('analysis.ripple.pathCaveat');
+      if (legend) {
+        legend.innerHTML = ['structural', 'curated', 'inferred', 'unspecified'].map(kind =>
+          `<span><i class="edge-sample edge-${kind}" aria-hidden="true"></i> ${escapeHtml(t('analysis.ripple.legend.' + kind))}</span>`
+        ).join('');
+      }
+      if (!list) return;
+      list.setAttribute('aria-label', t('analysis.node.ripple'));
+      const edges = data.edges || [];
+      list.innerHTML = edges.length
+        ? edges.map(e => {
+          const kind = edgeNatureKind(e.nature);
+          const bits = [escapeHtml(t('analysis.ripple.nature.' + kind))];
+          if (e.weight !== null && e.weight !== undefined && e.weight !== '') {
+            bits.push(escapeHtml(t('analysis.ripple.weight', { n: e.weight })));
+          }
+          if (e.reliability !== null && e.reliability !== undefined && e.reliability !== '') {
+            bits.push(escapeHtml(t('analysis.ripple.reliability', { n: e.reliability })));
+          }
+          if (e.provenance) bits.push(escapeHtml(t('analysis.ripple.provenance', { p: e.provenance })));
+          return `<li><span class="rel">${escapeHtml(e.relation || t('analysis.node.linkedTo'))}</span>`
+            + `<span>${escapeHtml(String(e.from))} → ${escapeHtml(String(e.to))}</span>`
+            + `<span class="rel">${bits.join(' · ')}</span></li>`;
+        }).join('')
+        : `<li><span class="rel">${escapeHtml(t('analysis.ripple.noEdges'))}</span></li>`;
+    }
+    /* ── fine impact evidence ── */
 
     (function () {
       const canvas = document.getElementById('ripple-canvas');
@@ -387,7 +455,8 @@
           const mutedText = themeVar('--muted-text', '#4dbf6e');
           tip.style.display = 'block';
           tip.style.left = (mx + 12) + 'px'; tip.style.top = (my + 12) + 'px';
-          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${escapeHtml(best.type)}${best.kind ? ' · ' + escapeHtml(best.kind) : ''} · ${escapeHtml(t('analysis.node.ringN', { n: best.ring }))}</span>`;
+          tip.innerHTML = `${escapeHtml(best.id)}<br><span style="color:${mutedText}">${escapeHtml(best.type)}${best.kind ? ' · ' + escapeHtml(best.kind) : ''} · ${escapeHtml(t('analysis.node.ringN', { n: best.ring }))}</span>`
+            + `<br><span style="color:${mutedText}">${escapeHtml(rippleApproachText(best, lastImpactData || { edges: [], nodes: [] }))}</span>`;
           canvas.style.cursor = 'pointer';
         } else { tip.style.display = 'none'; canvas.style.cursor = 'default'; }
       });
@@ -421,6 +490,7 @@
             n: lastImpactData.nodes.length - 1,
             rings: lastImpactData.rings.slice(1).join(', ') || '0',
           });
+          renderRippleDetails(lastImpactData);
         }
       }
     };

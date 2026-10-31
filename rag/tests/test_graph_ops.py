@@ -56,12 +56,61 @@ def test_impact_rings_and_membership():
     # gli archi restituiti sono solo quelli interni all'insieme visitato
     for e in out["edges"]:
         assert e["from"] in ids and e["to"] in ids
+    # Il grafo di prova non registra natura né pesi: non diventano «curated».
+    for e in out["edges"]:
+        assert e["nature"] is None
+        assert e["weight"] is None
+        assert e["reliability"] is None
+        assert e["provenance"] is None
+        assert set(e) == {"from", "to", "relation", "nature", "weight", "reliability", "provenance"}
+
+
+def test_impact_conserva_metadati_e_la_topologia():
+    """I metadati già sull'arco restano nel payload. Anelli e estremi non dipendono
+    da natura o punteggio: un inferito con peso alto non sparisce e non sale di anello."""
+    g = _graph()
+    g.edges["svc.py::f", "spec.md"].update(
+        nature="inferred", weight=0.99, reliability=0.8, provenance="cosine-argmax",
+    )
+    g.edges["spec.md", "EVENTO"].update(nature="structural", reliability=1.0)
+    senza = graph_ops.impact(_graph(), "spec.md", depth=3)
+    con = graph_ops.impact(g, "spec.md", depth=3)
+    assert con["rings"] == senza["rings"]
+    assert {n["id"] for n in con["nodes"]} == {n["id"] for n in senza["nodes"]}
+    assert {(e["from"], e["to"]) for e in con["edges"]} == {(e["from"], e["to"]) for e in senza["edges"]}
+    impl = next(e for e in con["edges"] if e["relation"] == "IMPLEMENTS")
+    assert impl["nature"] == "inferred"
+    assert impl["weight"] == 0.99
+    assert impl["reliability"] == 0.8
+    assert impl["provenance"] == "cosine-argmax"
+    mentions = next(e for e in con["edges"] if e["relation"] == "MENTIONS")
+    assert mentions["nature"] == "structural"
+    assert mentions["weight"] is None
+    assert mentions["provenance"] is None
+
+
+def test_impact_legacy_e_natura_ignota_restano_non_specificati():
+    """Un arco vecchio, o con una natura che non è fra le tre note, non viene
+    promosso a curato o a verificato. Il fallback di edge_reliability non entra."""
+    g = nx.DiGraph()
+    g.add_node("a")
+    g.add_node("b")
+    g.add_edge("a", "b", relation="IMPLEMENTS")
+    g.add_edge("b", "a", relation="PIPPO", nature="verified", weight="alto", reliability="sicuro")
+    out = graph_ops.impact(g, "a", depth=1)
+    by_rel = {e["relation"]: e for e in out["edges"]}
+    assert by_rel["IMPLEMENTS"]["nature"] is None
+    assert by_rel["IMPLEMENTS"]["reliability"] is None
+    assert by_rel["PIPPO"]["nature"] is None
+    assert by_rel["PIPPO"]["weight"] is None
+    assert by_rel["PIPPO"]["reliability"] is None
+    assert out["rings"] == [1, 1]
 
 
 # ---------------------------------------------------------------------------
 # Fiducia sugli archi (S2, ADR 0002): edge_nature, edge_reliability,
-# implements_reliability. Puro metadato — non entra in bfs_expand/build_context/
-# full_graph/impact sopra, quindi non li si ritesta.
+# implements_reliability. Il ranking e la BFS non le usano. impact() le
+# espone soltanto, senza cambiare chi è raggiungibile.
 # ---------------------------------------------------------------------------
 def test_natura_per_relazione():
     """PART_OF/MENTIONS sono strutturali (filesystem/regex deterministica), gli archi
