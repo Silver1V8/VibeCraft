@@ -3,8 +3,9 @@ Italiano | [English](README.en.md)
 # Archivio
 
 Materiale storico di sviluppo: nessun codice a runtime lo legge, non entra nell'immagine
-Docker (`Dockerfile` copia solo `rag/`, `docs/` e `code/`; questa cartella resta comunque
-fuori dal contesto di build, vedi `.dockerignore`) e non serve per far girare i test.
+Docker (`Dockerfile` copia `rag/`, `templates/docs/` in `/app/docs` e `templates/code/` in
+`/app/code`; non copia `archive/`. Questa cartella resta comunque fuori dal contesto di
+build, vedi `.dockerignore`) e non serve per far girare i test.
 È conservato per tracciabilità — decisioni e misure passate restano verificabili — senza
 appesantire gli alberi che si consultano di continuo (`rag/adr/`, `rag/eval/results/`).
 
@@ -21,6 +22,9 @@ appesantire gli alberi che si consultano di continuo (`rag/adr/`, `rag/eval/resu
   in `rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md`.
 - `adr/horizontal-bench/` — le run del 28 settembre 2026. Una run nuova si scrive ancora
   sotto `rag/adr/horizontal-bench/`.
+- `baseline-reports/` — review e diari di sviluppo tolti da `templates/docs/` il 31 ottobre
+  2026. Inventario in `baseline-reports/INVENTARIO.md`. I progetti già creati non sono stati
+  modificati.
 - `eval-results/<run>/` — le run di valutazione spostate dall'ex `rag/eval/results/<run>/`.
   Dal 2026-10-28 (R6) il **tip** tiene i resoconti (`.md`, CSV, script, patch) e toglie
   dal working tree i blob pesanti (`.json` / `.jsonl` / `.log` / `.zip`, ~108 MiB): vedi

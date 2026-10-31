@@ -141,8 +141,9 @@ RUN useradd --create-home --uid 10001 vibecraft \
 WORKDIR /app/rag
 
 # Sorgenti DOPO le dipendenze: una modifica al codice non invalida il layer pesante.
-# templates/docs/ entra nell'immagine perche' e' il corpus di esempio (14 documenti) che rende
-# l'avvio rapido possibile senza procurarsi nulla; si sovrascrive con un bind mount.
+# templates/docs/ entra nell'immagine perche' e' il corpus di esempio. I report di
+# sviluppo non ci sono: stanno in archive/baseline-reports e questo COPY non lo include.
+# Si sovrascrive con un bind mount.
 COPY --chown=vibecraft:vibecraft rag/ /app/rag/
 # Baseline: il writer la copia una volta in /app/projects/legacy/docs.
 COPY --chown=vibecraft:vibecraft templates/docs/ /app/docs/

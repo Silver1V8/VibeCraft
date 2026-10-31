@@ -82,6 +82,8 @@ code/**/TestResults/
 code/**/packages/
 
 # Stesse esclusioni per gli scheletri spostati sotto templates/.
+# superpowers non è più nel seme (archive/baseline-reports/, 2026-10-31): il pattern resta
+# così un diario rimesso qui non rientra nel contesto di build.
 templates/docs/superpowers/
 templates/changes/
 templates/code/frontend/.next/

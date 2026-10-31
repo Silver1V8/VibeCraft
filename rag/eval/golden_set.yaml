@@ -451,6 +451,10 @@ cases:
   # ── distrattore: 03_changes_historical/*-canvas-review.md (NESSUN frontmatter, peso 0.30)
   #    È il caso che S1 ha reso distinguibile: prima di S1 questi sei file pesavano 0.70,
   #    cioè quanto una spec REQUIREMENTS calibrata (difetto D2 dell'ADR 0002).
+  #    Dal 2026-10-31 il file non è nel seme templates/docs: sta in
+  #    archive/baseline-reports/. Il caso resta qui, non è stato cancellato. Su un indice
+  #    nuovo il distrattore è assente: un cambiamento di punteggio è un cambiamento di
+  #    corpus, non di ranking. Vale ancora per un progetto che ha già il file in docs/.
   - q: "controllo stilistico della palette colori verificabile nel codice sorgente"
     adversarial: true
     distractor: 03_changes_historical/fe1-canvas-review.md

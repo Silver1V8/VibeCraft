@@ -160,3 +160,51 @@ def test_eval_history_py_punta_ancora_al_percorso_invariato():
     percorso_reale = eval_history.RESULTS_DIR / "history.jsonl"
     assert percorso_reale == RAG_DIR / "eval" / "results" / "history.jsonl"
     assert percorso_reale.is_file()
+
+
+def test_report_di_sviluppo_fuori_dal_seme(tmp_path):
+    """I report non sono nel seme templates/docs. Un progetto già registrato non è riscritto.
+    Il clone senza radice docs/ e code/ copia quel seme, come fa il Dockerfile."""
+    from dataclasses import replace
+
+    from core.projects import ProjectRegistry, legacy_project_context
+
+    assert not (REPO_ROOT / "templates" / "docs" / "superpowers").exists()
+    assert not (REPO_ROOT / "templates" / "docs" / "03_changes_historical" / "fe1-canvas-review.md").exists()
+    assert (ARCHIVE_DIR / "baseline-reports" / "fe1-canvas-review.md").is_file()
+    assert (ARCHIVE_DIR / "baseline-reports" / "superpowers" / "plans").is_dir()
+    assert (ARCHIVE_DIR / "baseline-reports" / "INVENTARIO.md").is_file()
+    assert (REPO_ROOT / "templates" / "docs" / "01_architecture_norms" / "coding_standards.md").is_file()
+    assert (REPO_ROOT / "templates" / "docs" / "03_changes_historical" / ".gitkeep").is_file()
+
+    dockerignore = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    assert "archive/" in dockerignore
+    assert "templates/docs/superpowers/" in dockerignore
+    assert "docs/superpowers/" in dockerignore
+    dockerfile = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert "COPY --chown=vibecraft:vibecraft templates/docs/ /app/docs/" in dockerfile
+    copied = [line.strip() for line in dockerfile.splitlines() if line.strip().startswith("COPY")]
+    assert not any("archive/" in line for line in copied)
+
+    legacy = replace(
+        legacy_project_context(), root=REPO_ROOT, code_dir=REPO_ROOT / "code",
+        docs_dir=REPO_ROOT / "docs", changes_dir=REPO_ROOT / "changes",
+        database_dir=REPO_ROOT / "database", staging_dir=REPO_ROOT / "database" / "staging",
+    )
+    gia = tmp_path / "gia" / "projects"
+    gia.mkdir(parents=True)
+    (gia / "projects.json").write_text(
+        '{"schema_version": 2, "projects": []}', encoding="utf-8")
+    marker = gia / "gia-creato" / "docs" / "superpowers" / "diario.md"
+    marker.parent.mkdir(parents=True)
+    marker.write_text("non toccare\n", encoding="utf-8")
+    assert ProjectRegistry(gia, legacy_context=legacy).list() == []
+    assert marker.read_text(encoding="utf-8") == "non toccare\n"
+
+    store = ProjectRegistry(tmp_path / "nuovo", legacy_context=legacy)
+    [project] = store.list()
+    assert (project.docs_dir / "01_architecture_norms" / "coding_standards.md").is_file()
+    assert not (project.docs_dir / "superpowers").exists()
+    assert not (project.docs_dir / "03_changes_historical" / "fe1-canvas-review.md").exists()
+    assert marker.read_text(encoding="utf-8") == "non toccare\n"
+    assert not (REPO_ROOT / "templates" / "docs" / "superpowers").exists()

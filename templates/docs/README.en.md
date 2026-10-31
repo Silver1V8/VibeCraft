@@ -3,13 +3,17 @@ id: "docs-baseline-index-v1.0"
 title: "Cross-Project Document Baseline Index"
 project: "cross-project"
 scope: "cross-project"
-version: "1.2.0"
-date: "2026-10-25"
+version: "1.3.0"
+date: "2026-10-31"
 status: "ENFORCED"
 classification: "METADATA"
 path: "docs/README.md"
 authority: 0.75
 changelog:
+  - version: "1.3.0"
+    date: "2026-10-31"
+    changes:
+      - "fe1-canvas-review and superpowers/plans left the starting baseline: they are in archive/baseline-reports. Projects already created are not modified."
   - version: "1.2.0"
     date: "2026-10-25"
     changes:
@@ -73,9 +77,9 @@ This folder does not document an application: it is the **reusable governance li
 | [`04_knowledge_informative/graph_rag_ingestion_strategy.md`](04_knowledge_informative/graph_rag_ingestion_strategy.md) | Why the ingestion spec is built this way. Not a norm: do not cite it as a constraint | `METHODOLOGY` | undeclared: class weight applies, 0.5 |
 | [`04_knowledge_informative/inferenza_locale_o_remota.md`](04_knowledge_informative/inferenza_locale_o_remota.md) | Trade-off between local and hosted model. Does not impose the data boundary | `METHODOLOGY` | 0.40 |
 
-`03_changes_historical/` is not a norm. Today it contains `fe1-canvas-review.md`, an archival review, and it is indexed anyway.
+`03_changes_historical/` is not a norm. It is where a project archives its own changes. `fe1-canvas-review.md` is a review, not a norm: it lives in `archive/baseline-reports/` and is not part of the seed for new projects. A project that already contains it is left as it is.
 
-`superpowers/plans/` is the development diary committed under this folder. It is not baseline. The indexer reads it anyway: on `docs/`, `source_files` receives no folders to skip (`rag/core/indexing.py`). A markdown file placed here competes in retrieval with the norms.
+`superpowers/plans/` was the tool's development diary. It is not baseline. It was removed from the seed and placed in `archive/baseline-reports/superpowers/plans/`. The indexer has no folder skip list: a markdown file put back under `docs/` would enter retrieval again.
 
 ### Identifier families
 

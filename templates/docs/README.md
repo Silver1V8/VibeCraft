@@ -3,13 +3,17 @@ id: "docs-baseline-index-v1.0"
 title: "Indice della Baseline Documentale Cross-Progetto"
 project: "cross-project"
 scope: "cross-project"
-version: "1.2.0"
-date: "2026-10-25"
+version: "1.3.0"
+date: "2026-10-31"
 status: "ENFORCED"
 classification: "METADATA"
 path: "docs/README.md"
 authority: 0.75
 changelog:
+  - version: "1.3.0"
+    date: "2026-10-31"
+    changes:
+      - "fe1-canvas-review e superpowers/plans non fanno più parte della baseline di partenza: sono in archive/baseline-reports. I progetti già creati non vengono modificati."
   - version: "1.2.0"
     date: "2026-10-25"
     changes:
@@ -73,9 +77,9 @@ Questa cartella non documenta un'applicazione: è la **libreria di governance ri
 | [`04_knowledge_informative/graph_rag_ingestion_strategy.md`](04_knowledge_informative/graph_rag_ingestion_strategy.md) | Perché la spec di ingestion è fatta così. Non è una norma: non va citata come vincolo | `METHODOLOGY` | non dichiarata: vale il peso di classe, 0.5 |
 | [`04_knowledge_informative/inferenza_locale_o_remota.md`](04_knowledge_informative/inferenza_locale_o_remota.md) | Trade-off fra modello locale e modello ospitato. Non impone il confine dei dati | `METHODOLOGY` | 0.40 |
 
-`03_changes_historical/` non è una norma. Oggi contiene `fe1-canvas-review.md`, una review di archiviazione, ed è comunque indicizzata.
+`03_changes_historical/` non è una norma. È il posto delle change archiviate di un progetto. La review `fe1-canvas-review.md` non è una norma: sta in `archive/baseline-reports/` e non entra nel seme dei progetti nuovi. Un progetto già creato che la contiene non viene modificato da questo spostamento.
 
-`superpowers/plans/` è il diario di sviluppo committato sotto questa cartella. Non è baseline. L'indicizzatore lo legge lo stesso: su `docs/` `source_files` non riceve cartelle da saltare (`rag/core/indexing.py`). Un file markdown messo qui compete nel retrieval con le norme.
+`superpowers/plans/` era il diario di sviluppo del tool. Non è baseline. È stato tolto dal seme e messo in `archive/baseline-reports/superpowers/plans/`. L'indicizzatore non ha una lista di cartelle da saltare: un markdown rimesso sotto `docs/` tornerebbe nel retrieval.
 
 ### Famiglie di identificatori
 
