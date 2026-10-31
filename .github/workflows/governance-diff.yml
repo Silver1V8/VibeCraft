@@ -1,0 +1,44 @@
+name: Rilevamento autorità
+
+# Rileva i cambi che alterano l'autorità effettiva. Non approva e non blocca il merge:
+# se lo script esce 2, il passo stampa un warning ed esce 0. Vedi
+# rag/eval/GOVERNANCE_APPROVAL.md.
+#
+# pull_request, non pull_request_target: il token resta in sola lettura e non si
+# esegue il codice della PR con i permessi del branch base.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rilevamento:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.28"
+          python-version: "3.14"
+
+      - name: PyYAML, nient'altro
+        run: uv venv /tmp/gov && uv pip install --python /tmp/gov/bin/python "pyyaml==6.0.3"
+
+      - name: Confronta base e head
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          PYTHONPATH=rag /tmp/gov/bin/python rag/scripts/governance_diff.py --git "$BASE_SHA" "$HEAD_SHA"
+          code=$?
+          set -e
+          if [ "$code" -eq 2 ]; then
+            echo "::warning::Cambiamenti che toccano l'autorità effettiva. Enforcement non attivo: il merge non è bloccato. Vedi rag/eval/GOVERNANCE_APPROVAL.md"
+            exit 0
+          fi
+          exit "$code"
