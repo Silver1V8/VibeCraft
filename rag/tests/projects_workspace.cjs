@@ -451,14 +451,21 @@ async function browserChecks() {
     await unknown.locator('#workspace-message').filter({ hasText: 'Progetto non disponibile' }).waitFor();
     assert.equal(await unknown.locator('iframe').count(), 0);
     await unknown.close();
-    await page.locator('#project-new').click();
+    // Nuovo/Apri progetto stanno solo nella home dei progetti (la barra non li duplica più).
+    const showProjects = async () => {
+      if (!(await page.locator('#project-welcome').isVisible())) await page.locator('#project-home').click();
+      await page.locator('#project-welcome').waitFor();
+    };
+    await showProjects();
+    await page.locator('#welcome-new').click();
     await page.locator('#project-input').fill('bad');
     await page.locator('#project-submit').click();
     await page.locator('#project-error').filter({ hasText: 'Nome non disponibile' }).waitFor();
     await page.locator('#project-input').fill('Created');
     await page.locator('#project-input').press('Enter');
     await page.waitForFunction(() => document.getElementById('project-select').selectedOptions[0]?.textContent === 'Created');
-    await page.locator('#project-open').click();
+    await showProjects();
+    await page.locator('#welcome-open').click();
     await page.locator('#project-browse').click();
     await page.waitForFunction(() => document.getElementById('project-input').value === 'C:\\mounted\\existing');
     assert.equal(await page.locator('#project-input').inputValue(), 'C:\\mounted\\existing');
@@ -515,8 +522,7 @@ async function browserChecks() {
     await errorPage.close();
     readOnly = true;
     await page.reload();
-    await page.waitForFunction(() => document.getElementById('project-new').disabled);
-    assert.equal(await page.locator('#project-open').isDisabled(), true);
+    await page.waitForFunction(() => document.getElementById('welcome-new').disabled);
     assert.equal(await page.locator('#project-index-update').isVisible(), false, 'Reader mode must hide index writes');
     await page.locator('#project-home').click();
     assert.equal(await page.locator('#welcome-new').isDisabled(), true);

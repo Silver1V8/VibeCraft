@@ -25,11 +25,14 @@ const { chromium } = require('playwright');
     assert.equal(await frameA.locator('#question-input').inputValue(), 'same question');
     assert.equal(await frameA.locator('#answer-text').textContent(), 'ALPHA_SENTINEL');
     assert.equal(await page.locator('#project-select').inputValue(), A);
-    await page.locator('#project-new').click();
+    // Nuovo/Apri progetto stanno solo nella home dei progetti.
+    await page.locator('#project-home').click();
+    await page.locator('#welcome-new').click();
     await page.locator('#project-input').fill('UI created');
     await page.locator('#project-input').press('Enter');
     await page.waitForFunction(() => document.getElementById('project-select').selectedOptions[0]?.textContent === 'UI created');
-    await page.locator('#project-open').click();
+    await page.locator('#project-home').click();
+    await page.locator('#welcome-open').click();
     await page.locator('#project-input').fill(existingRoot);
     await page.locator('#project-submit').click();
     await page.waitForFunction(() => document.getElementById('project-select').selectedOptions[0]?.textContent === 'UI opened');

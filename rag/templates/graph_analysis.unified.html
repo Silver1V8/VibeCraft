@@ -170,6 +170,16 @@
         position: sticky; top: var(--space-6); max-height: calc(100vh - 2 * var(--space-6)); overflow-y: auto;
       }
     }
+    /* Schermi larghi ma bassi (~620 px di pagina sotto la barra, vedi shared.css): col
+       minimo di 560 px la mappa non entrava mai per intero e andava scorsa a metà. Qui
+       si adatta all'altezza visibile, con un pavimento di 360 px; legenda e duplicati
+       restano sotto, a uno scroll. ~190 px = padding, titolo, descrizione e toolbar. */
+    @media (min-width: 1200px) and (max-height: 820px) {
+      .page-doc main#main-content.analysis-layout { padding-block: var(--space-4); }
+      #section-map #map-canvas { flex: 0 0 auto; height: max(360px, calc(100vh - 190px)); min-height: 0; }
+      #section-map .desc { margin-block: 0 var(--space-2); }
+      .page-doc section.analysis-inspector { top: var(--space-4); max-height: calc(100vh - 2 * var(--space-4)); }
+    }
   </style>
 </head>
 <body class="page-doc">

@@ -42,9 +42,12 @@ const context = vm.createContext({
   // render3D programma l'adattamento della vista (scheduleFit): qui non deve scattare.
   setTimeout: () => 0, clearTimeout() {},
   window: { addEventListener() {} },
+  // render3D osserva il contenitore e ricalcola i controlli al pointerdown: qui inerti.
+  ResizeObserver: class { observe() {} },
   document: {
     getElementById: id => (els[id] ||= {
       id, innerHTML: '', clientWidth: 300, clientHeight: 300,
+      addEventListener() {},
       classList: { add() {}, remove() {} },
       insertAdjacentHTML(_, html) { this.innerHTML += html; },
     }),

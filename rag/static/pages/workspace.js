@@ -30,7 +30,6 @@ function setWelcomeView(visible) {
   document.getElementById('project-welcome').hidden = !visible;
   document.getElementById('workspace-pages').hidden = visible;
   document.getElementById('project-context').hidden = visible;
-  document.getElementById('project-toolbar').hidden = visible;
   document.getElementById('workspace-nav').hidden = visible;
   (visible ? document.getElementById('workspace-settings-slot') : document.getElementById('workspace-nav'))
     .append(document.getElementById('settings-open'));
@@ -190,8 +189,6 @@ function renderProjects() {
   });
   select.value = currentProject;
   select.disabled = !projects.length;
-  document.getElementById('project-new').disabled = projectReadOnly;
-  document.getElementById('project-open').disabled = projectReadOnly;
   document.getElementById('welcome-new').disabled = projectReadOnly;
   document.getElementById('welcome-open').disabled = projectReadOnly;
   document.getElementById('project-read-only').hidden = !projectReadOnly;

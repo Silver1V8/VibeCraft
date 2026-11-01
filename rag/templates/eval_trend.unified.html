@@ -151,6 +151,20 @@
         max-width: 1680px; display: grid; gap: var(--space-6); align-items: start;
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
       }
+      /* Il grafico prende l'altezza che resta nella finestra (2026-11-01): ~390 px sono
+         padding, titolo, descrizione, schede e legenda. A 675 px utili la colonna della
+         recall sforava di ~60 px con 320 fissi; su schermi alti il grafico cresce invece
+         di lasciare vuoto sotto. Il viewBox si adatta in eval_trend.js. */
+      .chart { height: clamp(240px, calc(100vh - 390px), 560px); display: flex; flex-direction: column; justify-content: center; }
+      #chart svg { height: 100%; }
+      /* Qualità dei canvas: con molte change archiviate superava l'altezza della recall;
+         scorre al suo interno e resta accanto al grafico. */
+      /* Nella griglia la distanza la dà il gap: il margin-bottom delle sezioni aggiungeva
+         24 px di scroll sotto l'ultima riga. */
+      .eval-layout > section { margin-bottom: 0; }
+      .eval-layout > section:last-child {
+        position: sticky; top: var(--space-6); max-height: calc(100vh - 2 * var(--space-6)); overflow-y: auto;
+      }
     }
   </style>
 </head>

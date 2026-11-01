@@ -171,15 +171,26 @@
     /* Due colonne da 1200 px: a sinistra cosa entra, a destra la revisione dello staging,
        che resta visibile mentre si caricano i file (prima finiva sotto la piega, dopo
        Genera e Importa). Sotto i 1200 px resta la colonna unica di sempre. */
+    /* Colonna unica: .intake-side non fa da contenitore e order rimette Importa progetto
+       prima di Da revisionare, come nel markup di prima. I margini delle sezioni non si
+       sommano (solo margin-bottom), quindi le distanze restano quelle del flusso a blocchi. */
+    .page-doc main#main-content { display: flex; flex-direction: column; }
+    .intake-side { display: contents; }
+    #section-progetti { order: 1; }
+    #section-staging { order: 2; }
     @media (min-width: 1200px) {
       .page-doc main#main-content {
         max-width: 1600px; display: grid; gap: var(--space-6); align-items: start;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       }
-      .page-doc section.intake-review {
+      /* A destra Da revisionare e, sotto, Importa progetto. Sticky sulla colonna intera:
+         con lo staging pieno scorre al suo interno e resta visibile mentre si importa. */
+      .intake-side {
+        display: flex; flex-direction: column;
         grid-column: 2; grid-row: 1; position: sticky; top: var(--space-6);
         max-height: calc(100vh - 2 * var(--space-6)); overflow-y: auto;
       }
+      #section-progetti, #section-staging { order: 0; }
     }
   </style>
 </head>
@@ -247,6 +258,25 @@
       <div id="import-results" aria-live="polite"></div>
     </section>
 
+    </div>
+
+    <!-- Colonna "revisione": a destra da 1200 px. Da revisionare in alto, sotto l'Importa
+         progetto, spostato qui dalla colonna di sinistra (2026-11-01): a ~675 px utili la
+         pagina andava scorsa, con la colonna destra quasi vuota. Sotto i 1200 px
+         .intake-side è display:contents e l'ordine CSS ripristina quello di sempre. -->
+    <div class="intake-side">
+    <section id="section-staging" class="intake-review">
+      <h2 title="Staging" data-i18n-title="intake.staging.titleAttr" data-i18n="intake.staging.h2">🗂️ Da revisionare</h2>
+      <p class="desc" data-i18n-html="intake.staging.desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
+        approvazioni, premi <strong>Aggiorna indice</strong> nella barra in alto.</p>
+      <div class="toolbar">
+        <button type="button" data-click="refreshStaging" class="btn btn-secondary" data-i18n="intake.staging.reload">↻ Ricarica</button>
+        <span id="staging-status" class="status"></span>
+      </div>
+      <div id="staging-list"></div>
+      <div id="staging-detail"></div>
+    </section>
+
     <!-- ══════════ (d) IMPORTA PROGETTO DA PATH ══════════ -->
     <section id="section-progetti">
       <h2 data-i18n="intake.project.h2">📦 Importa progetto da cartella</h2>
@@ -298,19 +328,6 @@
       <div id="prj-brief-result"></div>
     </section>
     </div>
-
-    <!-- Colonna "revisione": a destra da 1200 px, sotto nella colonna unica. -->
-    <section id="section-staging" class="intake-review">
-      <h2 title="Staging" data-i18n-title="intake.staging.titleAttr" data-i18n="intake.staging.h2">🗂️ Da revisionare</h2>
-      <p class="desc" data-i18n-html="intake.staging.desc">Approva per scrivere in <code>docs/</code> o rifiuta (resta tracciato). Finite le
-        approvazioni, premi <strong>Aggiorna indice</strong> nella barra in alto.</p>
-      <div class="toolbar">
-        <button type="button" data-click="refreshStaging" class="btn btn-secondary" data-i18n="intake.staging.reload">↻ Ricarica</button>
-        <span id="staging-status" class="status"></span>
-      </div>
-      <div id="staging-list"></div>
-      <div id="staging-detail"></div>
-    </section>
   </main>
 
   <script src="/static/pages/intake.js"></script>

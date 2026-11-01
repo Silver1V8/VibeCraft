@@ -179,6 +179,23 @@
       background: var(--bg-canvas);
       border-radius: 0.75rem;
     }
+    /* Tooltip di 3d-force-graph: di suo è trasparente, con font e interlinea propri, e
+       il testo finiva illeggibile sopra i nodi, con l'intestazione sovrapposta all'ID.
+       Stessa superficie del tooltip 2D (#node-tooltip). */
+    #graph-canvas-3d .scene-tooltip {
+      background: var(--slate-800);
+      border: 1px solid var(--slate-700);
+      border-radius: 0.5rem;
+      box-shadow: var(--glass-shadow);
+      padding: 0.6rem 0.75rem;
+      font-family: var(--font-main);
+      line-height: 1.4;
+      max-width: 340px;
+    }
+    #graph-canvas-3d .scene-tooltip > div > div:first-child {
+      flex-wrap: wrap;
+      word-break: break-all;
+    }
 
     /* Toggle vista 2D/3D */
     .view-toggle-btn {
@@ -322,6 +339,19 @@
     @media (max-width: 639px) {
       #app-graph-section { min-height: 60vh; }
     }
+    /* Schermi larghi ma bassi (~730 px utili, vedi shared.css): la colonna sinistra
+       superava di ~190 px l'altezza disponibile e lo Stato del progetto finiva sotto la
+       piega. La domanda parte da 4 righe invece di 7 (l'autogrow la allunga scrivendo)
+       e le spaziature scendono di un gradino. */
+    @media (min-width: 1024px) and (max-height: 820px) {
+      #left-panel { gap: 0.75rem; padding: 0.75rem; }
+      #left-panel > .glass-card, #left-panel > section { padding: 0.75rem 1rem; }
+      #question-input { min-height: 6.5rem; height: 6.5rem; }
+      #main-content { padding: 0.75rem; gap: 0.5rem; }
+    }
+    /* Il ↻ era un glifo nudo di 9×16 px: bersaglio troppo piccolo per il mouse. */
+    #project-status-refresh { min-width: 1.75rem; min-height: 1.75rem; border-radius: 0.375rem; }
+    #project-status-refresh:hover { background: var(--slate-800); }
 
     /* NB: matrix-rain, scanlines, glow-text, focus-visible, .btn* e la regola di
        hide nel tema Classico vivono in /static/shared.css. */
@@ -444,7 +474,7 @@
       <section class="rounded-xl glass-card p-4" aria-labelledby="project-status-title">
         <div class="flex items-center justify-between mb-3">
           <h2 id="project-status-title" class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="dashboard.projectStatus">Stato del progetto</h2>
-          <button type="button" data-click="loadProjectStatus" class="text-xs text-slate-400 hover:text-slate-200 transition" data-i18n-aria-label="dashboard.refreshStatusAria" aria-label="Aggiorna lo stato del progetto" data-i18n-title="dashboard.refreshStatus" title="Aggiorna">↻</button>
+          <button type="button" id="project-status-refresh" data-click="loadProjectStatus" class="text-xs text-slate-400 hover:text-slate-200 transition" data-i18n-aria-label="dashboard.refreshStatusAria" aria-label="Aggiorna lo stato del progetto" data-i18n-title="dashboard.refreshStatus" title="Aggiorna">↻</button>
         </div>
         <dl id="project-status-list" class="grid grid-cols-2 gap-x-3 gap-y-3 text-xs" aria-live="polite">
           <div class="col-span-2 text-slate-400" data-i18n="common.loading">Caricamento…</div>
@@ -515,7 +545,9 @@
         </div>
 
         <!-- Graph-specific controls (nascosti nel tab Prompt Context) -->
-        <div id="graph-controls" class="flex items-center gap-3 shrink-0 whitespace-nowrap">
+        <!-- flex-1: la riga dei controlli occupa tutta la larghezza, così le azioni sulla
+             vista (grafo completo, adatta, 2D/3D) stanno allineate a destra (2026-11-01). -->
+        <div id="graph-controls" class="flex-1 flex items-center gap-3 shrink-0 whitespace-nowrap">
           <div class="flex items-center gap-3 shrink-0">
             <span id="graph-title" class="text-sm font-semibold text-slate-300 whitespace-nowrap">Grafo contestuale</span>
             <!-- Badge Vista Globale -->
@@ -543,6 +575,8 @@
             <button type="button" id="graph-expand-btn" data-click="toggleContextExpand"
               class="text-xs px-2 py-1 rounded-md border border-slate-700 text-slate-300 hover:bg-slate-800 transition"
               style="display:none"></button>
+          </div>
+          <div class="ml-auto flex items-center gap-2">
             <!-- Pulsante ripristina grafo contestuale (visibile solo dopo una query + vista globale) -->
             <button type="button" id="restore-graph-btn" data-click="restoreContextualGraph"
               data-i18n-title="dashboard.restoreGraphTitle" title="Ripristina il grafo dell'ultima interrogazione"
@@ -730,9 +764,11 @@
 
       </div>
 
-      <!-- Node tooltip (shared) -->
-      <div id="node-tooltip"
-        class="hidden absolute z-50 rounded-lg bg-slate-800/90 backdrop-blur-sm border border-slate-700 shadow-xl p-3 text-xs text-slate-200 pointer-events-none max-w-xs">
+      <!-- Node tooltip (shared). position:fixed perché il mousemove lo posiziona con
+           clientX/clientY: da absolute si ancorava a #app-main e finiva spostato in basso
+           dell'altezza dell'header rispetto al cursore. -->
+      <div id="node-tooltip" style="position:fixed"
+        class="hidden z-50 rounded-lg bg-slate-800/90 backdrop-blur-sm border border-slate-700 shadow-xl p-3 text-xs text-slate-200 pointer-events-none max-w-xs">
       </div>
 
     </section>

@@ -91,6 +91,11 @@ graph TD
           // Spaziatura di default (~50px) comprimeva gli 11 nodi in una colonna
           // stretta: piu respiro fra un livello e l'altro del flusso TD.
           flowchart: { nodeSpacing: 40, rankSpacing: 65, padding: 12 },
+          // Etichette in testo SVG, non HTML (2026-11-01): con htmlLabels Mermaid va a
+          // capo solo se la larghezza misurata è ESATTAMENTE il wrappingWidth (200);
+          // con zoom frazionari (Windows al 125%) misura 199,99, non va a capo e il testo
+          // usciva dai nodi. Il testo SVG è dimensionato sulla misura reale delle righe.
+          htmlLabels: false,
         });
         const source = buildMermaidSource();
         try {

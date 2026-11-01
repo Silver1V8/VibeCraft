@@ -52,7 +52,14 @@
       const t0 = tsOf(rows[0]), t1 = tsOf(rows[rows.length - 1]);
       const span = (t1 - t0) || 1;
 
-      const W = 880, H = 320, padL = 46, padR = 14, padT = 16, padB = 44;
+      /* H segue le proporzioni del riquadro (2026-11-01): da 1200 px il riquadro prende
+         l'altezza libera della finestra (CSS), e con H fisso a 320 e "meet" il grafico
+         restava una striscia con bande vuote sopra e sotto. */
+      const cs = getComputedStyle(chart);
+      const innerW = chart.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const innerH = chart.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const W = 880, padL = 46, padR = 14, padT = 16, padB = 44;
+      const H = innerW > 0 && innerH > 0 ? Math.max(200, Math.round(W * innerH / innerW)) : 320;
       const vals = rows.map(recallOf);
 
       /* Dominio Y: include sempre la soglia del gate, cosi si vede quanto
@@ -294,6 +301,12 @@
       }
     }
     loadCanvasQuality();
+
+    // Il viewBox dipende dalla misura del riquadro: si ridisegna quando cambia. Il
+    // riquadro ha altezza da CSS, quindi il ridisegno non lo ridimensiona (niente cicli).
+    if (window.ResizeObserver) {
+      new ResizeObserver(() => { if (lastData) render(lastData); }).observe(document.getElementById('chart'));
+    }
 
     window.onLangChange = function () {
       document.title = t('eval.docTitle');

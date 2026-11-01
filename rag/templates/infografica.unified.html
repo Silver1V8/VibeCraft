@@ -31,10 +31,13 @@
         --title-glow: 0 0 12px rgba(0,255,65,0.28);
         /* --rain-opacity: valore unico in /static/shared.css. */
 
-        /* Mermaid: variabili tema base */
+        /* Mermaid: variabili tema base. --mm-font SENZA virgolette esterne (2026-11-01):
+           tra apici l'intera lista era un unico nome di famiglia inesistente, i diagrammi
+           ricadevano sul serif di default e le etichette uscivano dai nodi, misurati da
+           Mermaid con un altro font. */
         --mm-primary:#04140a; --mm-primary-text:#c8f5d4; --mm-primary-border:#00ff41;
         --mm-line:#00ff41; --mm-secondary:#04140a; --mm-tertiary:#04140a;
-        --mm-edge-bg:#000000; --mm-bg:#000000; --mm-font: 'JetBrains Mono, ui-monospace, monospace';
+        --mm-edge-bg:#000000; --mm-bg:#000000; --mm-font: JetBrains Mono, Consolas, ui-monospace, monospace;
         /* Mermaid: classDef per nodo (fill/stroke/text) */
         --mm-user-fill:#04140a;     --mm-user-stroke:#3fae5c;   --mm-user-text:#c8f5d4;
         --mm-fastapi-fill:#03170a;  --mm-fastapi-stroke:#00cfae;--mm-fastapi-text:#c8f5d4;
@@ -65,7 +68,7 @@
         /* Mermaid: variabili tema base */
         --mm-primary:#f3f4f6; --mm-primary-text:#1f2937; --mm-primary-border:#9ca3af;
         --mm-line:#9ca3af; --mm-secondary:#ffffff; --mm-tertiary:#ffffff;
-        --mm-edge-bg:#ffffff; --mm-bg:#ffffff; --mm-font: 'Inter, ui-sans-serif, system-ui';
+        --mm-edge-bg:#ffffff; --mm-bg:#ffffff; --mm-font: Inter, ui-sans-serif, system-ui, sans-serif;
         /* Mermaid: classDef per nodo (fill/stroke/text) */
         --mm-user-fill:#e2e8f0;     --mm-user-stroke:#64748b;   --mm-user-text:#1f2937;
         --mm-fastapi-fill:#e0f2fe;  --mm-fastapi-stroke:#0ea5e9;--mm-fastapi-text:#1f2937;

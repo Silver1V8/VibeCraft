@@ -213,9 +213,40 @@
       document.getElementById('graph-error').style.display = 'none';
     }
 
+    function fit3D() {
+      if (!graph3d) return;
+      /* Non zoomToFit: sul grafo contestuale lasciava i nodi in un terzo dell'altezza
+         del pannello (stima prudente sulla profondità), con nodi troppo piccoli da
+         cliccare. Qui si inquadra la sfera che contiene i nodi, sul più stretto dei due
+         angoli di campo, mantenendo la direzione di vista corrente. */
+      const nodes = graph3d.graphData().nodes.filter(n => Number.isFinite(n.x));
+      if (!nodes.length) return;
+      const c = { x: 0, y: 0, z: 0 };
+      for (const n of nodes) { c.x += n.x; c.y += n.y; c.z += n.z || 0; }
+      c.x /= nodes.length; c.y /= nodes.length; c.z /= nodes.length;
+      let radius = 1;
+      for (const n of nodes) radius = Math.max(radius, Math.hypot(n.x - c.x, n.y - c.y, (n.z || 0) - c.z));
+      const cam = graph3d.camera();
+      const vFov = cam.fov * Math.PI / 180;
+      const hFov = 2 * Math.atan(Math.tan(vFov / 2) * cam.aspect);
+      const dist = (radius * 1.08) / Math.sin(Math.min(vFov, hFov) / 2);
+      const dir = { x: cam.position.x - c.x, y: cam.position.y - c.y, z: cam.position.z - c.z };
+      const len = Math.hypot(dir.x, dir.y, dir.z) || 1;
+      graph3d.cameraPosition(
+        { x: c.x + dir.x / len * dist, y: c.y + dir.y / len * dist, z: c.z + dir.z / len * dist },
+        c, 500);
+    }
+
+    /* Il grafo della risposta si disegna col tab Risposta attivo, cioè col pannello in
+       display:none: canvas 0×0 (in 3D anche camera con aspect NaN). Un fit lì calcolava
+       un inquadramento sbagliato e tornando sulla Mappa la vista era tagliata o dentro
+       ai nodi, in entrambe le viste. Il fit si rimanda a quando il pannello ricompare. */
+    let pendingFit = false;
     function fitGraph() {
+      if (!document.getElementById('tab-graph-panel').clientWidth) { pendingFit = true; return; }
+      pendingFit = false;
       if (graphViewMode === '3d') {
-        if (graph3d) graph3d.zoomToFit(500, 40);
+        fit3D();
       } else if (network) {
         network.fit({ animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
       }
@@ -244,12 +275,22 @@
     function render2D(nodes, edges, visOptions) {
       const container = document.getElementById('graph-canvas');
       const data = { nodes: currentNodes, edges: currentEdges };
+      fitOnLayoutStop = true;
       if (network) {
         network.setData(data);
         network.setOptions(visOptions);
       } else {
         network = new vis.Network(container, data, visOptions);
         attachTooltipListeners();
+        // Come onEngineStop nel 3D: il fit a 1,5 s cadeva a stabilizzazione in corso.
+        network.on('stabilized', () => {
+          if (!fitOnLayoutStop || graphViewMode !== '2d') return;
+          // Stabilizzato da nascosto: tornando visibile la fisica riparte e sposta i
+          // nodi, quindi il fit buono è quello della PROSSIMA stabilizzazione.
+          if (!document.getElementById('tab-graph-panel').clientWidth) return;
+          fitOnLayoutStop = false;
+          fitGraph();
+        });
       }
       scheduleFit();
     }
@@ -257,7 +298,27 @@
     function resize3DCanvas() {
       if (!graph3d) return;
       const el = document.getElementById('graph-canvas-3d');
-      graph3d.width(el.clientWidth || 300).height(el.clientHeight || 300);
+      if (!el.clientWidth || !el.clientHeight) return;   // nascosto: si riprova quando ricompare
+      graph3d.width(el.clientWidth).height(el.clientHeight);
+    }
+
+    /* Il grafo della risposta è spesso fatto di componenti sconnesse e nodi isolati: la
+       sola carica repulsiva li spingeva lontano, fuori vista, e il fit li inseguiva
+       lasciando i cluster visibili minuscoli. Un richiamo debole verso l'origine (la
+       forceX/Y/Z di d3, non esportata dal bundle di 3d-force-graph) li tiene vicini senza
+       schiacciare la struttura interna, che resta dominata da link e carica. */
+    function gravityForce3D(strength) {
+      let nodes = [];
+      function force(alpha) {
+        const k = strength * alpha;
+        for (const n of nodes) {
+          n.vx -= (n.x || 0) * k;
+          n.vy -= (n.y || 0) * k;
+          n.vz -= (n.z || 0) * k;
+        }
+      }
+      force.initialize = ns => { nodes = ns; };
+      return force;
     }
 
     function render3D(nodes, edges) {
@@ -296,9 +357,31 @@
           .linkDirectionalArrowRelPos(1)
           .onNodeClick(n => renderNodeDetails(n.id))
           .onBackgroundClick(() => closeNodeDetails())
-          .showNavInfo(false);
+          // Il fit a 1,5 s inquadrava il grafo a metà assestamento: le componenti
+          // sconnesse continuavano ad allontanarsi e i nodi finivano puntiformi, troppo
+          // piccoli da cliccare. Si rifà il fit UNA volta a simulazione ferma (non a ogni
+          // trascinamento di nodo, che riscalda la simulazione e la riferma).
+          .onEngineStop(() => {
+            if (!fitOnLayoutStop || graphViewMode !== '3d') return;
+            fitOnLayoutStop = false;
+            fitGraph();
+          })
+          .showNavInfo(false)
+          .d3Force('gravity', gravityForce3D(0.04));
         resize3DCanvas();
-        window.addEventListener('resize', resize3DCanvas);
+        // ResizeObserver copre anche il cambio di tab (display:none → visibile) e il
+        // ridimensionamento dei pannelli, che il solo evento resize della finestra perdeva.
+        new ResizeObserver(resize3DCanvas).observe(el);
+        /* I TrackballControls memorizzano il rettangolo del canvas (`screen`) solo alla
+           costruzione, e la libreria non lo ricalcola su width()/height(). Il grafo della
+           risposta nasce col tab Risposta attivo, cioè col pannello in display:none:
+           rettangolo 0×0, e rotazione e pan col mouse restavano morti (andava solo la
+           rotella). Si ricalcola a ogni pressione, in cattura, prima dei controlli:
+           copre anche resize e spostamenti di layout. */
+        el.addEventListener('pointerdown', () => {
+          const controls = graph3d.controls();
+          if (controls && typeof controls.handleResize === 'function') controls.handleResize();
+        }, true);
       }
 
       /* Degradazione per grafi grandi: sopra qualche migliaio di nodi le frecce
@@ -311,8 +394,12 @@
         .linkDirectionalArrowLength(grande ? 0 : 3.5)
         .linkOpacity(grande ? 0.18 : 0.35)
         .warmupTicks(grande ? 40 : 0)
-        .cooldownTicks(grande ? 120 : Infinity);
+        .cooldownTicks(grande ? 120 : Infinity)
+        // Grafo contestuale (decine di nodi): 5 s bastano ad assestarlo; i 15 s di
+        // default lasciavano il grafo in movimento proprio mentre lo si voleva cliccare.
+        .cooldownTime(grande ? 15000 : 5000);
 
+      fitOnLayoutStop = true;
       graph3d.graphData(graphData);
       resize3DCanvas();
       scheduleFit();
@@ -321,6 +408,7 @@
     /* Adatta la vista al grafo appena disegnato: senza, il layout partiva dal centro con
        lo zoom di default e un grafo di centinaia di nodi restava un puntino in mezzo. */
     let fitTimer = 0;
+    let fitOnLayoutStop = false;   // fit ancora dovuto a layout fermo (render2D e render3D)
     function scheduleFit() {
       clearTimeout(fitTimer);
       fitTimer = setTimeout(() => fitGraph(), 1500);
@@ -378,8 +466,12 @@
       // Forza il ridisegno del grafo (2D o 3D) quando si torna al tab Mappa
       if (tab === 'graph') {
         setTimeout(() => {
-          if (network) network.redraw();
+          // setSize ricalcola il canvas di vis.js dalle misure del contenitore: creato
+          // nascosto restava 0×0 e redraw() da solo non lo ridimensiona.
+          if (network) { network.setSize('100%', '100%'); network.redraw(); }
           if (graph3d) resize3DCanvas();
+          // Fit rimandato perché il pannello era nascosto (vedi fitGraph).
+          if (pendingFit) fitGraph();
         }, 60);
       }
     }
@@ -571,7 +663,7 @@
       const descColor = themeVar('--tooltip-desc', '#c8f5d4');
 
       return `
-        <div style="max-width:300px">
+        <div style="max-width:300px;overflow-wrap:anywhere">
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid ${divider}">
             <span style="font-size:var(--text-xs);font-weight:700;letter-spacing:.08em;text-transform:uppercase;
                          color:${accent}">${label}</span>

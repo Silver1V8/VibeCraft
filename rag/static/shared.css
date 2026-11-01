@@ -598,16 +598,14 @@ body.workspace-shell {
 }
 .project-switcher select:hover { border-color: var(--color-focus); }
 .project-select-chevron { position: absolute; right: 10px; width: 14px; transform: rotate(90deg); pointer-events: none; }
-.project-toolbar, .workspace-theme { display: flex; align-items: center; gap: var(--space-2); }
-.project-toolbar { margin-left: auto; }
-.workspace-theme { margin-left: auto; }
-.project-toolbar:not([hidden]) + .workspace-theme { margin-left: 0; }
+.workspace-theme { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+/* Fuori dalla home lo slot resta vuoto (Impostazioni è nella nav): senza questa regola il
+   suo gap spostava di 12 px verso sinistra l'ultimo pulsante della barra. */
+.workspace-theme:empty { display: none; }
 .workspace-theme select {
   min-height: 34px; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
   padding: 6px 8px; background: var(--color-surface-elevated); color: var(--color-text-secondary); font-size: var(--text-xs);
 }
-.project-toolbar .btn { min-height: 36px; }
-.project-toolbar .btn-icon { padding-inline: 9px; }
 /* Nav delle sezioni nella shell: riga propria sotto la barra del progetto, sempre
    nella stessa posizione qualunque sia la larghezza (la barra del progetto cambia
    ampiezza con lo stato dell'indice). Su schermi stretti scorre in orizzontale
@@ -616,7 +614,7 @@ body.workspace-shell {
 .workspace-nav #service-status, .workspace-nav .workspace-guide { margin-left: auto; }
 .workspace-nav #service-status:not([hidden]) + .workspace-guide { margin-left: 0; }
 /* Impostazioni ha lo stile di Guida (regole .app-nav a sopra), anche nella home dove
-   sta fuori dalla nav. */
+   sta fuori dalla nav. Progetti (#project-home) usa la stessa classe. */
 .workspace-settings { cursor: pointer; }
 .workspace-settings .workspace-icon { width: 14px; height: 14px; }
 /* Menu Impostazioni: più largo dei dialoghi di conferma e scorrevole, perché la scelta
@@ -792,6 +790,19 @@ html[data-services-down~="ollama"] [data-requires~="ollama"] { opacity: .5; curs
 .workspace-shell #project-rename-error,
 .workspace-shell #project-delete-error { color: var(--color-danger); white-space: pre-line; font-size: var(--text-sm); }
 .workspace-shell #project-delete-confirm { margin-bottom: var(--space-2); }
+/* Schermi larghi ma bassi (portatile 1920×1080 al 125%: ~1536×730 utili, 2026-11-01):
+   la barra su due righe costava 113 px, il 15% dell'altezza, sottratti alle pagine.
+   Da 1280 px di larghezza le sezioni stanno sulla riga del progetto (servono ~1.250 px
+   con il pulsante «Aggiorna indice»); se manca spazio la nav scorre in orizzontale come
+   già fa sotto, e non va a capo. Sopra gli 820 px di altezza resta il layout a due righe. */
+@media (min-width: 1280px) and (max-height: 820px) {
+  /* Margini laterali uguali a quelli della Console in questo layout (12 px): Impostazioni
+     finisce in colonna con il toggle 2D/3D del grafo sotto. */
+  .workspace-shell .project-bar { flex-wrap: nowrap; min-height: 0; padding: var(--space-2) var(--space-3); }
+  .workspace-mark { width: 36px; height: 36px; }
+  .project-context { flex-wrap: nowrap; flex-shrink: 0; }
+  .workspace-nav { order: 0; flex: 1 1 auto; flex-basis: auto; min-width: 0; }
+}
 @media (max-width: 1100px) {
   .project-context { flex: 1; }
   .project-context .project-index-status { display: none; }
@@ -800,8 +811,6 @@ html[data-services-down~="ollama"] [data-requires~="ollama"] { opacity: .5; curs
   .workspace-shell .project-bar { padding: var(--space-3) var(--space-4); }
   .project-context { order: 3; flex-basis: 100%; }
   .project-context .project-index-status { display: inline-flex; }
-  .project-toolbar { order: 4; margin-left: 0; }
-  .project-toolbar:not([hidden]) + .workspace-theme { margin-left: auto; }
   .welcome-layout { grid-template-columns: minmax(0, 1fr); gap: var(--space-8); }
   .welcome-actions { grid-row: 1; }
   .project-welcome { padding: var(--space-6) var(--space-4); }
