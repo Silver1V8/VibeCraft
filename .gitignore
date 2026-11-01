@@ -108,6 +108,20 @@ docs.local-backup-*/
 # Cartella locale di lavoro degli agent: mai da tracciare.
 .agents/
 
+# Configurazione degli strumenti di sviluppo con IA (Claude Code e plugin, Impeccable, ecc.):
+# istruzioni, agent, hook, skill e impostazioni restano sulla macchina di chi li usa e non
+# fanno parte del progetto (2026-11-01).
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+.claude/
+.impeccable/
+.cursor/
+.cursorrules
+.windsurf/
+.continue/
+.mcp.json
+
 # Output e strumenti temporanei locali, non parte del progetto condiviso.
 /output/
 /tmp/
