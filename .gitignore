@@ -113,3 +113,5 @@ docs.local-backup-*/
 /tmp/
 /skills-lock.json
 /projects/
+# Campioni e schede del link audit: contengono estratti di codice e documenti del progetto.
+/rag/eval/link_audit/

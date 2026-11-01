@@ -5,7 +5,7 @@ Non ricalcola i collegamenti e non chiama un modello. La precisione resta
 
 Da rag/:
 
-    uv run python scripts/link_audit.py sample --out eval/link_audit/run --n 40 --seed 1
+    uv run python scripts/link_audit.py sample --project legacy --out eval/link_audit/run --n 40 --seed 1
     # compila eval/link_audit/run/schede.json, senza punteggi
     uv run python scripts/link_audit.py validate --run eval/link_audit/run
     uv run python scripts/link_audit.py metrics --run eval/link_audit/run
@@ -15,6 +15,7 @@ Il protocollo è eval/LINK_AUDIT.md.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -36,23 +37,33 @@ from eval.link_audit import (  # noqa: E402
 _LINKING_THRESHOLD = 0.45
 
 
-def _git_commit() -> str | None:
+def _git(*args: str) -> str | None:
     try:
         out = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
+            ["git", *args],
             cwd=Path(__file__).resolve().parents[2],
             capture_output=True, text=True, timeout=5, check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
         return None
-    token = out.stdout.strip()
-    return token or None
+    return out.stdout.strip() if out.returncode == 0 else None
+
+
+def _digest(hashes: dict | None) -> str | None:
+    # Impronta del corpus: il solo conteggio non distingue due corpus della stessa taglia.
+    if not hashes:
+        return None
+    return hashlib.sha256(json.dumps(hashes, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def _provenance(version: str | None, manifest: dict | None) -> dict:
     manifest = manifest or {}
+    status = _git("status", "--porcelain")
     return {
-        "git_commit": _git_commit(),
+        "git_commit": _git("rev-parse", "HEAD") or None,
+        "git_dirty": None if status is None else bool(status),
+        "doc_hashes_sha256": _digest(manifest.get("doc_hashes")),
+        "code_hashes_sha256": _digest(manifest.get("code_hashes")),
         "index_version": version,
         "embedding_model": manifest.get("embedding_model") or EMBEDDING_MODEL,
         "linking_threshold": _LINKING_THRESHOLD,
@@ -72,12 +83,20 @@ def _write(path: Path, obj) -> None:
 
 
 def cmd_sample(args) -> int:
-    arts = load_artifacts(("graph", "code", "chunks"), skip_colbert=True)
+    # Gli indici stanno sotto projects/<id>/database: senza progetto load_artifacts
+    # cercherebbe il layout pre-progetti (rag/database) e non troverebbe nulla.
+    from core.projects import ProjectError, ProjectRegistry
+    try:
+        project = ProjectRegistry(readonly=True).get(args.project)
+    except ProjectError as exc:
+        print(f"Progetto {args.project!r}: {exc}", file=sys.stderr)
+        return 1
+    arts = load_artifacts(("graph", "code", "chunks"), skip_colbert=True, project=project)
     if arts.graph is None:
         print("Nessun grafo nell'indice attivo.", file=sys.stderr)
         return 1
     manifest = {}
-    path = manifest_path(arts.version)
+    path = manifest_path(arts.version, project=project)
     if path.is_file():
         manifest = json.loads(path.read_text(encoding="utf-8"))
     rows = collect_implements(arts.graph, arts.code_store, arts.chunks_store)
@@ -85,7 +104,8 @@ def cmd_sample(args) -> int:
         print("Nessun arco IMPLEMENTS nell'indice attivo. Precisione non ancora misurata.", file=sys.stderr)
         return 1
     sample = draw_sample(rows, n=args.n, seed=args.seed)
-    sample["provenance"] = _provenance(arts.version or current_version(), manifest)
+    sample["provenance"] = _provenance(arts.version or current_version(project), manifest)
+    sample["provenance"]["project_id"] = args.project
     out = Path(args.out)
     _write(out / "sigillo.json", sample)
     _write(out / "schede.json", annotator_cards(sample))
@@ -121,7 +141,10 @@ def cmd_metrics(args) -> int:
     sample, cards = _load_run(Path(args.run))
     report = compute_metrics(sample, [c for c in cards if c.get("label")])
     _write(Path(args.run) / "metriche.json", report)
-    print(json.dumps({k: report[k] for k in ("status", "strict_precision", "non_evaluable_share", "aggregate_precision") if k in report}, ensure_ascii=False, indent=2))
+    # La stima pesata prima: la precisione grezza vale solo sul campione.
+    keys = ("status", "aggregate_precision", "aggregate_interval95", "aggregate_population_covered",
+            "strict_precision", "strict_precision_scope", "non_evaluable_share", "reason")
+    print(json.dumps({k: report[k] for k in keys if k in report}, ensure_ascii=False, indent=2))
     return 0 if report["status"] == "misurato" else 2
 
 
@@ -132,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     sample.add_argument("--out", required=True)
     sample.add_argument("--n", type=int, default=40)
     sample.add_argument("--seed", type=int, default=1)
+    sample.add_argument("--project", default="legacy", help="ID del progetto registrato; default: legacy")
     sample.set_defaults(func=cmd_sample)
     check = sub.add_parser("validate")
     check.add_argument("--run", required=True)

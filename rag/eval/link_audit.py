@@ -34,6 +34,8 @@ _BANDS = (
     ("da_0.90", None),
 )
 _HIDDEN = ("weight", "reliability", "best_score", "second_score", "margin")
+# Lo strato contiene la fascia del peso: sta nel sigillo, non nella scheda di chi giudica.
+_CARD_HIDDEN = _HIDDEN + ("stratum",)
 _TEXT_LIMIT = 500
 
 
@@ -113,19 +115,21 @@ def collect_implements(
 
 
 def _allocate(sizes: dict[str, int], n: int) -> tuple[dict[str, int], bool]:
-    """Riparto per resto maggiore. Se n basta, ogni strato non vuoto ha almeno una scheda:
-    in quel caso il campione è sproporzionato e le probabilità vanno tenute."""
+    """Riparto per resto maggiore con un minimo per strato: min(2, N_h) se n basta, così
+    ogni strato non censito ha una varianza stimabile; altrimenti una scheda; altrimenti
+    nessun minimo. Con un minimo il campione è sproporzionato e le probabilità vanno tenute."""
     names = [k for k, v in sizes.items() if v > 0]
     total = sum(sizes[k] for k in names)
     if n >= total:
         return {k: sizes[k] for k in names}, False
-    floor_one = len(names) <= n
+    if sum(min(2, sizes[k]) for k in names) <= n:
+        floor = {k: min(2, sizes[k]) for k in names}
+    elif len(names) <= n:
+        floor = {k: 1 for k in names}
+    else:
+        floor = {k: 0 for k in names}
     raw = {k: n * sizes[k] / total for k in names}
-    quota = {k: min(sizes[k], int(raw[k])) for k in names}
-    if floor_one:
-        for k in names:
-            if quota[k] == 0:
-                quota[k] = 1
+    quota = {k: max(floor[k], min(sizes[k], int(raw[k]))) for k in names}
     left = n - sum(quota.values())
     order = sorted(names, key=lambda k: (raw[k] - int(raw[k]), sizes[k], k), reverse=True)
     while left > 0:
@@ -140,9 +144,11 @@ def _allocate(sizes: dict[str, int], n: int) -> tuple[dict[str, int], bool]:
         if not moved:
             break
     while left < 0:
-        donor = max(names, key=lambda k: (quota[k], k))
-        if quota[donor] <= (1 if floor_one else 0):
+        # Cede chi ha più schede sopra il proprio minimo, non chi ne ha di più in assoluto.
+        donors = [k for k in names if quota[k] > floor[k]]
+        if not donors:
             break
+        donor = max(donors, key=lambda k: (quota[k] - floor[k], k))
         quota[donor] -= 1
         left += 1
     disproportionate = any(quota[k] / sizes[k] != n / total for k in names)
@@ -186,10 +192,10 @@ def draw_sample(rows: list[dict], *, n: int, seed: int) -> dict:
 
 
 def annotator_cards(sample: dict) -> list[dict]:
-    """Schede senza peso, affidabilità, punteggi e margine."""
+    """Schede senza peso, affidabilità, punteggi, margine e strato (che ha la fascia del peso)."""
     cards = []
     for row in sample["edges"]:
-        cards.append({k: v for k, v in row.items() if k not in _HIDDEN})
+        cards.append({k: v for k, v in row.items() if k not in _CARD_HIDDEN})
         cards[-1]["label"] = ""
         cards[-1]["motivation"] = ""
         cards[-1]["annotator"] = ""
@@ -306,25 +312,34 @@ def compute_metrics(sample: dict, annotations: list[dict]) -> dict:
             weights.append((info["N_h"], local["IMPLEMENTA"] / strict, strict, info["n_h"]))
     aggregate = None
     interval = None
+    covered = None
     if weights and strict_n:
         population = sum(info["N_h"] for info in sample["strata"])
-        aggregate = round(sum(N_h / population * p for N_h, p, _, _ in weights), 4)
+        # I pesi si normalizzano sugli strati che entrano nella stima: dividere per tutta la
+        # popolazione conterebbe come 0 gli strati senza schede valutabili (2026-11-01).
+        covered_n = sum(N_h for N_h, _, _, _ in weights)
+        covered = round(covered_n / population, 4)
+        aggregate = round(sum(N_h / covered_n * p for N_h, p, _, _ in weights), 4)
         # Varianza del campionamento stratificato, con correzione per popolazione finita.
-        # Gli strati con meno di 2 schede valutabili non hanno una varianza stimabile.
+        # Uno strato censito per intero (n_h == N_h) non ha varianza; gli altri con meno
+        # di 2 schede valutabili non ne hanno una stimabile.
         var = 0.0
         estimable = True
         for N_h, p, strict, n_h in weights:
+            fpc = 1 - n_h / N_h if N_h else 0
+            if fpc <= 0:
+                continue
             if strict < 2:
                 estimable = False
                 break
-            fpc = 1 - n_h / N_h if N_h else 0
-            var += (N_h / population) ** 2 * fpc * p * (1 - p) / (strict - 1)
+            var += (N_h / covered_n) ** 2 * fpc * p * (1 - p) / (strict - 1)
         if estimable:
             half = 1.959963984540054 * (var ** 0.5)
             interval = [round(max(0.0, aggregate - half), 4), round(min(1.0, aggregate + half), 4)]
     return {
         "status": MEASURED,
         "strict_precision": None if strict_n == 0 else round(counts["IMPLEMENTA"] / strict_n, 4),
+        "strict_precision_scope": "sul campione, non pesata: non stima la popolazione",
         "strict_denominator": "IMPLEMENTA + CORRELATO + ERRATO",
         "strict_numerator": "IMPLEMENTA",
         "non_evaluable_excluded_from_strict": True,
@@ -332,7 +347,9 @@ def compute_metrics(sample: dict, annotations: list[dict]) -> dict:
         "counts": counts,
         "aggregate_precision": aggregate,
         "aggregate_interval95": interval,
-        "aggregate_weight": "N_h/N sullo strato, solo strati con almeno una scheda valutabile",
+        "aggregate_weight": "N_h/N_coperta: solo strati con almeno una scheda valutabile",
+        "aggregate_population_covered": covered,
+        "aggregate_interval_method": "Wald stratificato con correzione finita; stretto se p è vicino a 0 o 1",
         "per_stratum": per_stratum,
         "recall": None,
         "note": base["note"],

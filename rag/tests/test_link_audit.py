@@ -119,3 +119,54 @@ def test_disaccordo_e_punteggi_nel_giudizio_bloccano_la_misura():
     leaked["weight"] = 0.99
     check = validate_annotations(sample, [leaked])
     assert check["errors"] and check["errors"][0]["error"] == "punteggi presenti nel giudizio"
+
+
+def _synthetic_sample(strata):
+    """Sigillo costruito a mano: {strato: (N_h, n_h)}. Archi TEST-FIXTURE."""
+    edges, info = [], []
+    for name, (N_h, n_h) in strata.items():
+        info.append({"stratum": name, "N_h": N_h, "n_h": n_h, "pi_h": round(n_h / N_h, 6)})
+        edges += [{"edge_id": f"{name}-{i}", "stratum": name} for i in range(n_h)]
+    return {"status": NOT_MEASURED, "strata": info, "edges": edges}
+
+
+def _cards(sample, label_of):
+    return [{"edge_id": e["edge_id"], "label": label_of(e),
+             "motivation": "TEST-FIXTURE giudizio sul comportamento richiesto",
+             "annotator": "test-fixture"} for e in sample["edges"]]
+
+
+def test_le_schede_non_mostrano_la_fascia_del_peso():
+    sample = draw_sample(collect_implements(_graph(), *_stores()), n=6, seed=1)
+    assert all("stratum" not in card for card in annotator_cards(sample))
+    assert all("stratum" in row for row in sample["edges"])
+
+
+def test_aggregato_rinormalizza_gli_strati_senza_schede_valutabili():
+    # A: tutto NON_VALUTABILE; B: tutto IMPLEMENTA. Prima usciva 0.5, non 1.0.
+    sample = _synthetic_sample({"A": (100, 5), "B": (100, 5)})
+    report = compute_metrics(sample, _cards(
+        sample, lambda e: "NON_VALUTABILE" if e["stratum"] == "A" else "IMPLEMENTA"))
+    assert report["aggregate_precision"] == 1.0
+    assert report["aggregate_population_covered"] == 0.5
+
+
+def test_uno_strato_censito_non_annulla_l_intervallo():
+    # C ha un solo arco, preso: nessuna varianza. Prima l'intervallo diventava None.
+    sample = _synthetic_sample({"C": (1, 1), "D": (50, 10)})
+    flip = iter(range(100))
+    report = compute_metrics(sample, _cards(
+        sample, lambda e: "IMPLEMENTA" if next(flip) % 2 else "ERRATO"))
+    assert report["aggregate_interval95"] is not None
+    low, high = report["aggregate_interval95"]
+    assert low <= report["aggregate_precision"] <= high
+
+
+def test_due_schede_per_strato_quando_n_basta():
+    from eval.link_audit import _allocate
+    sizes = {"grande": 500, "medio": 20, "piccolo": 3, "unico": 1}
+    quota, _ = _allocate(sizes, 12)
+    assert sum(quota.values()) == 12
+    assert quota["unico"] == 1 and all(quota[k] >= 2 for k in ("grande", "medio", "piccolo"))
+    tight, _ = _allocate(sizes, 5)  # non basta per due: una a testa
+    assert sum(tight.values()) == 5 and all(v >= 1 for v in tight.values())
