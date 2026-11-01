@@ -77,7 +77,7 @@ Source attribution has an automatic judge since 30 October 2026: `claude-opus-5-
 | **`/ask`** | hybrid retrieval (dense + lexical + ColBERT rerank) re-weighted by authority, plus the code that implements the retrieved sections |
 | **Pipeline** | Explore → Canvas → Propose → Validate → Archive, grounded in normative documents; the canvas learns from archived reviews |
 | **Intake & Import** | local conversion with preview and staging review: Docling for PDF, Excel read directly, MarkItDown, LibreOffice for DOC/PPT |
-| **Maps** | graph map, Semantic Map, and Impact Ripple over the corpus and the indexed code, from the rule to the backend endpoint to the frontend page that calls it |
+| **Maps** | graph map, Semantic Map, and Impact Ripple (potential impact: each edge says whether it is structural, curated, or inferred) over the corpus and the indexed code, from the rule to the backend endpoint to the frontend page that calls it |
 | **Projects** | separate projects with their own folders, indexes, and Qdrant namespaces |
 | **Agents** | Claude Code and Ollama built in; Codex and Cursor via prompt export and external MCP |
 | **MCP** | read-only local server: retrieval, code search, graph queries |
@@ -241,7 +241,7 @@ L'attribuzione della fonte ha un giudice automatico dal 30 ottobre 2026: `claude
 | **`/ask`** | retrieval ibrido (denso + lessicale + rerank ColBERT) ripesato per autorità, più il codice che implementa le sezioni recuperate |
 | **Pipeline** | Explore → Canvas → Propose → Validate → Archive, ancorata ai documenti normativi; il canvas impara dalle review archiviate |
 | **Intake & Import** | conversione locale con anteprima e review in staging: Docling per i PDF, Excel letto direttamente, MarkItDown, LibreOffice per DOC/PPT |
-| **Mappe** | mappa del grafo, Semantic Map e Impact Ripple sul corpus e sul codice indicizzato, dalla norma all'endpoint del backend fino alla pagina del frontend che lo chiama |
+| **Mappe** | mappa del grafo, Semantic Map e Impact Ripple (impatto potenziale: ogni arco dice se è strutturale, curato o inferito) sul corpus e sul codice indicizzato, dalla norma all'endpoint del backend fino alla pagina del frontend che lo chiama |
 | **Progetti** | progetti separati con cartelle, indici e namespace Qdrant propri |
 | **Agenti** | Claude Code e Ollama integrati; Codex e Cursor con export del prompt e MCP esterno |
 | **MCP** | server locale di sola lettura: retrieval, ricerca nel codice, interrogazione del grafo |

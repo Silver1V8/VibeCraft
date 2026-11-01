@@ -243,6 +243,19 @@ metriche vere restano i comandi qui sopra.
    soglia, e da lì la leggono gate, guardrail, check notturno e dashboard.
 
 
+### Strumenti senza ancora una misura: link, governance, corpus esterno
+
+Tre strumenti del 31 ottobre 2026 (rivisti il 1° novembre). Sono **implementati e testati su
+fixture**; nessuno ha ancora prodotto un numero, e non vanno citati come risultati.
+
+| Strumento | Cosa fa | Stato |
+|---|---|---|
+| [scripts/link_audit.py](../scripts/link_audit.py) · [protocollo](../eval/LINK_AUDIT.md) | campione stratificato degli archi `IMPLEMENTS`, schede senza punteggi per l'annotatore, precisione stretta pesata per strato | precisione **non ancora misurata**: servono annotazioni umane |
+| [scripts/governance_diff.py](../scripts/governance_diff.py) · [protocollo](../eval/GOVERNANCE_APPROVAL.md) | confronta base e head di una PR per parsing: `authority`, `classification`, `status`, precedenze, `authority.*`/`graph_trust.*`, rilevatore e workflow | rileva, non approva; il workflow usa lo script del base. Enforcement su GitHub **da configurare** |
+| [scripts/external_transfer.py](../scripts/external_transfer.py) · [protocollo](../eval/EXTERNAL_TRANSFER.md) | Recall@k binaria, MRR e astensione su un corpus di terzi, con configurazione congelata | **bloccato**: nessun corpus di terzi autorizzato |
+
+Nessuno dei tre cambia ranking, α, soglie di linking o affidabilità.
+
 ## CI
 
 Pipeline minima, senza servizi esterni: [scripts/ci.sh](../scripts/ci.sh) (POSIX,
