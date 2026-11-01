@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "dark-glow",
+        "value": "*",
+        "files": [
+          "rag/templates/graph_analysis.unified.html"
+        ],
+        "createdAt": "2026-11-01T10:14:53.898Z",
+        "reason": "user confirmed 2026-11-01: il glow verde è l'identità del tema Matrix, condiviso da 5 pagine"
+      }
+    ]
+  }
+}
