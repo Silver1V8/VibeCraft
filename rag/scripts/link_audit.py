@@ -10,7 +10,9 @@ Da rag/:
     uv run python scripts/link_audit.py validate --run eval/link_audit/run
     uv run python scripts/link_audit.py metrics --run eval/link_audit/run
 
-Il protocollo è eval/LINK_AUDIT.md.
+metrics scrive metriche-v2.json: stimatore di rapporto pesato sui valutabili, quota
+NON_VALUTABILE pesata a parte, intervallo conservativo (non esatto) al 95%. Non è una
+recall e non vale per altri corpus. Il protocollo è eval/LINK_AUDIT.md.
 """
 from __future__ import annotations
 
@@ -26,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from core.artifacts import current_version, load_artifacts, manifest_path  # noqa: E402
 from core.config import EMBEDDING_MODEL  # noqa: E402
 from eval.link_audit import (  # noqa: E402
+    METHODOLOGY_VERSION,
     annotator_cards,
     collect_implements,
     compute_metrics,
@@ -137,14 +140,43 @@ def cmd_validate(args) -> int:
     return 0 if report["complete"] else 2
 
 
+def _sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _rounded(value):
+    # Arrotondamento solo a video: metriche-v*.json tiene i valori pieni.
+    if isinstance(value, float):
+        return round(value, 4)
+    if isinstance(value, list):
+        return [_rounded(v) for v in value]
+    return value
+
+
 def cmd_metrics(args) -> int:
-    sample, cards = _load_run(Path(args.run))
+    run = Path(args.run)
+    sample, cards = _load_run(run)
     report = compute_metrics(sample, [c for c in cards if c.get("label")])
-    _write(Path(args.run) / "metriche.json", report)
-    # La stima pesata prima: la precisione grezza vale solo sul campione.
-    keys = ("status", "aggregate_precision", "aggregate_interval95", "aggregate_population_covered",
-            "strict_precision", "strict_precision_scope", "non_evaluable_share", "reason")
-    print(json.dumps({k: report[k] for k in keys if k in report}, ensure_ascii=False, indent=2))
+    # Gli input entrano nel risultato: un ricalcolo resta riconducibile alle sue schede.
+    report["inputs"] = {"sigillo_sha256": _sha(run / "sigillo.json"), "schede_sha256": _sha(run / "schede.json")}
+    # Un file per versione della metodologia: metriche.json (versione 1) non si tocca, e un
+    # risultato già scritto da altre schede non si sovrascrive.
+    out = run / f"metriche-v{METHODOLOGY_VERSION}.json"
+    if out.is_file() and _read(out).get("inputs") != report["inputs"]:
+        print(f"{out} esiste ed è stato calcolato da altre schede: spostalo prima di ricalcolare.",
+              file=sys.stderr)
+        return 1
+    _write(out, report)
+    # La stima di popolazione prima: la precisione grezza vale solo sul campione.
+    keys = ("status", "methodology_version", "population_precision", "interval",
+            "weighted_non_evaluable_share", "estimated_implements_total", "estimated_evaluable_total",
+            "sample_precision", "sample_precision_scope", "sample_non_evaluable_share", "reason")
+    shown = {k: report[k] for k in keys if k in report}
+    if isinstance(shown.get("interval"), dict):
+        shown["interval"] = {k: shown["interval"][k] for k in ("bounds", "nominal_level", "conservative", "reason")}
+        shown["interval"]["bounds"] = _rounded(shown["interval"]["bounds"])
+    print(json.dumps({k: _rounded(v) for k, v in shown.items()}, ensure_ascii=False, indent=2))
+    print(f"Scritto {out}.")
     return 0 if report["status"] == "misurato" else 2
 
 

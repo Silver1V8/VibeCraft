@@ -250,7 +250,7 @@ fixture**; nessuno ha ancora prodotto un numero, e non vanno citati come risulta
 
 | Strumento | Cosa fa | Stato |
 |---|---|---|
-| [scripts/link_audit.py](../scripts/link_audit.py) · [protocollo](../eval/LINK_AUDIT.md) | campione stratificato degli archi `IMPLEMENTS`, schede senza punteggi per l'annotatore, precisione stretta pesata per strato | precisione **non ancora misurata**: servono annotazioni umane |
+| [scripts/link_audit.py](../scripts/link_audit.py) · [protocollo](../eval/LINK_AUDIT.md) | campione stratificato degli archi `IMPLEMENTS`, schede senza punteggi per l'annotatore, precisione sui valutabili (stimatore di rapporto, metodologia v2), quota NON_VALUTABILE pesata, intervallo conservativo | precisione **non ancora misurata**: servono annotazioni umane |
 | [scripts/governance_diff.py](../scripts/governance_diff.py) · [protocollo](../eval/GOVERNANCE_APPROVAL.md) | confronta base e head di una PR per parsing: `authority`, `classification`, `status`, precedenze, `authority.*`/`graph_trust.*`, rilevatore e workflow | rileva, non approva; il workflow usa lo script del base. Enforcement su GitHub **da configurare** |
 | [scripts/external_transfer.py](../scripts/external_transfer.py) · [protocollo](../eval/EXTERNAL_TRANSFER.md) | Recall@k binaria, MRR e astensione su un corpus di terzi, con configurazione congelata | **bloccato**: nessun corpus di terzi autorizzato |
 

@@ -12,18 +12,31 @@ Etichette, una sola per scheda e per annotatore:
 
 La precisione stretta ha al denominatore solo IMPLEMENTA, CORRELATO ed ERRATO.
 I NON_VALUTABILE non entrano in quel denominatore: la loro quota è a parte.
+
+Metodologia 2 (2026-11-01): la stima di popolazione è uno stimatore di rapporto
+combinato, Σ w_h·I_h / Σ w_h·A_h con w_h = N_h/n_h, sotto campionamento casuale
+semplice senza reinserimento in ogni strato. L'intervallo è conservativo: limiti
+ipergeometrici esatti per strato, simultanei con Bonferroni. Il protocollo è in
+eval/LINK_AUDIT.md.
 """
 from __future__ import annotations
 
 import hashlib
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
+from fractions import Fraction
+from math import comb
 from typing import Any, Mapping
 
 LABELS = ("IMPLEMENTA", "CORRELATO", "ERRATO", "NON_VALUTABILE")
 STRICT_LABELS = ("IMPLEMENTA", "CORRELATO", "ERRATO")
 NOT_MEASURED = "precisione non ancora misurata"
 MEASURED = "misurato"
+# Versione 1 (fino al 2026-11-01): media delle precisioni locali pesata con N_h sugli
+# strati con schede valutabili, più un Wald. Distorceva la stima quando la quota di
+# NON_VALUTABILE cambiava tra strati; i suoi campi aggregate_* non esistono più.
+METHODOLOGY_VERSION = 2
+NOMINAL_LEVEL = Fraction(95, 100)
 
 # Fasce di campionamento sul peso già registrato sull'arco (coseno di linking).
 # Non sono soglie nuove: gli archi sotto 0.45, se esistono, restano nel campione.
@@ -256,101 +269,227 @@ def validate_annotations(sample: dict, annotations: list[dict]) -> dict:
     }
 
 
-def _wilson(successes: int, n: int) -> list[float] | None:
-    if n < 2:
-        return None
-    z = 1.959963984540054
-    p = successes / n
-    den = 1 + z * z / n
-    center = (p + z * z / (2 * n)) / den
-    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / den
-    return [round(max(0.0, center - half), 4), round(min(1.0, center + half), 4)]
+def _check_design(sample: dict) -> list[str]:
+    """Coerenza fra N_h, n_h, π_h e schede del sigillo. Un sigillo incoerente non si pesa."""
+    problems = []
+    sizes: dict[str, int] = {}
+    for info in sample.get("strata") or []:
+        name, N_h, n_h = info.get("stratum"), info.get("N_h"), info.get("n_h")
+        ints = all(isinstance(v, int) and not isinstance(v, bool) for v in (N_h, n_h))
+        if not ints or N_h < 1 or not 0 <= n_h <= N_h:
+            problems.append(f"strato {name!r}: N_h o n_h non validi")
+            continue
+        if name in sizes:
+            problems.append(f"strato {name!r} ripetuto")
+            continue
+        sizes[name] = n_h
+        pi_h = info.get("pi_h")
+        # π_h è arrotondato a 6 cifre nel sigillo: si controlla, ma il peso usa N_h/n_h.
+        if pi_h is not None and abs(pi_h - n_h / N_h) > 1e-6:
+            problems.append(f"strato {name!r}: π_h non vale n_h/N_h")
+    edges = sample.get("edges") or []
+    if len({row.get("edge_id") for row in edges}) != len(edges):
+        problems.append("archi ripetuti nel campione")
+    drawn = Counter(row.get("stratum") for row in edges)
+    for name, n_h in sizes.items():
+        if drawn.get(name, 0) != n_h:
+            problems.append(f"strato {name!r}: n_h={n_h} ma {drawn.get(name, 0)} archi estratti")
+    for name in sorted(set(drawn) - set(sizes), key=str):
+        problems.append(f"archi di uno strato senza N_h: {name!r}")
+    if "population" in sample and sample["population"] != sum(
+            info["N_h"] for info in sample["strata"] if info.get("stratum") in sizes):
+        problems.append("population diversa dalla somma degli N_h")
+    if not sizes:
+        problems.append("nessuno strato nel sigillo")
+    return problems
+
+
+def _tail_count(N: int, n: int, K: int, x: int, upper: bool) -> int:
+    """Numeratore intero di P(X ≥ x) (upper) o P(X ≤ x) per X ~ Ipergeometrica(N, K, n)."""
+    lo, hi = max(0, n - (N - K)), min(n, K)
+    js = range(max(lo, x), hi + 1) if upper else range(lo, min(hi, x) + 1)
+    return sum(comb(K, j) * comb(N - K, n - j) for j in js)
+
+
+def hypergeometric_bounds(N: int, n: int, x: int, alpha: Fraction) -> tuple[int, int]:
+    """Limiti [K_L, K_U] sul conteggio K nella popolazione, avendo visto x su n senza reinserimento.
+
+    Inversione di due test a una coda, ciascuno di livello alpha: K resta se
+    P(X ≥ x | K) > alpha (limite inferiore) e se P(X ≤ x | K) > alpha (superiore).
+    Copertura ≥ 1 - 2·alpha per ogni K vero. Aritmetica intera esatta: niente
+    sottoflussi né arrotondamenti. Le code sono monotone in K, quindi bisezione.
+    Con n == N resta il solo K = x: nessun errore di campionamento.
+    """
+    total = comb(N, n)
+
+    def keeps(K: int, upper: bool) -> bool:
+        return _tail_count(N, n, K, x, upper) * alpha.denominator > alpha.numerator * total
+
+    a, b = x, N - (n - x)
+    while a < b:  # primo K con P(X ≥ x | K) > alpha, che cresce con K
+        m = (a + b) // 2
+        if keeps(m, True):
+            b = m
+        else:
+            a = m + 1
+    low = a
+    a, b = x, N - (n - x)
+    while a < b:  # ultimo K con P(X ≤ x | K) > alpha, che cala con K
+        m = (a + b + 1) // 2
+        if keeps(m, False):
+            a = m
+        else:
+            b = m - 1
+    return low, a
+
+
+def _ratio_interval(rows: list[tuple[int, int, int, int]]) -> dict:
+    """Intervallo conservativo del rapporto Σ IMPLEMENTA / Σ valutabili nella popolazione.
+
+    rows: (N_h, n_h, I_h, A_h). Ogni strato con n_h < N_h dà due intervalli (IMPLEMENTA e
+    valutabili): sono 2H' in tutto, a ciascuno tocca un errore α/(2H'), cioè α/(4H') per coda.
+    Se tutti coprono insieme (probabilità ≥ 1 - α per Bonferroni, qualunque sia la
+    dipendenza fra i due conteggi) il rapporto vero sta fra i due estremi sotto. Gli
+    strati censiti non hanno errore e non consumano α.
+    """
+    sampled = sum(1 for N_h, n_h, _, _ in rows if n_h < N_h)
+    alpha = (1 - NOMINAL_LEVEL) / (4 * max(1, sampled))
+    i_lo = i_hi = a_lo = a_hi = up_den = 0
+    per = []
+    for N_h, n_h, i_h, e_h in rows:
+        il, iu = hypergeometric_bounds(N_h, n_h, i_h, alpha)
+        al, au = hypergeometric_bounds(N_h, n_h, e_h, alpha)
+        i_lo, i_hi, a_lo, a_hi = i_lo + il, i_hi + iu, a_lo + al, a_hi + au
+        # Massimo del rapporto col vincolo IMPLEMENTA ≤ valutabili: I = I_U, A = max(A_L, I_U).
+        # I_U ≤ A_U perché il limite superiore cresce con x e I_h ≤ A_h.
+        up_den += max(al, iu)
+        per.append(([il, iu], [al, au]))
+    out = {
+        "bounds": None,
+        "reason": None,
+        "nominal_level": float(NOMINAL_LEVEL),
+        "conservative": True,
+        "method": "inversione ipergeometrica per strato, Bonferroni su 2H intervalli, "
+                  "rapporto dei limiti simultanei",
+        "per_tail_alpha": float(alpha),
+        "strata_with_sampling_error": sampled,
+        "implements_total_bounds": [i_lo, i_hi],
+        "evaluable_total_bounds": [a_lo, a_hi],
+        "scope": "solo errore di campionamento: non copre disaccordo fra annotatori né altri corpus",
+    }
+    if a_hi == 0:
+        out["reason"] = "i limiti simultanei ammettono zero archi valutabili nella popolazione"
+    else:
+        # Denominatore inferiore nullo: limite superiore prudente 1.
+        high = Fraction(1) if up_den == 0 else min(Fraction(1), Fraction(i_hi, up_den))
+        out["bounds"] = [float(Fraction(i_lo, a_hi)), float(high)]
+    return {"interval": out, "per_stratum": per}
 
 
 def compute_metrics(sample: dict, annotations: list[dict]) -> dict:
-    """Precisione stretta solo a campione completo e concorde. Altrimenti non misurata."""
+    """Precisione solo a campione completo e concorde. Altrimenti non misurata.
+
+    Stimatore di rapporto combinato: consistente, non esattamente non distorto con
+    campioni piccoli (è un rapporto di due stime). Calcolo in frazioni esatte; i float
+    escono solo nel risultato.
+    """
     check = validate_annotations(sample, annotations)
     base = {
         "status": NOT_MEASURED,
+        "methodology_version": METHODOLOGY_VERSION,
+        "estimand": "quota di archi IMPLEMENTS etichettati IMPLEMENTA fra gli archi valutabili "
+                    "(IMPLEMENTA + CORRELATO + ERRATO) della popolazione sottoposta ad audit",
+        "population_precision": None,
         "recall": None,
-        "note": "La recall non si misura su questi archi: il campione non contiene i collegamenti assenti.",
+        "note": "La recall non si misura su questi archi: il campione non contiene i collegamenti assenti. "
+                "La precisione non dimostra conformità normativa e non vale per altri corpus.",
+        "annotation_completeness": {
+            "sample_size": len(sample.get("edges") or []),
+            "resolved": len(check["resolved"]),
+            "missing": len(check["missing"]),
+            "disagreements": len(check["disagreements"]),
+            "errors": len(check["errors"]),
+            "complete": check["complete"],
+        },
         "validation": {
             "errors": check["errors"],
             "disagreements": check["disagreements"],
             "missing": check["missing"],
         },
     }
-    if any(info["n_h"] == 0 for info in sample["strata"]):
+    problems = _check_design(sample)
+    if problems:
+        base["reason"] = "sigillo incoerente: N_h, n_h o schede non tornano"
+        base["design_problems"] = problems
+        return base
+    strata = sample["strata"]
+    population = sum(info["N_h"] for info in strata)
+    base["sampling_coverage"] = {
+        "design": "campione casuale semplice senza reinserimento in ogni strato",
+        "strata": len(strata),
+        "strata_sampled": sum(1 for info in strata if info["n_h"] > 0),
+        "population": population,
+        "population_in_sampled_strata": sum(info["N_h"] for info in strata if info["n_h"] > 0),
+        "census": all(info["n_h"] == info["N_h"] for info in strata),
+    }
+    if any(info["n_h"] == 0 for info in strata):
+        # Non si inventano valori per uno strato mai visto, e non si rinormalizza su quelli visti.
         base["reason"] = "almeno uno strato della popolazione non è nel campione: allarga n"
         return base
     if not check["complete"]:
+        base["reason"] = "annotazioni mancanti, non valide o discordanti"
         return base
-    rows = {r["edge_id"]: r for r in sample["edges"]}
-    by_stratum = defaultdict(list)
+    stratum_of = {row["edge_id"]: row["stratum"] for row in sample["edges"]}
+    local = {info["stratum"]: dict.fromkeys(LABELS, 0) for info in strata}
     for eid, label in check["resolved"].items():
-        by_stratum[rows[eid]["stratum"]].append(label)
-    counts = {label: 0 for label in LABELS}
-    for label in check["resolved"].values():
-        counts[label] += 1
+        local[stratum_of[eid]][label] += 1
+    implements = evaluable = non_evaluable = Fraction(0)
+    rows = []
+    for info in strata:
+        c = local[info["stratum"]]
+        e_h = sum(c[k] for k in STRICT_LABELS)
+        w_h = Fraction(info["N_h"], info["n_h"])
+        # Uno strato tutto NON_VALUTABILE dà zero ai due totali e resta nella popolazione.
+        implements += w_h * c["IMPLEMENTA"]
+        evaluable += w_h * e_h
+        non_evaluable += w_h * c["NON_VALUTABILE"]
+        rows.append((info["N_h"], info["n_h"], c["IMPLEMENTA"], e_h))
+    ci = _ratio_interval(rows)
+    counts = {label: sum(c[label] for c in local.values()) for label in LABELS}
     strict_n = sum(counts[k] for k in STRICT_LABELS)
     annotated = sum(counts.values())
     per_stratum = []
-    weights = []
-    for info in sample["strata"]:
-        labels = by_stratum.get(info["stratum"], [])
-        local = {label: labels.count(label) for label in LABELS}
-        strict = sum(local[k] for k in STRICT_LABELS)
-        point = None if strict == 0 else round(local["IMPLEMENTA"] / strict, 4)
+    for info, (N_h, n_h, i_h, e_h), (ib, eb) in zip(strata, rows, ci["per_stratum"], strict=True):
         per_stratum.append({
             **info,
-            "counts": local,
-            "strict_precision": point,
-            "wilson95": None if point is None else _wilson(local["IMPLEMENTA"], strict),
-            "non_evaluable_share": None if not labels else round(local["NON_VALUTABILE"] / len(labels), 4),
+            "w_h": float(Fraction(N_h, n_h)),
+            "counts": local[info["stratum"]],
+            "sample_precision": None if e_h == 0 else float(Fraction(i_h, e_h)),
+            "implements_bounds": ib,
+            "evaluable_bounds": eb,
         })
-        if strict:
-            weights.append((info["N_h"], local["IMPLEMENTA"] / strict, strict, info["n_h"]))
-    aggregate = None
-    interval = None
-    covered = None
-    if weights and strict_n:
-        population = sum(info["N_h"] for info in sample["strata"])
-        # I pesi si normalizzano sugli strati che entrano nella stima: dividere per tutta la
-        # popolazione conterebbe come 0 gli strati senza schede valutabili (2026-11-01).
-        covered_n = sum(N_h for N_h, _, _, _ in weights)
-        covered = round(covered_n / population, 4)
-        aggregate = round(sum(N_h / covered_n * p for N_h, p, _, _ in weights), 4)
-        # Varianza del campionamento stratificato, con correzione per popolazione finita.
-        # Uno strato censito per intero (n_h == N_h) non ha varianza; gli altri con meno
-        # di 2 schede valutabili non ne hanno una stimabile.
-        var = 0.0
-        estimable = True
-        for N_h, p, strict, n_h in weights:
-            fpc = 1 - n_h / N_h if N_h else 0
-            if fpc <= 0:
-                continue
-            if strict < 2:
-                estimable = False
-                break
-            var += (N_h / covered_n) ** 2 * fpc * p * (1 - p) / (strict - 1)
-        if estimable:
-            half = 1.959963984540054 * (var ** 0.5)
-            interval = [round(max(0.0, aggregate - half), 4), round(min(1.0, aggregate + half), 4)]
-    return {
-        "status": MEASURED,
-        "strict_precision": None if strict_n == 0 else round(counts["IMPLEMENTA"] / strict_n, 4),
-        "strict_precision_scope": "sul campione, non pesata: non stima la popolazione",
-        "strict_denominator": "IMPLEMENTA + CORRELATO + ERRATO",
-        "strict_numerator": "IMPLEMENTA",
-        "non_evaluable_excluded_from_strict": True,
-        "non_evaluable_share": round(counts["NON_VALUTABILE"] / annotated, 4) if annotated else None,
+    report = {
+        **base,
+        "status": MEASURED if evaluable else NOT_MEASURED,
+        "sample_precision": None if strict_n == 0 else float(Fraction(counts["IMPLEMENTA"], strict_n)),
+        "sample_precision_scope": "grezza sul campione, non pesata: non stima la popolazione",
+        "population_precision": None if evaluable == 0 else float(implements / evaluable),
+        "population_precision_estimator": "rapporto combinato Σ w_h·I_h / Σ w_h·A_h, w_h = N_h/n_h",
+        "estimated_implements_total": float(implements),
+        "estimated_evaluable_total": float(evaluable),
+        "precision_numerator": "IMPLEMENTA",
+        "precision_denominator": "IMPLEMENTA + CORRELATO + ERRATO",
+        "non_evaluable_excluded_from_precision": True,
+        "sample_non_evaluable_share": None if annotated == 0 else float(Fraction(counts["NON_VALUTABILE"], annotated)),
+        "weighted_non_evaluable_share": float(non_evaluable / population),
         "counts": counts,
-        "aggregate_precision": aggregate,
-        "aggregate_interval95": interval,
-        "aggregate_weight": "N_h/N_coperta: solo strati con almeno una scheda valutabile",
-        "aggregate_population_covered": covered,
-        "aggregate_interval_method": "Wald stratificato con correzione finita; stretto se p è vicino a 0 o 1",
+        "interval": ci["interval"],
         "per_stratum": per_stratum,
-        "recall": None,
-        "note": base["note"],
     }
+    if evaluable == 0:
+        report["reason"] = ("nessun arco valutabile nel campione: precisione non definita, non zero. "
+                            "Non prova che la popolazione sia tutta non valutabile.")
+    elif report["sampling_coverage"]["census"]:
+        report["interval"]["note"] = ("censimento: l'intervallo degenere riflette l'assenza di errore "
+                                      "di campionamento, non la certezza delle etichette")
+    return report
