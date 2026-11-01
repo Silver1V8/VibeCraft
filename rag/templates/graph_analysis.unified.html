@@ -124,11 +124,7 @@
     .legend { display: flex; flex-wrap: wrap; gap: var(--space-3); margin-top: 10px; font-size: var(--text-xs); color: var(--legend-text); }
     .legend span { display: inline-flex; align-items: center; gap: 5px; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-    .edge-sample { width: 22px; height: 0; border-top-width: 2px; border-top-color: currentColor; display: inline-block; }
-    .edge-structural { border-top-style: solid; }
-    .edge-curated { border-top-style: dashed; }
-    .edge-inferred { border-top-style: dotted; }
-    .edge-unspecified { border-top-style: double; border-top-width: 4px; }
+    .edge-sample { display: inline-block; vertical-align: middle; }
     .tooltip {
       position: absolute; pointer-events: none; display: none; z-index: 10;
       background: var(--tooltip-bg); border: 1px solid var(--tooltip-border); border-radius: 6px; padding: 5px 8px;
@@ -142,6 +138,9 @@
     .dups button:hover, .dups button:focus-visible, .dups button[aria-pressed="true"] { color: var(--dups-b-color); }
     .dups summary { cursor: pointer; width: fit-content; margin-top: 4px; }
     /* Pannello del nodo selezionato */
+    /* Titoli dei due pannelli un gradino sopra il testo (20 px contro 14): a --text-base
+       erano grandi quanto il corpo e la gerarchia restava piatta (2026-11-01). */
+    #section-map h2, #section-node h2 { font-size: var(--text-xl); }
     #section-node h3 { font-size: var(--text-size-sm); margin: 16px 0 6px; color: var(--h2-color); }
     .node-name { font-family: var(--mono-font); font-size: var(--text-size-sm); color: var(--body-text);
                  word-break: break-all; margin: 4px 0 0; }
@@ -150,15 +149,23 @@
     .relations li { display: flex; gap: 8px; align-items: baseline; padding: 4px 8px; border-bottom: 1px solid var(--canvas-border); }
     .relations li:last-child { border-bottom: 0; }
     .relations .rel { color: var(--muted-text); flex-shrink: 0; }
+    /* Natura e punteggi dell'arco: testo lungo, va a capo invece di uscire dal pannello. */
+    .relations .edge-evidence { flex: 1 1 12rem; min-width: 0; }
     .relations button { all: unset; cursor: pointer; color: var(--body-text); word-break: break-all; }
     .relations button:hover, .relations button:focus-visible { text-decoration: underline; }
     /* Due colonne da 1200 px: la mappa a sinistra, il pannello del nodo a destra e sempre
        visibile mentre si scorre. Sotto, la colonna unica di sempre. */
     @media (min-width: 1200px) {
       .page-doc main#main-content.analysis-layout {
-        max-width: 1680px; display: grid; gap: var(--space-6); align-items: start;
+        max-width: 1680px; display: grid; gap: var(--space-6); align-items: stretch;
         grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
       }
+      /* Le due colonne alte uguali (2026-11-01): il pannello del nodo, con legenda ed
+         elenco degli archi, superava la mappa e lasciava un vuoto sotto. Lo spazio in
+         più va al canvas della mappa; base e minimo restano i 560 px di prima. */
+      .page-doc section#section-map { display: flex; flex-direction: column; }
+      #section-map .canvas-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
+      #section-map #map-canvas { flex: 1 1 560px; height: auto; min-height: 560px; }
       .page-doc section.analysis-inspector {
         position: sticky; top: var(--space-6); max-height: calc(100vh - 2 * var(--space-6)); overflow-y: auto;
       }

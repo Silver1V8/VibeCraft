@@ -347,12 +347,7 @@
 
       // Archi: il tratto distingue la natura. Il colore è lo stesso, così la differenza
       // non sta solo nella tinta. Un punteggio alto non cambia un arco inferito.
-      const dash = {
-        structural: [],
-        curated: [7, 4],
-        inferred: [1, 3],
-        unspecified: [8, 3, 1, 3],
-      };
+      const dash = RIPPLE_EDGE_DASH;
       ctx.lineWidth = 1.5;
       for (const e of data.edges) {
         const a = pos[e.from], b = pos[e.to];
@@ -382,6 +377,14 @@
     }
 
     /* ── impact evidence (fase 1) ── */
+    // Un'unica mappa per canvas e legenda: il campione in legenda è lo stesso tratto.
+    const RIPPLE_EDGE_DASH = {
+      structural: [],
+      curated: [7, 4],
+      inferred: [1, 3],
+      unspecified: [8, 3, 1, 3],
+    };
+
     function edgeNatureKind(nature) {
       if (nature === 'structural' || nature === 'curated' || nature === 'inferred') return nature;
       return 'unspecified';
@@ -411,7 +414,9 @@
       if (caveat) caveat.textContent = t('analysis.ripple.pathCaveat');
       if (legend) {
         legend.innerHTML = ['structural', 'curated', 'inferred', 'unspecified'].map(kind =>
-          `<span><i class="edge-sample edge-${kind}" aria-hidden="true"></i> ${escapeHtml(t('analysis.ripple.legend.' + kind))}</span>`
+          `<span><svg class="edge-sample edge-${kind}" width="22" height="4" aria-hidden="true">`
+          + `<line x1="0" y1="2" x2="22" y2="2" stroke="currentColor" stroke-width="1.5" stroke-dasharray="${RIPPLE_EDGE_DASH[kind].join(' ')}"/></svg>`
+          + ` ${escapeHtml(t('analysis.ripple.legend.' + kind))}</span>`
         ).join('');
       }
       if (!list) return;
@@ -430,7 +435,7 @@
           if (e.provenance) bits.push(escapeHtml(t('analysis.ripple.provenance', { p: e.provenance })));
           return `<li><span class="rel">${escapeHtml(e.relation || t('analysis.node.linkedTo'))}</span>`
             + `<span>${escapeHtml(String(e.from))} → ${escapeHtml(String(e.to))}</span>`
-            + `<span class="rel">${bits.join(' · ')}</span></li>`;
+            + `<span class="rel edge-evidence">${bits.join(' · ')}</span></li>`;
         }).join('')
         : `<li><span class="rel">${escapeHtml(t('analysis.ripple.noEdges'))}</span></li>`;
     }
@@ -475,6 +480,9 @@
     });
 
     window.addEventListener('resize', () => { drawSemanticMap(); if (lastImpactData) drawRipple(lastImpactData); });
+    // La mappa si allunga con il pannello del nodo senza un resize della finestra: senza
+    // ridisegno il bitmap resterebbe stirato e i click mancherebbero i punti.
+    if (window.ResizeObserver) new ResizeObserver(() => drawSemanticMap()).observe(document.getElementById('map-canvas'));
     loadSemanticMap();
     loadNodeList();
 

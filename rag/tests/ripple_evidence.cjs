@@ -51,6 +51,10 @@ assert.ok(html.includes('non una probabilità'));
 assert.equal(el('ripple-caveat').textContent.includes('non rende verificato il percorso'), true);
 assert.ok(el('ripple-edge-legend').innerHTML.includes('edge-inferred'));
 assert.ok(el('ripple-edge-legend').innerHTML.includes('anche se il punteggio è alto'));
+// Il campione in legenda è lo stesso tratto del canvas (prima: 'double' contro tratto-punto).
+for (const [kind, dash] of Object.entries(vm.runInContext('RIPPLE_EDGE_DASH', context))) {
+  assert.ok(el('ripple-edge-legend').innerHTML.includes(`edge-${kind}" width="22" height="4" aria-hidden="true"><line x1="0" y1="2" x2="22" y2="2" stroke="currentColor" stroke-width="1.5" stroke-dasharray="${dash.join(' ')}"`), kind);
+}
 
 const far = { id: HOSTILE, ring: 2 };
 const approach = context.rippleApproachText(far, data);
