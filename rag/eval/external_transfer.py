@@ -19,10 +19,13 @@ def assess_manifest(data) -> dict:
     if not isinstance(data, dict):
         reasons.append("manifest assente o non è una mappa")
         data = {}
-    if data.get("generated") is True or data.get("scritto_per_il_sistema") is True:
-        reasons.append("un corpus generato o scritto per questo sistema non è indipendente")
-    if data.get("costruito_per_favorire_il_sistema") is True:
-        reasons.append("il corpus è costruito per favorire il sistema")
+    # Va dichiarato false, non solo taciuto: una chiave assente (o "true" come stringa)
+    # non dimostra che il corpus non sia stato generato per il test.
+    if data.get("generated") is not False or data.get("scritto_per_il_sistema") is not False:
+        reasons.append("un corpus generato o scritto per questo sistema non è indipendente "
+                       "(generated e scritto_per_il_sistema vanno dichiarati false)")
+    if data.get("costruito_per_favorire_il_sistema") is not False:
+        reasons.append("il corpus è costruito per favorire il sistema, o non è dichiarato false")
     if data.get("terza_parte") is not True:
         reasons.append("terza_parte non è true")
     for key in _REQUIRED:
@@ -97,17 +100,22 @@ def mean_reciprocal_rank(cases: list[dict]) -> float | None:
 
 
 def abstention_outcomes(cases: list[dict]) -> dict | None:
-    """Solo domande annotate come senza risposta. Non entra in Recall@k né in MRR."""
+    """Solo domande annotate come senza risposta. Non entra in Recall@k né in MRR.
+
+    Conta il campo booleano `answered` (il sistema ha risposto?), non `retrieved`: il
+    retriever restituisce sempre i primi k, e così ogni astensione risulterebbe mancata.
+    Un caso senza `answered` booleano non si indovina: finisce in `senza_esito`."""
     silent = [case for case in cases if case.get("no_answer") is True]
     if not silent:
         return None
-    correct = 0
-    for case in silent:
-        retrieved = list(case.get("retrieved") or [])
-        answered = bool(retrieved) or bool(case.get("answered"))
-        if not answered:
-            correct += 1
-    return {"n": len(silent), "corrette": correct, "quota": correct / len(silent)}
+    judged = [case for case in silent if isinstance(case.get("answered"), bool)]
+    correct = sum(1 for case in judged if case["answered"] is False)
+    return {
+        "n": len(judged),
+        "corrette": correct,
+        "quota": correct / len(judged) if judged else None,
+        "senza_esito": len(silent) - len(judged),
+    }
 
 
 def evaluate_transfer(manifest, cases, *, human_verified: bool, split: str,
@@ -151,6 +159,8 @@ def evaluate_transfer(manifest, cases, *, human_verified: bool, split: str,
         blocked.append("manca l'identificativo della run")
     if report["duplicati"]:
         blocked.append("duplicati nel test")
+    if not any(case.get("relevant") or case.get("no_answer") is True for case in cases or []):
+        blocked.append("nessun caso utilizzabile: senza domande non c'è una misura")
     if blocked:
         report["status"] = BLOCKED
         report["motivi"].extend(blocked)

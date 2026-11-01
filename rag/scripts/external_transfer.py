@@ -31,7 +31,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--human-verified", action="store_true")
     parser.add_argument("--split", default="test")
     parser.add_argument("--config-frozen", action="store_true")
-    parser.add_argument("--used-for-tuning", action="store_true")
+    # Va dichiarato: se manca, le domande contano come usate per il tuning (fail-closed).
+    parser.add_argument("--used-for-tuning", choices=("si", "no"))
     parser.add_argument("--run-id", default=None)
     args = parser.parse_args(argv)
     if not args.manifest.is_file():
@@ -47,9 +48,12 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             print(str(exc), file=sys.stderr)
             return 1
+        if not isinstance(cases, list) or not all(isinstance(case, dict) for case in cases):
+            print("--cases deve essere una lista di oggetti", file=sys.stderr)
+            return 1
         report = evaluate_transfer(
             manifest, cases, human_verified=args.human_verified, split=args.split,
-            config_frozen=args.config_frozen, used_for_tuning=args.used_for_tuning,
+            config_frozen=args.config_frozen, used_for_tuning=args.used_for_tuning != "no",
             run_id=args.run_id,
         )
     json.dump(report, sys.stdout, ensure_ascii=False, indent=2)

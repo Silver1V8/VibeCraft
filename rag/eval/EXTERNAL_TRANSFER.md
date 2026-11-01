@@ -24,7 +24,7 @@ Tutte queste condizioni, nel manifest, insieme:
 - `terza_parte: true`;
 - `provenienza`, `versione`, `licenza`, `autorizzazione`: stringhe non vuote. L'autorizzazione è il permesso di usare quel corpus, non una frase del tipo "generato per il test";
 - `originali_conservati: true` e `metadati_aggiunti_separati: true` (ciò che aggiungiamo noi sta fuori dagli originali e si può risalire);
-- `generated`, `scritto_per_il_sistema` e `costruito_per_favorire_il_sistema` non sono true.
+- `generated`, `scritto_per_il_sistema` e `costruito_per_favorire_il_sistema` dichiarati `false`. Una chiave assente, o la stringa `"false"`, non basta.
 
 Manca una sola: lo stato è `bloccato` e il corpus non si chiama indipendente. Un corpus scritto per questo sistema, anche se grande, non lo è.
 
@@ -42,9 +42,9 @@ Controlli sul test, prima di calcolare:
 
 - **Recall@k binaria.** Sulle sole domande con almeno una fonte attesa: 1 se almeno una di quelle fonti è fra le prime k, altrimenti 0. Poi la media. Non è `|attese ∩ primi k| / |attese|`. k va dichiarato (lo strumento riporta 5 e 10).
 - **MRR.** Sulle stesse domande: media di `1/rank` della prima fonte attesa, con rank che parte da 1. Se non c'è, 0.
-- **Astensione.** Solo sulle domande annotate `no_answer`. Non entra nel denominatore di Recall@k né di MRR.
+- **Astensione.** Solo sulle domande annotate `no_answer`, e solo su quelle con il campo booleano `answered` (il sistema ha risposto?). Le fonti recuperate non contano: il retriever restituisce sempre i primi k. Le domande senza `answered` stanno in `senza_esito`. Non entra nel denominatore di Recall@k né di MRR.
 - **Attribuzione e autorità della fonte.** Si contano a parte, solo dove un umano ha detto quale fonte e quale autorità erano quelle giuste. Lo strumento non ha ancora quel conteggio: senza quelle etichette non si inventa.
 - **Correttezza della risposta.** Solo se la risposta è annotata. Un giudice automatico non sostituisce quel giudizio, e non va presentato come se lo fosse.
 - **Collegamento norma–codice.** Solo se c'è codice pertinente e un giudizio umano sull'arco. Non si trasferisce qui il tasso di errore di un altro sistema, né la precisione degli IMPLEMENTS di questo repository (quella, finché le schede non sono compilate, è `precisione non ancora misurata`: vedi `LINK_AUDIT.md`).
 
-Un risultato `misurato` richiede anche `run_id`, split `test`, configurazione congelata, e `used_for_tuning` falso. `validato` resta falso: misurare una run non è validare il sistema. I numeri pubblici non si aggiornano da una run senza quel `run_id` e senza il manifest.
+Un risultato `misurato` richiede anche almeno un caso utilizzabile, `run_id`, split `test`, configurazione congelata, e `--used-for-tuning no` dichiarato: se il flag manca, le domande contano come usate per il tuning. `validato` resta falso: misurare una run non è validare il sistema. I numeri pubblici non si aggiornano da una run senza quel `run_id` e senza il manifest.

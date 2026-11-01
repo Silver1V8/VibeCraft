@@ -2,6 +2,7 @@
 from eval.external_transfer import (
     MEASURED,
     WAITING,
+    abstention_outcomes,
     assess_manifest,
     duplicate_questions,
     evaluate_transfer,
@@ -20,6 +21,9 @@ def _manifest(**overrides):
         "autorizzazione": "TEST-FIXTURE permesso scritto di usare il corpus",
         "originali_conservati": True,
         "metadati_aggiunti_separati": True,
+        "generated": False,
+        "scritto_per_il_sistema": False,
+        "costruito_per_favorire_il_sistema": False,
     }
     data.update(overrides)
     return data
@@ -29,7 +33,7 @@ def _cases():
     return [
         {"question": "TEST-FIXTURE uno", "retrieved": ["a", "b"], "relevant": ["b"]},
         {"question": "TEST-FIXTURE due", "retrieved": ["c"], "relevant": ["z"]},
-        {"question": "TEST-FIXTURE taci", "retrieved": [], "relevant": [], "no_answer": True},
+        {"question": "TEST-FIXTURE taci", "retrieved": [], "relevant": [], "no_answer": True, "answered": False},
     ]
 
 
@@ -86,3 +90,42 @@ def test_definizioni_e_una_run_tracciabile_non_e_validata():
         config_frozen=True, used_for_tuning=False, run_id="TEST-FIXTURE-run",
     )
     assert blocked["misurato"] is False
+
+
+def test_chiavi_di_indipendenza_taciute_non_bastano():
+    for key in ("generated", "scritto_per_il_sistema", "costruito_per_favorire_il_sistema"):
+        data = _manifest()
+        del data[key]
+        assert assess_manifest(data)["indipendente"] is False
+    assert assess_manifest(_manifest(generated="false"))["indipendente"] is False
+
+
+def test_senza_casi_non_e_misurato():
+    report = evaluate_transfer(
+        _manifest(), [], human_verified=True, split="test",
+        config_frozen=True, used_for_tuning=False, run_id="TEST-FIXTURE-run",
+    )
+    assert report["status"] == "bloccato"
+    assert report["misurato"] is False
+
+
+def test_astensione_legge_answered_non_i_recuperati():
+    cases = [
+        {"question": "TEST-FIXTURE a", "retrieved": ["x"], "relevant": [], "no_answer": True, "answered": False},
+        {"question": "TEST-FIXTURE b", "retrieved": ["x"], "relevant": [], "no_answer": True, "answered": True},
+        {"question": "TEST-FIXTURE c", "retrieved": ["x"], "relevant": [], "no_answer": True},
+    ]
+    out = abstention_outcomes(cases)
+    assert out == {"n": 2, "corrette": 1, "quota": 0.5, "senza_esito": 1}
+
+
+def test_cli_tuning_non_dichiarato_blocca(tmp_path):
+    import json
+    manifest = tmp_path / "m.json"
+    manifest.write_text(json.dumps(_manifest()), encoding="utf-8")
+    cases = tmp_path / "c.json"
+    cases.write_text(json.dumps(_cases()), encoding="utf-8")
+    base = ["--manifest", str(manifest), "--cases", str(cases), "--human-verified",
+            "--config-frozen", "--run-id", "TEST-FIXTURE-run"]
+    assert main(base) == 2
+    assert main(base + ["--used-for-tuning", "no"]) == 0
