@@ -298,7 +298,12 @@ def _emit_fields(rows, documento, before, after, names, esito_base):
 def _document_rows(base_docs, head_docs, names):
     rows = []
     pairs, base_dups, head_dups = _pairs(base_docs, head_docs)
-    for ident, paths in base_dups + head_dups:
+    # Solo i duplicati che la head introduce o cambia: uno già nel base, identico, uscirebbe
+    # su ogni PR (due volte), e un warning sempre acceso non lo legge più nessuno.
+    known = {(ident, tuple(sorted(paths))) for ident, paths in base_dups}
+    for ident, paths in head_dups:
+        if (ident, tuple(sorted(paths))) in known:
+            continue
         rows.append(_record(
             ", ".join(paths), "id", ident, ident, "non valido",
             errore="id duplicato: il confronto per rinomina non è univoco",
@@ -311,6 +316,8 @@ def _document_rows(base_docs, head_docs, names):
         documento = head_path or base_path
         if kind == "rinominato":
             rows.append(_record(base_path, "(percorso)", base_path, head_path, "rinominato"))
+        if kind == "stesso" and base_error and base_error == head_error:
+            continue  # stesso frontmatter inutilizzabile prima e dopo: non è un cambio
         if base_error or head_error:
             rows.append(_record(
                 documento, "(frontmatter)", None, None, "non valido",
@@ -460,8 +467,10 @@ def _code_rows(base_root: Path, head_root: Path, relative: str, extractor, names
     head_path = head_root / relative
     if not base_path.is_file() and not head_path.is_file():
         return rows
-    base_text = base_path.read_text(encoding="utf-8") if base_path.is_file() else ""
-    head_text = head_path.read_text(encoding="utf-8") if head_path.is_file() else ""
+    base_text, base_err = _read(base_path) if base_path.is_file() else ("", None)
+    head_text, head_err = _read(head_path) if head_path.is_file() else ("", None)
+    if base_err or head_err:
+        return [_record(relative, "(lettura)", None, None, "non valido", errore=base_err or head_err)]
     try:
         base_map = extractor(base_text, names) if base_text else {}
     except SyntaxError as exc:
@@ -585,8 +594,11 @@ def _workflow_rows(base_root: Path, head_root: Path):
         relative = f".github/workflows/{name}"
         base_path = base_dir / name
         head_path = head_dir / name
-        base_text = base_path.read_text(encoding="utf-8") if base_path.is_file() else None
-        head_text = head_path.read_text(encoding="utf-8") if head_path.is_file() else None
+        base_text, base_err = _read(base_path) if base_path.is_file() else (None, None)
+        head_text, head_err = _read(head_path) if head_path.is_file() else (None, None)
+        if base_err or head_err:
+            rows.append(_record(relative, "workflow", None, None, "non valido", errore=base_err or head_err))
+            continue
         base_view = workflow_view(base_text) if base_text is not None else None
         head_view = workflow_view(head_text) if head_text is not None else None
         if base_view != head_view:

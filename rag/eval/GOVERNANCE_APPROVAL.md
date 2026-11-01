@@ -34,11 +34,18 @@ Aggiunta, rimozione, rinomina (per `id` univoco) e frontmatter inutilizzabile so
 
 ## Cosa non è attivo
 
-Verificato nel repository al momento di questo file: non c'è `CODEOWNERS`, e questo strumento non può leggere i ruleset di GitHub. Quindi:
+Verificato il 1° novembre 2026 (`gh api`, sola lettura):
+
+- non c'è `CODEOWNERS`;
+- su `main` è attivo un ruleset con tre regole: niente cancellazione, niente force-push, check `test` obbligatorio. Il ruolo Admin lo aggira sempre (`bypass_mode: always`): un push diretto dell'Admin non aspetta il check;
+- nessuna regola `pull_request`: nessuna review è richiesta;
+- il repository ha **un solo collaboratore**, il proprietario. GitHub non lascia approvare la propria PR, quindi una review «di una persona diversa dall'autore» oggi non è configurabile: una regola che la richiede bloccherebbe ogni merge, o con l'aggiramento Admin non bloccherebbe nulla.
+
+Quindi:
 
 - nessuno è obbligato a rivedere un cambio di `authority` prima del merge;
 - un'approval vecchia non viene scartata da una configurazione presente qui;
-- il workflow `.github/workflows/governance-diff.yml` ha `permissions: contents: read`, gira su `pull_request` (non su `pull_request_target`) e **esce 0 anche quando rileva**, dopo un `::warning::`. Un rosso obbligatorio bloccherebbe anche la modifica legittima, e non esiste un approvatore indipendente da interrogare. Il warning non è un'approvazione.
+- il workflow `.github/workflows/governance-diff.yml` ha `permissions: contents: read`, gira su `pull_request` (non su `pull_request_target`) e **esce 0 anche quando rileva**, dopo un `::warning::`. Lo script che gira è quello del base, estratto a parte: una PR che modifica il rilevatore non può decidere cosa il rilevatore vede di lei. Se il base non ha ancora lo script, il job avvisa e non esegue quello della PR. Un rosso obbligatorio bloccherebbe anche la modifica legittima, e non esiste un approvatore indipendente da interrogare. Il warning non è un'approvazione.
 
 ## Checklist umana, finché l'enforcement non c'è
 
@@ -50,4 +57,10 @@ Prima di unire un PR che il rilevamento elenca:
 4. Non passare il workflow a `pull_request_target`, non fare checkout del codice della PR con un token di scrittura, non stampare segreti nel log.
 5. `CODEOWNERS`, il giorno in cui esisterà, copre file. Non dimostra che il campo `authority` sia stato letto.
 
-Per rendere l'enforcement attivo, fuori da questo repository: un ruleset sul branch, almeno una review diversa dall'autore, dismiss delle approval stantie. Non rendere obbligatorio il job di rilevamento finché un cambio legittimo deve poter essere unito dopo quella review: il job segnala, la review decide.
+Per rendere l'enforcement attivo serve prima **un secondo revisore** con accesso al repository, scelto dal proprietario. Poi, sul ruleset di `main`:
+
+1. aggiungere la regola `pull_request` con `required_approving_review_count: 1` e `dismiss_stale_reviews_on_push: true`;
+2. aggiungere `CODEOWNERS` con quel revisore su `templates/docs/`, `templates/template_*.md`, `rag/rag_config.yaml`, `rag/core/retrieval.py`, `rag/core/config.py`, `rag/eval/governance_diff.py`, `rag/scripts/governance_diff.py`, `.github/`, e attivare `require_code_owner_review`;
+3. togliere al ruolo Admin l'aggiramento `always` (o limitarlo a `pull_request`), altrimenti la regola non vincola chi può tutto.
+
+Fino ad allora l'enforcement è **non attivo** e la checklist sopra è l'unico presidio. Non rendere obbligatorio il job di rilevamento finché un cambio legittimo deve poter essere unito dopo quella review: il job segnala, la review decide.

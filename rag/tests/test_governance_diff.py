@@ -200,3 +200,25 @@ def test_cli_e_git(tmp_path):
     head_sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
     assert main(["--repo", str(repo), "--git", base_sha, head_sha]) == 2
     assert main(["--git", "bad:ref", head_sha]) == 1
+
+
+def test_duplicato_gia_nel_base_non_si_ripete_su_ogni_pr(tmp_path):
+    base, head = tmp_path / "base", tmp_path / "head"
+    for root in (base, head):
+        _tree(root, _doc(), "templates/docs/a.md")
+        _tree(root, _doc(), "templates/docs/b.md")
+    assert compare_trees(base, head)["rilevamenti"] == []
+    _tree(head, _doc(), "templates/docs/c.md")
+    assert _by(compare_trees(base, head), "id")
+
+
+def test_codice_e_workflow_non_utf8_non_rompono_il_rilevatore(tmp_path):
+    base, head = tmp_path / "base", tmp_path / "head"
+    for root in (base, head):
+        _tree(root, "def apply_precedence():\n    return 1\n", "rag/core/retrieval.py")
+        _tree(root, "on: pull_request\npermissions:\n  contents: read\n", ".github/workflows/x.yml")
+    (head / "rag" / "core" / "retrieval.py").write_bytes(b"# TEST-FIXTURE \xff\n")
+    (head / ".github" / "workflows" / "x.yml").write_bytes(b"on: pull_request # \xff\n")
+    rows = compare_trees(base, head)["rilevamenti"]
+    assert any(r["documento"] == "rag/core/retrieval.py" and r["esito"] == "non valido" for r in rows)
+    assert any(r["documento"] == ".github/workflows/x.yml" and r["esito"] == "non valido" for r in rows)

@@ -35,27 +35,45 @@ def _ref_ok(ref: str) -> bool:
 def materialize_git(repo: Path, ref: str, dest: Path) -> None:
     if not _ref_ok(ref):
         raise ValueError("ref non valida")
+    # -z: senza, git mette fra virgolette i percorsi non ASCII e il `show` li perderebbe.
     listing = subprocess.run(
-        ["git", "-C", str(repo), "ls-tree", "-r", "--name-only", ref],
-        capture_output=True, text=True, timeout=30, check=False,
+        ["git", "-C", str(repo), "ls-tree", "-r", "-z", ref],
+        capture_output=True, timeout=30, check=False,
     )
     if listing.returncode != 0:
-        raise RuntimeError(listing.stderr.strip() or "git ls-tree fallito")
+        raise RuntimeError(listing.stderr.decode("utf-8", "replace").strip() or "git ls-tree fallito")
     dest.mkdir(parents=True, exist_ok=True)
-    for relative in listing.stdout.splitlines():
-        if not relative or relative.startswith("-"):
+    blobs = []
+    for entry in listing.stdout.decode("utf-8").split("\0"):
+        meta, _, relative = entry.partition("\t")
+        fields = meta.split(" ")
+        # Solo blob: un submodule (commit) non ha contenuto da confrontare.
+        if not relative or relative.startswith("-") or len(fields) != 3 or fields[1] != "blob":
             continue
         target = dest / relative
         if ".." in target.parts:
             continue
-        show = subprocess.run(
-            ["git", "-C", str(repo), "show", f"{ref}:{relative}"],
-            capture_output=True, timeout=30, check=False,
-        )
-        if show.returncode != 0:
-            continue
+        blobs.append((fields[2], target))
+    # Un solo `cat-file --batch` invece di un `git show` per file (migliaia di processi).
+    # Non `git archive`: rispetterebbe un export-ignore scritto dalla PR stessa.
+    batch = subprocess.run(
+        ["git", "-C", str(repo), "cat-file", "--batch"],
+        input="".join(sha + "\n" for sha, _ in blobs).encode("ascii"),
+        capture_output=True, timeout=120, check=False,
+    )
+    if batch.returncode != 0:
+        raise RuntimeError(batch.stderr.decode("utf-8", "replace").strip() or "git cat-file fallito")
+    out, pos = batch.stdout, 0
+    for sha, target in blobs:
+        end = out.index(b"\n", pos)
+        header = out[pos:end].split(b" ")
+        if len(header) != 3 or header[1] != b"blob" or header[0].decode("ascii") != sha:
+            # Un file che non si legge non deve sembrare rimosso: meglio fermarsi.
+            raise RuntimeError(f"oggetto {sha} non leggibile")
+        size = int(header[2])
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(show.stdout)
+        target.write_bytes(out[end + 1:end + 1 + size])
+        pos = end + 1 + size + 1
 
 
 def main(argv: list[str] | None = None) -> int:

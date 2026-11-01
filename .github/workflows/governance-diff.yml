@@ -19,6 +19,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
+
+      # Il rilevatore gira dal base, non dalla PR: una PR che modifica lo script non
+      # deve poter decidere cosa lo script vede di se stessa.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: _base-detector
+          persist-credentials: false
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
@@ -33,8 +42,12 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          if [ ! -f _base-detector/rag/scripts/governance_diff.py ]; then
+            echo "::warning::Il base non ha ancora il rilevatore: non eseguo quello della PR."
+            exit 0
+          fi
           set +e
-          PYTHONPATH=rag /tmp/gov/bin/python rag/scripts/governance_diff.py --git "$BASE_SHA" "$HEAD_SHA"
+          /tmp/gov/bin/python _base-detector/rag/scripts/governance_diff.py --repo "$GITHUB_WORKSPACE" --git "$BASE_SHA" "$HEAD_SHA"
           code=$?
           set -e
           if [ "$code" -eq 2 ]; then
