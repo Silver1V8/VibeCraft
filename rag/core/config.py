@@ -5,6 +5,7 @@ import copy
 import json
 import logging
 import os
+import sys
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -35,6 +36,22 @@ CODE_EXCLUDED_DIRS = frozenset({
 })
 
 
+class _CurrentStderrHandler(logging.StreamHandler):
+    """Scrive sul sys.stderr del momento, non su quello di quando è stato creato.
+
+    server.py e index.py configurano il logging all'import: sotto pytest quel sys.stderr
+    è lo stream di cattura del test che li importa, che poi viene chiuso, e i log dei test
+    successivi finivano in «ValueError: I/O operation on closed file» (2026-11-01)."""
+
+    @property
+    def stream(self):
+        return sys.stderr
+
+    @stream.setter
+    def stream(self, _value):
+        pass  # StreamHandler.__init__ lo assegna: lo stream è sempre quello corrente
+
+
 def setup_logging() -> None:
     """Configurazione centrale del logging (chiamata dagli entrypoint server.py e
     index.py): formato con timestamp/livello/modulo, livello da VIBECRAFT_LOG_LEVEL
@@ -43,6 +60,7 @@ def setup_logging() -> None:
     logging.basicConfig(
         level=getattr(logging, level_name, logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        handlers=[_CurrentStderrHandler()],
         force=True,
     )
 

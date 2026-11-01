@@ -219,3 +219,21 @@ def test_log_level_invalid_falls_back_to_info(monkeypatch):
     assert logging.getLogger().level == logging.INFO
     monkeypatch.delenv("VIBECRAFT_LOG_LEVEL")
     setup_logging()
+
+
+def test_log_segue_lo_stderr_corrente_anche_se_il_vecchio_e_chiuso(monkeypatch):
+    """server.py configura il logging all'import: lo stderr di allora può essere chiuso."""
+    import io
+    import sys
+    monkeypatch.setattr(logging.root, "handlers", [])
+    monkeypatch.setattr(logging.root, "level", logging.root.level)
+    vecchio = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", vecchio)
+    setup_logging()
+    vecchio.close()
+    nuovo = io.StringIO()
+    monkeypatch.setattr(sys, "stderr", nuovo)
+    monkeypatch.setattr(logging, "raiseExceptions", True)
+    logging.getLogger("test-fixture").warning("TEST-FIXTURE dopo la chiusura")
+    assert "TEST-FIXTURE dopo la chiusura" in nuovo.getvalue()
+    assert "Logging error" not in nuovo.getvalue()
