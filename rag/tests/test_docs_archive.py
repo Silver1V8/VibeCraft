@@ -163,15 +163,16 @@ def test_eval_history_py_punta_ancora_al_percorso_invariato():
 
 
 def test_report_di_sviluppo_fuori_dal_seme(tmp_path):
-    """I report non sono nel seme templates/docs. Un progetto già registrato non è riscritto.
+    """Il diario di sviluppo non è nel seme templates/docs. Un progetto già registrato non è riscritto.
+    fe1-canvas-review resta nel seme: è il distrattore dei casi avversariali del golden set.
     Il clone senza radice docs/ e code/ copia quel seme, come fa il Dockerfile."""
     from dataclasses import replace
 
     from core.projects import ProjectRegistry, legacy_project_context
 
     assert not (REPO_ROOT / "templates" / "docs" / "superpowers").exists()
-    assert not (REPO_ROOT / "templates" / "docs" / "03_changes_historical" / "fe1-canvas-review.md").exists()
-    assert (ARCHIVE_DIR / "baseline-reports" / "fe1-canvas-review.md").is_file()
+    assert (REPO_ROOT / "templates" / "docs" / "03_changes_historical" / "fe1-canvas-review.md").is_file()
+    assert not (ARCHIVE_DIR / "baseline-reports" / "fe1-canvas-review.md").exists()
     assert (ARCHIVE_DIR / "baseline-reports" / "superpowers" / "plans").is_dir()
     assert (ARCHIVE_DIR / "baseline-reports" / "INVENTARIO.md").is_file()
     assert (REPO_ROOT / "templates" / "docs" / "01_architecture_norms" / "coding_standards.md").is_file()
@@ -205,6 +206,6 @@ def test_report_di_sviluppo_fuori_dal_seme(tmp_path):
     [project] = store.list()
     assert (project.docs_dir / "01_architecture_norms" / "coding_standards.md").is_file()
     assert not (project.docs_dir / "superpowers").exists()
-    assert not (project.docs_dir / "03_changes_historical" / "fe1-canvas-review.md").exists()
+    assert (project.docs_dir / "03_changes_historical" / "fe1-canvas-review.md").is_file()
     assert marker.read_text(encoding="utf-8") == "non toccare\n"
     assert not (REPO_ROOT / "templates" / "docs" / "superpowers").exists()

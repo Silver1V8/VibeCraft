@@ -22,7 +22,7 @@ weighing down the trees that are consulted day to day (`rag/adr/`, `rag/eval/res
   `rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md`.
 - `adr/horizontal-bench/` — the runs from 28 September 2026. A new run is still written
   under `rag/adr/horizontal-bench/`.
-- `baseline-reports/` — reviews and development diaries removed from `templates/docs/` on
+- `baseline-reports/` — development diaries removed from `templates/docs/` on
   31 October 2026. Inventory: `baseline-reports/INVENTARIO.md`. Projects already created
   were not modified.
 - `eval-results/<run>/` — evaluation runs moved from the former `rag/eval/results/<run>/`.

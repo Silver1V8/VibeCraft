@@ -22,7 +22,7 @@ appesantire gli alberi che si consultano di continuo (`rag/adr/`, `rag/eval/resu
   in `rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md`.
 - `adr/horizontal-bench/` — le run del 28 settembre 2026. Una run nuova si scrive ancora
   sotto `rag/adr/horizontal-bench/`.
-- `baseline-reports/` — review e diari di sviluppo tolti da `templates/docs/` il 31 ottobre
+- `baseline-reports/` — diari di sviluppo tolti da `templates/docs/` il 31 ottobre
   2026. Inventario in `baseline-reports/INVENTARIO.md`. I progetti già creati non sono stati
   modificati.
 - `eval-results/<run>/` — le run di valutazione spostate dall'ex `rag/eval/results/<run>/`.
