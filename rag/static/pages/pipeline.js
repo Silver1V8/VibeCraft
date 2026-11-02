@@ -118,7 +118,6 @@
       specApproved = !!approved;
       const review = document.getElementById('review-spec');
       review.classList.toggle('is-approved', specApproved);
-      review.style.maxHeight = specApproved ? '' : '42vh';
       const hint = document.getElementById('review-spec-hint');
       if (hint) {
         hint.setAttribute('data-i18n',

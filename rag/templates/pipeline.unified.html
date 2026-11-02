@@ -168,6 +168,12 @@
        quindi serve un minimo sull'editor — altrimenti min-height:0 delle review-stage
        lo lascia a 2 righe. Il resoconto punti aperti può essere lungo: se non
        scrolla da solo, overflow:hidden del review-stage clippa Salva/Approva. */
+    /* 2026-11-02: il tetto fisso di 42vh era più basso della somma dei minimi (editor +
+       resoconto 4.5rem + intestazione e footer ~7.5rem): sotto ~910 px di altezza il
+       footer con Approva finiva clippato. Il tetto non scende mai sotto quella somma. */
+    #review-spec:not(.is-approved) {
+      max-height: max(42vh, calc(min(12rem, 22vh) + 12rem));
+    }
     #review-spec:not(.is-approved) .md-editor {
       min-height: min(12rem, 22vh);
     }
@@ -573,7 +579,7 @@
           <p class="text-xs text-slate-400" data-i18n="pipeline.propose.loading">Generazione specifiche in corso tramite LLM locale…</p>
         </div>
 
-        <div id="review-spec" class="hidden review-stage rounded-xl glass-card p-4 flex-col shrink-0" style="max-height:42vh;">
+        <div id="review-spec" class="hidden review-stage rounded-xl glass-card p-4 flex-col shrink-0">
           <div class="flex items-center justify-between mb-2 shrink-0">
             <span class="text-xs font-semibold text-slate-400 uppercase tracking-widest" data-i18n="pipeline.review.spec">Revisione · spec.md</span>
             <span id="review-spec-hint" class="text-xs text-amber-400 font-medium" data-i18n="pipeline.review.approveUnlock">Approva per sbloccare il prompt finale</span>
