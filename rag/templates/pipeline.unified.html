@@ -236,6 +236,10 @@
       background: var(--glass-bg);
       backdrop-filter: blur(12px);
     }
+    /* Tetto alla tendina dell'agente: con un'etichetta lunga spingeva "Esegui" a capo. */
+    #agent-runner-select {
+      max-width: 12rem;
+    }
 
     /* Testo su superficie primaria: `text-white` su bg-blue-600 dava 2,17:1 nel
        tema Matrix, dove --blue-600 è un verde brillante. --color-on-primary è

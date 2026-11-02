@@ -29,7 +29,8 @@ vm.runInContext(functions,context);
 (async()=>{
   await context.loadRunners();
   assert.equal(nodes['agent-runner-select'].options[0].disabled,false,'native export chooser remains reachable');
-  assert.ok(nodes['agent-runner-select'].options[0].text.includes(reason));
+  assert.equal(nodes['agent-runner-select'].options[0].text,'Codex CLI','reason stays out of the option label');
+  assert.equal(nodes['agent-runner-select'].options[0].title,reason);
   assert.equal(nodes['agent-run-btn'].disabled,true);
   assert.equal(nodes['agent-run-btn'].title,reason);
   await context.runWithAgent();

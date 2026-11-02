@@ -917,7 +917,10 @@
       const select = document.getElementById('agent-runner-select');
       select.textContent = '';
       for (const r of agentRunners) {
-        const option = new Option(r.available ? r.label : `${r.label} (${r.unavailable_reason || t('pipeline.agent.notInstalled')})`, r.id);
+        // Il motivo va nel title, non nel testo: un <select> nativo prende la larghezza
+        // dell'opzione più lunga e la nota di Cursor allargava tutta la barra (2026-11-02).
+        const option = new Option(r.label, r.id);
+        if (!r.available) option.title = r.unavailable_reason || t('pipeline.agent.notInstalled');
         option.disabled = !(r.export_available ?? r.available);
         select.add(option);
       }
