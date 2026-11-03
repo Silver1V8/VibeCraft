@@ -389,6 +389,14 @@ async function browserChecks() {
     assert.equal(await indexButton.isVisible(), true, 'Unknown alignment must allow updating the index');
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    // Barra su una riga su ogni schermo largo, anche alto (2026-11-03): fino ad allora la
+    // riga unica scattava solo sotto gli 820 px di altezza e un monitor 1920×1080 ne aveva due.
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    const scartoRiga = await page.evaluate(() => {
+      const centro = el => { const r = el.getBoundingClientRect(); return r.top + r.height / 2; };
+      return Math.abs(centro(document.getElementById('workspace-nav')) - centro(document.getElementById('project-select')));
+    });
+    assert.ok(scartoRiga < 8, `Wide screens must keep the project bar on one row (offset ${scartoRiga}px)`);
     await page.setViewportSize({ width: 1280, height: 720 });
     if (process.env.VIBECRAFT_SCREENSHOT_DIR) {
       const output = process.env.VIBECRAFT_SCREENSHOT_DIR;

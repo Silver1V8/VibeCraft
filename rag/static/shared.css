@@ -790,12 +790,13 @@ html[data-services-down~="ollama"] [data-requires~="ollama"] { opacity: .5; curs
 .workspace-shell #project-rename-error,
 .workspace-shell #project-delete-error { color: var(--color-danger); white-space: pre-line; font-size: var(--text-sm); }
 .workspace-shell #project-delete-confirm { margin-bottom: var(--space-2); }
-/* Schermi larghi ma bassi (portatile 1920×1080 al 125%: ~1536×730 utili, 2026-11-01):
-   la barra su due righe costava 113 px, il 15% dell'altezza, sottratti alle pagine.
-   Da 1280 px di larghezza le sezioni stanno sulla riga del progetto (servono ~1.250 px
-   con il pulsante «Aggiorna indice»); se manca spazio la nav scorre in orizzontale come
-   già fa sotto, e non va a capo. Sopra gli 820 px di altezza resta il layout a due righe. */
-@media (min-width: 1280px) and (max-height: 820px) {
+/* Barra su una riga da 1280 px di larghezza. Nata per gli schermi larghi ma bassi (portatile
+   1920×1080 al 125%: ~1536×730 utili, 2026-11-01), dove le due righe costavano 113 px, il 15%
+   dell'altezza. Dal 2026-11-03 vale a ogni altezza: con il limite a 820 px un monitor alto
+   tornava a due righe senza guadagnare nulla, e le sezioni ci stanno comunque (servono
+   ~1.250 px con il pulsante «Aggiorna indice»); se manca spazio la nav scorre in orizzontale
+   come già fa sotto, e non va a capo. */
+@media (min-width: 1280px) {
   /* Margini laterali uguali a quelli della Console in questo layout (12 px): Impostazioni
      finisce in colonna con il toggle 2D/3D del grafo sotto. */
   .workspace-shell .project-bar { flex-wrap: nowrap; min-height: 0; padding: var(--space-2) var(--space-3); }
