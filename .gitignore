@@ -129,3 +129,6 @@ GEMINI.md
 /projects/
 # Campioni e schede del link audit: contengono estratti di codice e documenti del progetto.
 /rag/eval/link_audit/
+# Grafo graphify locale (2026-11-03): output e cache rigenerabili, con estratti del codice.
+/graphify-out/
+/rag/graphify-out/
