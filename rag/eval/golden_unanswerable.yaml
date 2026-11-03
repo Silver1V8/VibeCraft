@@ -1,0 +1,89 @@
+# Domande SENZA risposta nel corpus — negativi del gate di rispondibilità (G1).
+#
+# Piano: rag/adr/2026-11-03-gate-rispondibilita-plan.md. Lo usa eval/calibrate_answerability.py
+# come contraltare dei positivi (golden_set.yaml, golden_multihop.yaml): il gate vale solo se
+# sta SOTTO soglia su queste senza far scendere sotto soglia nessuna di quelle.
+#
+# Corpus: la baseline COMMITTATA in templates/docs (commit a633060, 2026-11-03), lo stesso dei
+# positivi. Ogni caso è verificato con grep sul testo committato, non sul docs/ locale: è la
+# divergenza docs/<->git che il 2026-08-25 rese non riproducibili 4 casi di golden_set.yaml.
+#
+# Tre tipi, scelti perché sbagliano in modi diversi:
+#   fuori_tema_adiacente  il tema è vicino al corpus ma nessun documento lo tratta.
+#   valore_mancante       il documento GIUSTO esiste ma non contiene il dato chiesto, spesso
+#                         perché è un segnaposto «*(da compilare)*» della Sezione 0. È il caso
+#                         difficile: il passaggio è pertinente, ma non risponde.
+#   presupposto_falso     la domanda nomina una regola, una tecnologia o una norma che il
+#                         corpus non ha.
+#
+# Per aggiungere un caso: id nuovo, `why` con il grep fatto e il documento guardato, e la
+# verifica rifatta se la baseline cambia.
+cases:
+  - id: fa1
+    kind: fuori_tema_adiacente
+    q: "qual è la strategia di backup e disaster recovery del database"
+    why: "«backup» compare solo in change_log.md, come nome di una cartella locale; nessun documento tratta backup o ripristino."
+  - id: fa2
+    kind: fuori_tema_adiacente
+    q: "come si configura il bilanciatore di carico davanti ai servizi in produzione"
+    why: "nessuna occorrenza di bilanciatore o load balancer; architecture_decision_rationale.md parla di modular monolith, non di topologia di rete."
+  - id: fa3
+    kind: fuori_tema_adiacente
+    q: "come si gestisce l'internazionalizzazione e la traduzione dei testi dell'interfaccia"
+    why: "nessuna occorrenza di i18n, internazionalizzazione, traduzione o localizzazione; ui_ux_brand_directives.md copre token e contrasto."
+  - id: fa4
+    kind: fuori_tema_adiacente
+    q: "qual è la lunghezza minima della password degli utenti e ogni quanto va cambiata"
+    why: "«password» compare solo in safeguards_security.md come esempio di segreto da non committare; l'autenticazione è delegata a un provider OIDC (SEC-01)."
+  - id: fa5
+    kind: fuori_tema_adiacente
+    q: "come si cifrano i dati personali a riposo nel database"
+    why: "safeguards_security.md cita solo la cifratura in transito (TLS 1.2+, riga 465); nulla sulla cifratura a riposo."
+  - id: vm1
+    kind: valore_mancante
+    q: "per quanti giorni vanno conservati i log applicativi"
+    why: "observability_standards.md [REGOLA-OBS-08] rimanda a <<RETENTION_LOG>>, che nella Sezione 0 è «*(da compilare)*»."
+  - id: vm2
+    kind: valore_mancante
+    q: "a quale canale o indirizzo vanno inviati gli alert operativi"
+    why: "observability_standards.md, <<CANALE_ALERT>> è «*(da compilare)*»; [REGOLA-OBS-11] chiede un destinatario senza nominarlo."
+  - id: vm3
+    kind: valore_mancante
+    q: "quante richieste al minuto può fare un client prima di ricevere un 429"
+    why: "api_error_contract.md mappa 429 su RATE_LIMITED ma non fissa nessun limite numerico."
+  - id: vm4
+    kind: valore_mancante
+    q: "qual è il timeout massimo di una chiamata verso il provider di notifiche"
+    why: "vibe_coding_workflow.md [REGOLA-PROC-02] dice che il timeout non deve propagarsi, senza dare un valore; nessun altro documento lo fissa."
+  - id: vm5
+    kind: valore_mancante
+    q: "quale provider OAuth OIDC è adottato per l'autenticazione degli utenti"
+    why: "safeguards_security.md, <<PROVIDER_IDENTITA>> è «*(da compilare)*»."
+  - id: vm6
+    kind: valore_mancante
+    q: "qual è la capienza totale della risorsa contesa protetta dal lock pessimistico"
+    why: "safeguards_security.md, <<CAPIENZA_TOTALE>> è «*(da compilare)*»; TXN-01 descrive il lock senza il valore."
+  - id: vm7
+    kind: valore_mancante
+    q: "dopo quanti tentativi di login falliti l'account viene bloccato"
+    why: "safeguards_security.md tratta allowlist (SEC-01) e revoca entro 30 s (SEC-02); nessun limite di tentativi falliti in tutto il corpus."
+  - id: pf1
+    kind: presupposto_falso
+    q: "cosa prescrive la regola REGOLA-CACHE-01 sull'invalidazione della cache"
+    why: "nessuna famiglia REGOLA-CACHE; «cache» compare solo nel TTL di 30 s di SEC-02."
+  - id: pf2
+    kind: presupposto_falso
+    q: "come si applica SAFEGUARD-SEC-07 alla cifratura dei backup"
+    why: "i safeguard SEC si fermano a SEC-04; nessun SEC-05..09 e nessun documento sui backup."
+  - id: pf3
+    kind: presupposto_falso
+    q: "in quale versione del change log è stato introdotto il deploy su Kubernetes"
+    why: "nessuna occorrenza di Kubernetes o k8s; change_log.md non registra nulla sul deploy."
+  - id: pf4
+    kind: presupposto_falso
+    q: "quali obblighi dell'articolo 17 del GDPR recepisce la baseline"
+    why: "nessuna occorrenza di GDPR o di articoli di legge; SEC-04 parla di PII e confine local-first senza citare norme."
+  - id: pf5
+    kind: presupposto_falso
+    q: "quale regola REGOLA-ML-02 governa il retraining del modello di embedding"
+    why: "nessuna famiglia REGOLA-ML; spec_graph_rag_ingestion.md ammette solo i prefissi REGOLA-* e SAFEGUARD-* senza regole sul training."
