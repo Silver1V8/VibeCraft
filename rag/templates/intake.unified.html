@@ -211,7 +211,7 @@
     <div class="intake-column">
     <!-- ══════════ (a) GENERA CON OLLAMA ══════════ -->
     <section id="section-genera">
-      <h2 data-i18n="intake.gen.h2">🪄 Genera con Ollama</h2>
+      <h2 data-i18n="intake.gen.h2">🪄 Genera con LLM</h2>
       <!-- Una riga per capire cosa fa la sezione; il come sta in "Dettagli". -->
       <p class="desc" data-i18n-html="intake.gen.desc">Descrivi lo sviluppo: il modello scrive fino a <span id="gen-max-hint">5</span> documenti
         Markdown, che entrano in staging per la review.</p>
@@ -229,7 +229,15 @@
         <label class="field"><span data-i18n="intake.gen.categoriaLabel">Categoria docs/ target</span>
           <select id="gen-categoria"></select>
         </label>
-        <button type="button" id="gen-btn" data-click="startGeneration" data-requires="ollama" class="btn btn-primary" data-i18n="intake.gen.startBtn">▶ Avvia generazione</button>
+        <!-- Sottocartelle reali di docs/ del progetto (GET /api/intake/categories); qui se ne crea una nuova. -->
+        <div class="field">
+          <label for="gen-new-categoria" data-i18n="intake.gen.newCategoryLabel">Nuova cartella docs/</label>
+          <span style="display:flex;gap:6px;align-items:center">
+            <input id="gen-new-categoria" type="text" maxlength="64" placeholder="es. 06_game_design" data-i18n-placeholder="intake.gen.newCategoryPlaceholder" style="width:10rem" />
+            <button type="button" id="gen-new-categoria-btn" data-click="addDocCategory" class="btn btn-secondary" data-i18n="intake.project.addBtn">Aggiungi</button>
+          </span>
+        </div>
+        <button type="button" id="gen-btn" data-click="startGeneration" class="btn btn-primary" data-i18n="intake.gen.startBtn">▶ Avvia generazione</button>
         <span id="gen-status" class="status"></span>
       </div>
       <div id="gen-result"></div>

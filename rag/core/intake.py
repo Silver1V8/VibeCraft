@@ -35,7 +35,7 @@ from core.config import (
 )
 from core.intake_convert import ConversionError, convert_to_markdown
 from core.writer_lock import writer_lock
-from core.projects import _unlinked
+from core.projects import _unlinked, is_code_scope_name
 from core.indexing_lock import indexing_lock
 
 # Sotto-cartelle dell'area di staging: 'docs' per i documenti (generati o importati) in attesa
@@ -87,8 +87,9 @@ class InvalidComposedDocumentError(IntakeError):
     approve fallisce PRIMA di scrivere in docs/."""
 
 
-# Categoria docs/ → classification del frontmatter (decisa dal piano, S2): è anche la
-# whitelist delle categorie ammesse da approve.
+# Categoria docs/ → classification del frontmatter (decisa dal piano, S2). Approve ammette
+# queste categorie standard (create al primo uso) più ogni cartella già presente in docs/
+# del progetto, comprese quelle create dall'utente (doc_categories/create_doc_category).
 CATEGORY_CLASSIFICATION = {
     "00_meta_governance": "METADATA",
     "01_architecture_norms": "NORMS",
@@ -97,6 +98,9 @@ CATEGORY_CLASSIFICATION = {
     "04_knowledge_informative": "METHODOLOGY",
     "05_project_specs": "REQUIREMENTS",
 }
+# Cartella personalizzata: nessuna classe dichiarata, quindi la più prudente (informativa),
+# che non scavalca le fonti normative nel ranking per autorità.
+_CUSTOM_CATEGORY_CLASSIFICATION = "METHODOLOGY"
 
 # Nome progetto scritto nel frontmatter, identico ai documenti autorati di docs/.
 _PROJECT_NAME = "VibeCraft — Sistema di Gestione Eventi Aziendali"
@@ -403,7 +407,7 @@ def _compose_document(entry: dict, categoria: str, nome_file: str, staged_markdo
         "version": "1.0.0",
         "date": datetime.now(timezone.utc).date().isoformat(),
         "status": "IMPORTED",
-        "classification": CATEGORY_CLASSIFICATION[categoria],
+        "classification": CATEGORY_CLASSIFICATION.get(categoria, _CUSTOM_CATEGORY_CLASSIFICATION),
         "path": f"docs/{categoria}/{nome_file}",
         "authority": INTAKE_DEFAULT_AUTHORITY,
         "graph_rag": {
@@ -482,6 +486,43 @@ def _slim_stats(stats) -> dict:
     return {k: stats[k] for k in keep if k in stats}
 
 
+def _docs_root(docs_dir, project) -> Path:
+    return _unlinked(project.docs_dir if project else Path(docs_dir) if docs_dir is not None else DOCS_DIR)
+
+
+def doc_categories(*, docs_dir: str | Path | None = None, project=None) -> list[str]:
+    """Sottocartelle realmente presenti in docs/ del progetto (nascoste escluse), in ordine
+    alfabetico: sono le categorie proposte in tendina da Genera e da Approva. Symlink e
+    junction sono saltati, non errore (code_scopes solleverebbe): un link in docs/ non deve
+    bloccare l'approve sulle categorie standard; approve li rifiuta comunque con _unlinked."""
+    root = _docs_root(docs_dir, project)
+    if not root.is_dir():
+        return []
+    return sorted(p.name for p in root.iterdir()
+                  if not p.name.startswith(".") and not p.is_symlink() and not p.is_junction()
+                  and p.is_dir())
+
+
+def create_doc_category(name: str, *, docs_dir: str | Path | None = None, project=None) -> str:
+    """Crea docs/<name> e restituisce il nome effettivo. Normalizza gli spazi interni in
+    '_' ('Note di team' → 'Note_di_team'), poi applica le regole degli ambiti di code/:
+    un solo componente di path, niente punti, separatori o nomi riservati Windows.
+    Idempotente e case-insensitive come create_dev_type: una cartella che esiste già con
+    maiuscole diverse viene restituita, non duplicata (su Windows sarebbe la stessa)."""
+    name = re.sub(r"\s+", "_", (name or "").strip())
+    if not is_code_scope_name(name):
+        raise InvalidCategoryError(f"nome di cartella non valido: {name!r}")
+    docs_root = _docs_root(docs_dir, project)
+    existing = {c.lower(): c for c in doc_categories(docs_dir=docs_root)}
+    if name.lower() in existing:
+        return existing[name.lower()]
+    target = _unlinked(docs_root / name)
+    if not target.is_relative_to(docs_root):
+        raise InvalidCategoryError(f"cartella fuori da docs/: {name!r}")
+    target.mkdir(parents=True, exist_ok=True)
+    return name
+
+
 def approve(doc_id: str, categoria: str, nome_file: str, *,
             base_dir: str | Path | None = None,
             docs_dir: str | Path | None = None,
@@ -504,13 +545,16 @@ def approve(doc_id: str, categoria: str, nome_file: str, *,
     alcun effetto (idempotenza degli errori, mai doppio file)."""
     paths = ensure_staging_dirs(base_dir, project=project)
     _require_staged(paths, doc_id)
-    if categoria not in CATEGORY_CLASSIFICATION:
+    docs_root = _docs_root(docs_dir, project)
+    # Il nome arriva dal client: ammesso solo se standard o già cartella reale di docs/
+    # (nomi letti da iterdir, quindi un solo componente di path).
+    if categoria not in CATEGORY_CLASSIFICATION and categoria not in doc_categories(docs_dir=docs_root):
+        ammesse = set(CATEGORY_CLASSIFICATION) | set(doc_categories(docs_dir=docs_root))
         raise InvalidCategoryError(
             f"categoria inesistente: {categoria!r} "
-            f"(ammesse: {', '.join(sorted(CATEGORY_CLASSIFICATION))})"
+            f"(ammesse: {', '.join(sorted(ammesse))})"
         )
     nome = _sanitize_target_filename(nome_file)
-    docs_root = _unlinked(project.docs_dir if project else Path(docs_dir) if docs_dir is not None else DOCS_DIR)
     target = _unlinked(docs_root / categoria / nome)
     occupato = (f"esiste già un file {nome!r} in docs/{categoria}/: mai sovrascrittura — "
                 f"scegli un altro nome")

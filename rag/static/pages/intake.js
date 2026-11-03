@@ -1,21 +1,54 @@
 /* Script della pagina intake.unified.html, servito da /static/pages/ (era inline nel
    template): la CSP della console vieta gli script inline (vedi
    api/deps.CONTENT_SECURITY_POLICY). Indentazione lasciata com'era nel template. */
-    /* Categorie docs/ ammesse da core.intake.CATEGORY_CLASSIFICATION (S2): whitelist
-       fissa, non esposta da un endpoint dedicato (S4 non introduce nuove API). */
-    const CATEGORIE = [
-      ['00_meta_governance', '00 · Meta Governance'],
-      ['01_architecture_norms', '01 · Architecture Norms'],
-      ['02_specs_normative', '02 · Specs Normative'],
-      ['03_changes_historical', '03 · Changes Historical'],
-      ['04_knowledge_informative', '04 · Knowledge Informative'],
-      ['05_project_specs', '05 · Project Specs'],
-    ];
+    /* Categorie docs/ = sottocartelle reali di docs/ del progetto (GET /api/intake/categories),
+       comprese quelle create dall'utente. Prima era una whitelist fissa: un progetto con
+       cartelle proprie non poteva sceglierle. */
+    let _categorie = [];
 
     function populateCategorySelect(select, defaultValue) {
-      select.innerHTML = CATEGORIE.map(([value, label]) =>
-        `<option value="${value}"${value === defaultValue ? ' selected' : ''}>${label}</option>`
-      ).join('');
+      if (!select) return;
+      const keep = defaultValue ?? select.value;
+      select.innerHTML = _categorie.length
+        ? _categorie.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+        : `<option value="">${t('intake.gen.noCategories')}</option>`;
+      if (_categorie.includes(keep)) select.value = keep;
+      else if (_categorie.includes('04_knowledge_informative')) select.value = '04_knowledge_informative';
+      select.disabled = !_categorie.length;
+    }
+
+    async function loadCategories(selected) {
+      try {
+        const res = await fetch('/api/intake/categories');
+        if (res.ok) _categorie = (await res.json()).categorie || [];
+      } catch (e) { /* elenco non disponibile: la tendina mostra il messaggio vuoto */ }
+      populateCategorySelect(document.getElementById('gen-categoria'), selected);
+      populateCategorySelect(document.getElementById('preview-categoria'));
+    }
+
+    async function addDocCategory() {
+      const input = document.getElementById('gen-new-categoria');
+      const btn = document.getElementById('gen-new-categoria-btn');
+      const nome = input.value.trim();
+      if (!nome) { input.focus(); return; }
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/intake/categories', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ nome }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(apiErrorMessage(data.detail, `HTTP ${res.status}`));
+        input.value = '';
+        _categorie = data.categorie || [];
+        populateCategorySelect(document.getElementById('gen-categoria'), data.categoria);
+        populateCategorySelect(document.getElementById('preview-categoria'));
+        toast(t('intake.gen.categoryAdded', { name: data.categoria }), 'success');
+      } catch (e) {
+        toast(t('intake.gen.categoryAddError', { msg: e.message }), 'error');
+      } finally {
+        btn.disabled = false;
+      }
     }
 
     /* Markdown → HTML: mdToHtml / excelText vivono in /static/shared.js (R7). */
@@ -640,17 +673,21 @@
     }
 
     /* ──────────── Bootstrap ──────────── */
-    populateCategorySelect(document.getElementById('gen-categoria'), '04_knowledge_informative');
+    loadCategories('04_knowledge_informative');
     document.getElementById('prj-brief-status').textContent = t('intake.project.briefHint');
     refreshStaging();
     loadImportTargets().then(refreshProjectImports);
     document.getElementById('prj-new-target').addEventListener('keydown', e => {
       if (e.key === 'Enter') { e.preventDefault(); retainWorkspaceTask(addImportTarget()).catch(error => console.error(error)); }
     });
+    document.getElementById('gen-new-categoria').addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); retainWorkspaceTask(addDocCategory()).catch(error => console.error(error)); }
+    });
 
     /* Azioni dei pulsanti/campi (data-click / data-change / data-input): prima erano
        handler inline, vietati dalla CSP — vedi registerActions in /static/shared.js. */
     registerActions({
+      addDocCategory: () => addDocCategory(),
       addImportTarget: () => addImportTarget(),
       applyProjectImport: () => applyProjectImport(),
       approveStaged: el => approveStaged(el.dataset.arg),

@@ -33,10 +33,21 @@ from core.chunking import chunk_markdown, parse_markdown_file, split_frontmatter
 from core.config import INTAKE_GENERATION_MAX_FILES
 from core.writer_lock import writer_lock
 
-# Purpose LLM riusato dalla generazione: stesso ruolo del Canvas (documento markdown
-# grounded, nessuna chiamata "a caldo" senza contesto) — non si introduce un nuovo purpose
-# in core/llm.py per questa sessione (S3 tocca solo doc_generation.py e routes_intake.py).
-_GENERATION_PURPOSE = "canvas"
+# Purpose LLM della generazione: dal 2026-11-03 ha uno scopo proprio ("intake", riga
+# dedicata in Impostazioni → per attività), così può girare su un LLM cloud o locale
+# indipendentemente dal Canvas.
+_GENERATION_PURPOSE = "intake"
+
+
+def _generation_purpose() -> str:
+    """'intake' se ha un override per attività, altrimenti 'canvas' come prima del
+    2026-11-03: chi teneva il Canvas in locale non vede il corpus partire verso il cloud
+    solo perché la generazione ha cambiato scopo."""
+    try:
+        purposes = llm._llm_settings().purposes or {}
+    except Exception:
+        purposes = {}
+    return _GENERATION_PURPOSE if _GENERATION_PURPOSE in purposes else "canvas"
 
 # Riga esatta che separa un documento generato dal successivo nell'output del modello.
 _DOC_SEPARATOR = "===DOC==="
@@ -322,7 +333,8 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
     prompt = build_generation_prompt(descrizione, n_file, categoria_target, contesto, lessons)
     if project is not None:
         prompt = f"Project ID: {project.id}\n" + prompt
-    generate_fn = generate or (lambda p: llm.generate(p, purpose=_GENERATION_PURPOSE))
+    purpose = _generation_purpose()
+    generate_fn = generate or (lambda p: llm.generate(p, purpose=purpose))
 
     generation_start = time.time()
     try:
@@ -332,7 +344,7 @@ def generate_docs(descrizione: str, n_file: int, categoria_target: str, *,
     latency_generation_ms = round((time.time() - generation_start) * 1000, 2)
 
     try:
-        _, modello = llm.resolve(_GENERATION_PURPOSE)
+        _, modello = llm.resolve(purpose)
     except llm.LLMError:
         modello = None
 

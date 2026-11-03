@@ -797,6 +797,8 @@ _ANTI_XSITE_ROUTES = [
     (routes_intake.router, "POST", "/api/intake/project/plan"),
     (routes_intake.router, "POST", "/api/intake/project/apply"),
     (routes_intake.router, "POST", "/api/intake/project/brief"),
+    # Cartelle docs/ personalizzate (2026-11-03): crea docs/<nome> nel progetto selezionato.
+    (routes_intake.router, "POST", "/api/intake/categories"),
     # Menu Impostazioni (2026-10-30): cambiano il provider LLM e scrivono le API key cloud.
     (routes_settings.router, "POST", "/api/settings/llm"),
     (routes_settings.router, "POST", "/api/settings/llm/key"),

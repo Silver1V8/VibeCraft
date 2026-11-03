@@ -213,3 +213,43 @@ def test_route_refine_status_unknown_job_returns_404(tmp_path, monkeypatch):
     client = _refine_client(tmp_path, monkeypatch)
 
     assert client.get("/api/intake/refine/non-esiste").status_code == 404
+
+
+def test_route_generate_without_index_runs_ungrounded(tmp_path, monkeypatch):
+    """Progetto mai indicizzato: il RAG è solo contesto, quindi niente 409 «Project has no
+    index» ma un job senza snapshot (e senza caricare Qdrant/embedding)."""
+    from fastapi import HTTPException
+    client = _client(tmp_path, monkeypatch)
+
+    def not_indexed(project):
+        raise HTTPException(409, detail={"code": "project_not_indexed", "message": "Project has no index"})
+
+    def no_resources(**kwargs):
+        raise AssertionError("senza indice non servono Qdrant né il modello di embedding")
+
+    seen = {}
+
+    def fake_generate(descrizione, n_file, categoria_target, *, project, snap):
+        seen["snap"] = snap
+        return {"n_generati": 1}
+
+    monkeypatch.setattr(routes_intake, "require_snapshot", not_indexed)
+    monkeypatch.setattr(routes_intake, "ensure_shared_resources", no_resources)
+    monkeypatch.setattr(routes_intake, "_server_generate", fake_generate)
+    resp = client.post("/api/intake/generate", json={"descrizione": "tetris da browser", "n_file": 1})
+    assert resp.status_code == 202, resp.text
+    assert _poll_until_terminal(client, resp.json()["job_id"]).json()["status"] == "done"
+    assert seen == {"snap": None}
+
+
+def test_route_generate_keeps_storage_errors(tmp_path, monkeypatch):
+    # Solo «mai indicizzato» degrada a generazione senza contesto: un indice illeggibile
+    # resta un 503 esplicito.
+    from fastapi import HTTPException
+    client = _client(tmp_path, monkeypatch)
+
+    def broken(project):
+        raise HTTPException(503, detail={"code": "project_storage_error", "message": "Project index unavailable"})
+
+    monkeypatch.setattr(routes_intake, "require_snapshot", broken)
+    assert client.post("/api/intake/generate", json={"descrizione": "x"}).status_code == 503

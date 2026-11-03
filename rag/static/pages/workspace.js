@@ -750,7 +750,9 @@ function syncLlmPrice(el) {
 function renderLlmActivities() {
   const body = document.querySelector('#llm-activities tbody');
   body.replaceChildren(...llmView.activities.map(activity => {
-    const choice = llmView.purposes[activity] || {};
+    // "intake" senza scelta propria segue il Canvas, come core.doc_generation lato server:
+    // salvare il menu non deve spostare la generazione su un altro provider.
+    const choice = llmView.purposes[activity] || (activity === 'intake' && llmView.purposes.canvas) || {};
     const row = document.createElement('tr');
     const name = document.createElement('th');
     name.scope = 'row';

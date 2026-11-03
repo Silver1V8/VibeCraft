@@ -17,7 +17,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.deps import (
     current_snapshot as current_snapshot,
@@ -95,6 +95,10 @@ def _raise_http(exc: Exception) -> None:
 class ApproveRequest(BaseModel):
     categoria: str
     nome_file: str
+
+
+class CategoryCreateRequest(BaseModel):
+    nome: str = Field(max_length=200)
 
 
 class RejectRequest(BaseModel):
@@ -212,6 +216,31 @@ async def preview_staged_document(doc_id: str, project=Depends(get_project)):
         _raise_http(exc)
 
 
+@router.get("/api/intake/categories")
+async def list_doc_categories(project=Depends(get_project)):
+    """Sottocartelle reali di docs/ del progetto, per le tendine di Genera e Approva."""
+    try:
+        return {"categorie": await run_in_threadpool(intake.doc_categories, project=project)}
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/api/intake/categories",
+             dependencies=[Depends(require_not_cross_site_request)])
+async def create_doc_category(payload: CategoryCreateRequest, project=Depends(get_project)):
+    """Crea docs/<nome> (nome validato e normalizzato da core.intake.create_doc_category) e
+    restituisce l'elenco aggiornato, così la tendina si ripopola senza un secondo GET."""
+    try:
+        nome = await run_in_threadpool(intake.create_doc_category, payload.nome, project=project)
+        return {"categoria": nome,
+                "categorie": await run_in_threadpool(intake.doc_categories, project=project)}
+    except intake.InvalidCategoryError as exc:
+        raise HTTPException(status_code=422, detail=(
+            "Nome di cartella non valido: usa lettere, cifre, spazi, '-' o '_' (max 64 caratteri).")) from exc
+    except Exception as exc:
+        _raise_http(exc)
+
+
 @router.post("/api/intake/staged/{doc_id}/approve",
              dependencies=[Depends(require_not_cross_site_request)])
 async def approve_staged_document(doc_id: str, payload: ApproveRequest, project=Depends(get_project)):
@@ -261,8 +290,16 @@ async def start_generation(payload: GenerateRequest, project=Depends(get_project
     si legge da GET /api/intake/generate/{job_id}."""
     if not payload.descrizione.strip():
         raise HTTPException(status_code=422, detail="descrizione vuota")
-    snap = await run_in_threadpool(require_snapshot, project)
-    await run_in_threadpool(ensure_shared_resources)
+    # Il RAG qui è solo contesto: su un progetto mai indicizzato (tipico al primo avvio,
+    # quando docs/ è ancora vuoto) si genera senza grounding invece di rispondere 409.
+    try:
+        snap = await run_in_threadpool(require_snapshot, project)
+    except HTTPException as exc:
+        if not (isinstance(exc.detail, dict) and exc.detail.get("code") == "project_not_indexed"):
+            raise
+        snap = None
+    if snap is not None:
+        await run_in_threadpool(ensure_shared_resources)
     job = _start_job(
         _project_manager(project, "generation"),
         payload.descrizione, payload.n_file, payload.categoria_suggerita,

@@ -2,7 +2,7 @@
 
 ## Superficie MCP locale (sessione 5, 2026-09-11)
 
-`mcp_server.py` espone **tre tool stdio**, distinti dalle **76 route HTTP** sotto:
+`mcp_server.py` espone **tre tool stdio**, distinti dalle **78 route HTTP** sotto:
 `vibecraft_retrieve` → GET `/api/retrieve`, `vibecraft_code_search` → GET
 `/api/code/search`, `vibecraft_graph_query` → GET `/api/graph/query`.
 Nessuna porta MCP, risorsa filesystem, prompt o tool aggiuntivo. Il confine di accesso
@@ -64,7 +64,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ## Metodologia e conteggio
 
-- **Route registrate sui router: 76** — contate con `grep -c '^@router\.'` su
+- **Route registrate sui router: 78** — contate con `grep -c '^@router\.'` su
   `api/routes_*.py`:
   - `routes_pages.py` → 6
   - `routes_pipeline.py` → 23
@@ -73,15 +73,16 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
   - `routes_graph.py` → 5
   - `routes_health.py` → 4
   - `routes_projects.py` → 6
-  - `routes_intake.py` → 15
+  - `routes_intake.py` → 17
   - `routes_settings.py` → 4
-- **La tabella §1 ha 76 righe numerate** (una per route registrata) → il conteggio
+- **La tabella §1 ha 78 righe numerate** (una per route registrata) → il conteggio
   coincide con il criterio di completezza. La numerazione segue l'ordine di
   `include_router` in [`server.py`](server.py), poi l'ordine originario nel file;
   le due nuove route del gate e, più tardi, `GET /api/pipeline/agent/runners` (riga 60,
   aggiunta coi runner alternativi, §5), GET/DELETE `/api/ask/thread` (righe 69–70,
   VC-3 WP2), PATCH/DELETE `/api/projects/{project_id}` (righe 71–72, VC-12 WP3) e le
-  quattro `/api/settings/llm*` del menu Impostazioni (righe 73–76, 2026-10-30)
+  quattro `/api/settings/llm*` del menu Impostazioni (righe 73–76, 2026-10-30) e
+  GET/POST `/api/intake/categories` delle cartelle `docs/` personalizzate (righe 77–78, 2026-11-03)
   sono aggiunte in coda per conservare i riferimenti.
   Questi conteggi sono verificati dal codice, non solo dichiarati, da
   `test_declared_route_counts_match_code` in
@@ -90,7 +91,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
   suite, invece di lasciare che i due si scollino in silenzio. Il ruolo `reader` monta un
   sottoinsieme di questi stessi router/route (mai una route aggiuntiva): verificato da
   `test_reader_role_routes_are_a_subset_of_matrix`.
-- **POST totali: 31** — 28 con la dependency anti-cross-site, 3 esclusi con motivazione
+- **POST totali: 32** — 29 con la dependency anti-cross-site, 3 esclusi con motivazione
   (§2C). **DELETE mutanti con anti-cross-site: 2** (`DELETE /api/ask/thread`,
   `DELETE /api/projects/{project_id}`). **PATCH mutanti con anti-cross-site: 1**
   (`PATCH /api/projects/{project_id}`). Nessun POST/DELETE/PATCH mutante non
@@ -99,7 +100,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
   `shared.css`/`shared.js`/`pages/*.js`, 1 mount statico (`/static`) e, **solo su bind
   loopback** (o con `VIBECRAFT_ENABLE_OPENAPI=1`), fino a 4 route OpenAPI di FastAPI
   (`/docs`, `/redoc`, `/openapi.json`, `/docs/oauth2-redirect`). Sono elencate
-  nell'**Appendice A** (non conteggiate nelle 76 perché non registrate sui router), ma
+  nell'**Appendice A** (non conteggiate nelle 78 perché non registrate sui router), ma
   hanno rilievo di sicurezza e vanno lette.
 
 ### Fatti architetturali verificati (valgono per tutta la tabella)
@@ -280,7 +281,7 @@ Configurazione, limiti ed errori: [README](README.md#mcp-locale-di-sola-lettura)
 
 ---
 
-## 1. Tabella completa delle route (76 righe)
+## 1. Tabella completa delle route (78 righe)
 
 Legenda **Body**: *assente* = nessun body dichiarato · *query/path* = solo parametri URL ·
 *JSON Pydantic* = modello con campi obbligatori · *JSON opz.* = `Request` grezza con
@@ -340,9 +341,9 @@ oltre a `require_api_key` del router.
 | 43 | POST | `/api/intake/docs` | require_api_key | **multipart** (`UploadFile`) | **Sì (multipart)** | **scrive staging** (`database/staging/`, journal) | Medio | **anti-x-site** |
 | 44 | GET | `/api/intake/staged` | require_api_key | assente | Sì | read-only (journal) | Basso | nessuna |
 | 45 | GET | `/api/intake/staged/{doc_id}/preview` | require_api_key | path | Sì | read-only (journal + markdown derivato) | Basso | nessuna |
-| 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** sotto writer lock; dal 2026-10-06 **nessun reindex** (indicizzazione separata con «Aggiorna indice», `POST /api/index/reindex`) | **Alto** | **anti-x-site** |
+| 46 | POST | `/api/intake/staged/{doc_id}/approve` | require_api_key | JSON Pydantic | No (preflight) | **scrive `docs/<categoria>/`** sotto writer lock (categoria: una standard oppure una sottocartella già esistente di `docs/`, elenco da `iterdir` con symlink/junction esclusi e target passato da `_unlinked`; cartelle personalizzate con `classification: METHODOLOGY`, 2026-11-03); dal 2026-10-06 **nessun reindex** (indicizzazione separata con «Aggiorna indice», `POST /api/index/reindex`) | **Alto** | **anti-x-site** |
 | 47 | POST | `/api/intake/staged/{doc_id}/reject` | require_api_key | **JSON tutto-opz.** (`motivo` con default) | **Sì (bodyless)** | **scrive staging** (sposta in `staging/rejected/`, journal); `docs/` e indice intatti | Medio | **anti-x-site** |
-| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (Ollama) → documenti in staging; tetto GLOBALE di job attivi condiviso con 50 e 56 (`VIBECRAFT_GENERATION_MAX_ACTIVE`, oltre: 429) | Medio (DoS/costo) | **anti-x-site** |
+| 48 | POST | `/api/intake/generate` | require_api_key | JSON Pydantic | No (preflight) | avvia job LLM (scopo `intake`: Ollama o provider cloud secondo Impostazioni → per attività) → documenti in staging; senza indice del progetto genera senza grounding invece di 409 (2026-11-03); tetto GLOBALE di job attivi condiviso con 50 e 56 (`VIBECRAFT_GENERATION_MAX_ACTIVE`, oltre: 429) | Medio (DoS/costo) | **anti-x-site** |
 | 49 | GET | `/api/intake/generate/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 50 | POST | `/api/intake/staged/{doc_id}/refine` | require_api_key | **assente** | **Sì (bodyless)** | avvia job LLM di raffinazione → **scrive staging**; tetto globale di job attivi condiviso fra 48, 50 e 56 (429) | Medio (DoS/costo) | **anti-x-site** |
 | 51 | GET | `/api/intake/refine/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
@@ -369,13 +370,15 @@ oltre a `require_api_key` del router.
 | 71 | PATCH | `/api/projects/{project_id}` | require_api_key | JSON Pydantic (`name`) | No (preflight) | rinomina solo il display name in registry + `project.yaml`; id/root/Qdrant invariati; reader rifiutato | Medio | **anti-x-site** |
 | 72 | DELETE | `/api/projects/{project_id}` | require_api_key | query/body (`mode`, `confirm`) | **Parziale** (DELETE non-simple; body JSON opzionale) | unregister o destroy (registry ± rmtree ± Qdrant prefix); conferma obbligatoria name/id; busy → 409; reader rifiutato | **Alto** | **anti-x-site** |
 | 73 | GET | `/api/settings/llm` | require_api_key | assente | Sì | read-only (modalità locale/cloud/per attività, modelli, prezzi, budget, base URL OpenAI-compatibile; delle API key solo la provenienza `env`/`file`/`null`, **mai il valore**); non montata nel reader | Basso | nessuna |
-| 74 | POST | `/api/settings/llm` | require_api_key | JSON Pydantic (`extra=forbid`) | No (preflight) | **scrive filesystem** (`database/llm_settings.json`, atomico) e cambia subito il provider LLM di pipeline, `/ask` e giudice: puntarlo al cloud manda prompt e corpus a un provider remoto; con `claude_code` il layer LLM avvia la CLI locale di Claude Code (Agent SDK, nessuno strumento, `setting_sources` vuoto, un turno) con il login dell'abbonamento della macchina; validato come al boot; non montata nel reader | **Alto** | **anti-x-site** |
+| 74 | POST | `/api/settings/llm` | require_api_key | JSON Pydantic (`extra=forbid`) | No (preflight) | **scrive filesystem** (`database/llm_settings.json`, atomico) e cambia subito il provider LLM di pipeline, generazione Intake (scopo `intake`; senza override segue la scelta del Canvas), `/ask` e giudice: puntarlo al cloud manda prompt e corpus a un provider remoto; con `claude_code` il layer LLM avvia la CLI locale di Claude Code (Agent SDK, nessuno strumento, `setting_sources` vuoto, un turno) con il login dell'abbonamento della macchina; validato come al boot; non montata nel reader | **Alto** | **anti-x-site** |
 | 75 | GET | `/api/settings/llm/models` | require_api_key | query (`provider` in elenco chiuso) | Sì | read-only verso l'esterno: interroga Ollama `/api/tags`, Anthropic `/v1/models` o `<base URL>/models` **con la chiave salvata**, timeout 10 s, senza redirect; errori sanitizzati (mai la chiave) | Medio | nessuna |
 | 76 | POST | `/api/settings/llm/key` | require_api_key | JSON Pydantic (`provider` chiuso, `api_key` ≤ 512) | No (preflight) | **scrive un segreto** (`database/secrets/llm_keys.json`, fuori da git; stringa vuota = cancella); la risposta riporta solo la provenienza; la variabile d'ambiente resta prioritaria. La chiave OpenAI (anche quella di `OPENAI_API_KEY`, che chi chiama non conosce) parte verso la base URL di #74: per questo la base URL accetta solo `https`, o `http` verso loopback. Rischio residuo accettato: chi può chiamare #74 (client locale keyless o con API key) può puntarla a un host `https` suo e ricevere la chiave al primo uso | **Alto** | **anti-x-site** |
+| 77 | GET | `/api/intake/categories` | require_api_key | assente | Sì | read-only (nomi delle sottocartelle visibili di `docs/` del progetto selezionato, ordinati) | Basso | nessuna |
+| 78 | POST | `/api/intake/categories` | require_api_key | JSON Pydantic (`nome` obbligatorio, ≤ 200) | No (preflight) | **scrive filesystem** (crea `docs/<nome>`; spazi interni → `_`, poi stesse regole di #67: singolo componente `[A-Za-z0-9][A-Za-z0-9_-]{0,63}`, nomi riservati Windows rifiutati, link/junction rifiutati da `_unlinked`, `is_relative_to(docs/)`, idempotente case-insensitive). La cartella diventa ammessa come categoria in #46 (classification `METHODOLOGY`) | Basso | **anti-x-site** |
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
-Su **18 dei 26 POST protetti** l'anti-cross-site è defense-in-depth: il body Pydantic con
+Su **19 dei 27 POST protetti** l'anti-cross-site è defense-in-depth: il body Pydantic con
 almeno un campo obbligatorio li rende comunque irraggiungibili cross-site (§Fatti 2) —
 verificato modello per modello su `api/models.py` e `api/routes_intake.py`. Sui restanti
 **8** no: la forma della richiesta è consegnabile da una pagina ostile, quindi la
@@ -405,7 +408,7 @@ quelli che sembrano esposti.
 `require_api_key` (schema di `require_gitlab_token`) e rifiuta con **403** le richieste
 con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 
-### 2A — Mutano stato persistente (20)
+### 2A — Mutano stato persistente (21)
 
 | Route | Motivazione |
 |-------|-------------|
@@ -416,6 +419,7 @@ con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 | POST `/api/index/reindex` (66) | Comando della console: stesso job, writer lock e confine di progetto di #28; protetto da API key e anti-cross-site. |
 | POST `/api/index/rollback` (32) | Consegnabile bodyless; muove CURRENT + alias Qdrant → degrada la produzione a una versione arbitraria. |
 | POST `/api/pipeline/dev-types` (67) | Scrive filesystem: crea una cartella vuota sotto `code/` del progetto selezionato. Body con campo obbligatorio, quindi non consegnabile senza preflight; il controllo esplicito resta. |
+| POST `/api/intake/categories` (78) | Scrive filesystem: crea una cartella vuota sotto `docs/` del progetto selezionato, nome validato come #67. Body con campo obbligatorio → preflight; il controllo esplicito resta. |
 | POST `/api/pipeline/explore/save` (11) | Scrive filesystem. Non consegnabile *solo* per il combinato preflight+strict content-type: difesa implicita, sostituita da un controllo esplicito. |
 | POST `/api/pipeline/canvas/generate` (12) | Scrive filesystem + spende LLM. |
 | POST `/api/pipeline/propose/generate` (13) | Scrive filesystem (`spec.md`) + LLM. |
@@ -451,10 +455,10 @@ dependency è a costo nullo e non rompe la UI same-origin.
 | POST `/api/pipeline/agent/run` (8) | **Già `require_api_key_strict`** — protezione *più forte* dell'anti-cross-site (chiave sempre richiesta, anche da localhost). Aggiungere Sec-Fetch-Site è ridondante e **non va indebolito** sostituendo lo strict. Asserito da `_STRICT_ROUTES` e da `test_excluded_route_does_not_declare_anti_cross_site_dependency`. |
 | POST `/api/pipeline/open-points/decision` (59) | Chiave obbligatoria anche da localhost; stesso confine strict di agent/run. Non esposta ai tool agente. Provenienza dichiarata, `origin_verified: false`, nessuna identità personale certificata. |
 | POST `/api/pipeline/canvas/dry-run` (22) | POST ma **read-only** (retrieval/embedding, nessuna scrittura, nessun LLM di generazione) e body Pydantic obbligatorio → non consegnabile. Solo rischio DoS-CPU. |
-| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58, 60, 73, 75) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) hanno **rate-limit per-IP** (`require_cpu_get_rate_limit`, allineato a `VIBECRAFT_EMBED_CONCURRENCY`; §4 #4 chiuso). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. Le GET 44, 45 e 55 (journal di intake) **non** passano più da `ensure_staging_dirs`: fino alla revisione del 2026-09-28 quella funzione creava `staging/docs\|projects\|rejected` e faceva `touch` di `intake.jsonl` anche su una semplice lettura, materializzando `staging/` da un GET su un'istanza dove nessuno aveva ancora caricato nulla — corretto con `core.intake.staging_paths_readonly` (stessi percorsi, nessuna creazione; `_journal_state` gestisce già un journal assente come stato vuoto), usato ora da `list_staged`, `get_preview` e `project_brief.applied_imports`. Le scritture (`stage_document`, `approve`, `reject`, refine, import) restano su `ensure_staging_dirs` e continuano a creare le cartelle. |
+| Tutte le **GET** (1-7, 9, 14, 20-21, 23-26, 29-31, 34-42, 44-45, 49, 51, 55, 57, 58, 60, 73, 75, 77) | Read-only per contratto. Anti-cross-site su GET **romperebbe** navigazione/embedding cross-origin legittimi senza proteggere nulla. Le GET CPU-pesanti (`/api/retrieve` 34, `/api/code/search` 35, `/api/graph/semantic-map` 39) hanno **rate-limit per-IP** (`require_cpu_get_rate_limit`, allineato a `VIBECRAFT_EMBED_CONCURRENCY`; §4 #4 chiuso). `maybe_reload_graph` invocato da alcune GET è un reload interno idempotente, non una mutazione pilotabile dall'attaccante. Le GET 44, 45 e 55 (journal di intake) **non** passano più da `ensure_staging_dirs`: fino alla revisione del 2026-09-28 quella funzione creava `staging/docs\|projects\|rejected` e faceva `touch` di `intake.jsonl` anche su una semplice lettura, materializzando `staging/` da un GET su un'istanza dove nessuno aveva ancora caricato nulla — corretto con `core.intake.staging_paths_readonly` (stessi percorsi, nessuna creazione; `_journal_state` gestisce già un journal assente come stato vuoto), usato ora da `list_staged`, `get_preview` e `project_brief.applied_imports`. Le scritture (`stage_document`, `approve`, `reject`, refine, import) restano su `ensure_staging_dirs` e continuano a creare le cartelle. |
 | Pagine HTML (1-6) e mount `/static` | Shell statiche pubbliche, nessun dato, nessuna auth by design. Eccezione documentata: `/pipeline` (2) inietta la API key per i soli client locali → §4 #6. |
 
-**Sintesi ambito:** **28 POST protetti** su 31 (mutanti §2A + LLM/filesystem §2B; ricontati il 2026-10-30, prima il documento ne dava uno in meno)
+**Sintesi ambito:** **29 POST protetti** su 32 (mutanti §2A + LLM/filesystem §2B; ricontati il 2026-10-30, prima il documento ne dava uno in meno)
 più **2 DELETE** mutanti (`/api/ask/thread`, `/api/projects/{project_id}`, §2A) e
 **1 PATCH** mutante (`/api/projects/{project_id}`, §2A).
 Escluse: `agent/run` e `open-points/decision` (già strict), e `canvas/dry-run`; GET e pagine invariate.
@@ -596,7 +600,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ---
 
-## Appendice A — Superfici app-level (fuori dalle 76, montate in `server.py`)
+## Appendice A — Superfici app-level (fuori dalle 78, montate in `server.py`)
 
 | Metodo | Path | Auth | Effetto | Nota |
 |--------|------|------|---------|------|
@@ -613,20 +617,20 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
 
 ## Report finale
 
-- **Conteggio route registrate sui router: 76** (6 pages · 23 pipeline · 8 reindex ·
-  5 retrieval · 5 graph · 4 health · 15 intake · 6 projects · 4 settings) — **coincide** con le 76 righe della
+- **Conteggio route registrate sui router: 78** (6 pages · 23 pipeline · 8 reindex ·
+  5 retrieval · 5 graph · 4 health · 17 intake · 6 projects · 4 settings) — **coincide** con le 78 righe della
   tabella §1. Fuori conteggio: 2 route asset + 1 mount statico + fino a 4 route OpenAPI
   FastAPI (Appendice A; assenti se bind non-loopback / `VIBECRAFT_DISABLE_OPENAPI`).
-- **POST: 31** — **28 protetti** da `require_not_cross_site_request`, 3 esclusi con
+- **POST: 32** — **29 protetti** da `require_not_cross_site_request`, 3 esclusi con
   motivazione (`agent/run` e `open-points/decision` già strict, `canvas/dry-run` read-only).
   **DELETE mutanti protetti: 2** (`/api/ask/thread`, `/api/projects/{project_id}`).
   **PATCH mutanti protetti: 1** (`/api/projects/{project_id}`). Nessun POST/DELETE/PATCH
   mutante non classificato: lo garantisce `test_every_post_route_is_classified`.
-- **Route mutanti individuate: 18** — `DELETE /api/ask/thread`, `PATCH /api/projects/{id}`,
+- **Route mutanti individuate: 19** — `DELETE /api/ask/thread`, `PATCH /api/projects/{id}`,
   `DELETE /api/projects/{id}`, `dev-types` (POST), `explore/save`, `canvas/generate`,
   `propose/generate`, `archive`, `archive/stream`, `file/save`, `POST /api/reindex`,
   `POST /api/index/reindex`, `POST /api/index/rollback`, `intake/docs`, `intake/approve`, `intake/reject`,
-  `intake/project/apply`, `intake/project/browse-path`. Più `agent/run` che **esegue
+  `intake/project/apply`, `intake/project/browse-path`, `intake/categories` (POST). Più `agent/run` che **esegue
   l'agente** (blast Alto) e `open-points/decision` che registra decisioni, entrambi **strict**.
 - **Consegnabili cross-site per forma della richiesta: 8** (28, 32, 43, 47, 50, 52, 54, 66 —
   bodyless, multipart o body con tutti i campi opzionali). Su queste l'anti-cross-site è
@@ -638,7 +642,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   l'unico caso in cui una route smette di esistere invece di essere protetta: la loro
   utilità dipende dal fatto che server e utente siano la stessa macchina, quindi con un
   bind aperto non resta nulla da proteggere.
-- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 76 route e
+- **Header `Host` validato su tutta l'app** (Fatto 9): trasversale alle 78 route e
   all'Appendice A, chiude il DNS rebinding verso il bypass loopback e l'iniezione della
   chiave in `/pipeline`; host estranei solo tramite `VIBECRAFT_ALLOWED_HOSTS`.
 - **Anti-framing su tutta l'app** (Fatto 10): `X-Frame-Options: DENY` e
