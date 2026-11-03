@@ -378,7 +378,7 @@ oltre a `require_api_key` del router.
 
 ### Nota sulle route a corpo consegnabile — dove la dependency è l'UNICO controllo
 
-Su **19 dei 27 POST protetti** l'anti-cross-site è defense-in-depth: il body Pydantic con
+Su **21 dei 29 POST protetti** l'anti-cross-site è defense-in-depth: il body Pydantic con
 almeno un campo obbligatorio li rende comunque irraggiungibili cross-site (§Fatti 2) —
 verificato modello per modello su `api/models.py` e `api/routes_intake.py`. Sui restanti
 **8** no: la forma della richiesta è consegnabile da una pagina ostile, quindi la
@@ -408,13 +408,15 @@ quelli che sembrano esposti.
 `require_api_key` (schema di `require_gitlab_token`) e rifiuta con **403** le richieste
 con `Sec-Fetch-Site: cross-site`; quelle **senza** l'header passano come prima.
 
-### 2A — Mutano stato persistente (21)
+### 2A — Mutano stato persistente (23)
 
 | Route | Motivazione |
 |-------|-------------|
 | DELETE `/api/ask/thread` (70) | Bodyless; reset idempotente di `database/ask/thread.json`. DELETE non è un metodo CORS "simple" (preflight), ma la dependency resta esplicita come sugli altri mutanti. |
 | PATCH `/api/projects/{project_id}` (71) | Rinomina display name (registry + manifest); body JSON obbligatorio → preflight, ma mutante writer come create/register. |
 | DELETE `/api/projects/{project_id}` (72) | Unregister/destroy: registry, filesystem managed, Qdrant prefix-scoped. DELETE non-simple (preflight); `confirm` obbligatorio lato handler. |
+| POST `/api/projects` (64) | Crea un progetto: scrive registry e cartelle del nuovo id. Body con campo obbligatorio → preflight; il controllo esplicito resta (allineato il 2026-11-03: la dependency c'era, la riga in questa tabella no). |
+| POST `/api/projects/register` (65) | Registra una root esistente: legge il manifest e scrive il registry. Body con campo obbligatorio → preflight; il controllo esplicito resta (allineato il 2026-11-03). |
 | POST `/api/reindex` (28) | Consegnabile bodyless; muta Qdrant sotto writer lock. In default keyless nessuna altra barriera. |
 | POST `/api/index/reindex` (66) | Comando della console: stesso job, writer lock e confine di progetto di #28; protetto da API key e anti-cross-site. |
 | POST `/api/index/rollback` (32) | Consegnabile bodyless; muove CURRENT + alias Qdrant → degrada la produzione a una versione arbitraria. |
@@ -626,15 +628,16 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   **DELETE mutanti protetti: 2** (`/api/ask/thread`, `/api/projects/{project_id}`).
   **PATCH mutanti protetti: 1** (`/api/projects/{project_id}`). Nessun POST/DELETE/PATCH
   mutante non classificato: lo garantisce `test_every_post_route_is_classified`.
-- **Route mutanti individuate: 19** — `DELETE /api/ask/thread`, `PATCH /api/projects/{id}`,
+- **Route mutanti individuate: 23** — `DELETE /api/ask/thread`, `PATCH /api/projects/{id}`,
   `DELETE /api/projects/{id}`, `dev-types` (POST), `explore/save`, `canvas/generate`,
   `propose/generate`, `archive`, `archive/stream`, `file/save`, `POST /api/reindex`,
   `POST /api/index/reindex`, `POST /api/index/rollback`, `intake/docs`, `intake/approve`, `intake/reject`,
-  `intake/project/apply`, `intake/project/browse-path`, `intake/categories` (POST). Più `agent/run` che **esegue
+  `intake/project/apply`, `intake/project/browse-path`, `intake/categories` (POST), `POST /api/projects`,
+  `POST /api/projects/register`, `POST /api/settings/llm`, `POST /api/settings/llm/key`. Più `agent/run` che **esegue
   l'agente** (blast Alto) e `open-points/decision` che registra decisioni, entrambi **strict**.
 - **Consegnabili cross-site per forma della richiesta: 8** (28, 32, 43, 47, 50, 52, 54, 66 —
   bodyless, multipart o body con tutti i campi opzionali). Su queste l'anti-cross-site è
-  l'**unico** controllo nel setup keyless, non defense-in-depth. Le altre 18 sono coperte
+  l'**unico** controllo nel setup keyless, non defense-in-depth. Le altre 21 sono coperte
   *anche* dal combinato preflight-CORS + `strict_content_type` — difesa implicita, mai
   l'unica.
 - **Route spente per configurazione: 2** — `browse-path` (52) e `project/plan` (53) sono
