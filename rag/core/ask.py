@@ -498,6 +498,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
                 context_parts.append(f"--- Inizio Documento: {doc_id} ---\n{_cap_text(doc_path.read_text(encoding='utf-8'))}\n--- Fine Documento: {doc_id} ---")
 
     n_parti_semantiche = len(context_parts)
+    n_sezioni_semantiche = len(ordine_contesto)
 
     # === 4b-bis. FASE 6 DI [REGOLA-WF-01]: LE SEZIONI RAGGIUNTE SOLO VIA GRAFO ===
     # Fino a S3 l'espansione del grafo alimentava solo la mappa della dashboard e le ancore
@@ -700,13 +701,22 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     #     non tocca il contesto: in shadow osserva soltanto.
     rispondibilita = None
     if ANSWERABILITY_MODE != "off" and ordine_contesto:
-        # Il primo caricamento del modello è lento: fuori dall'event loop.
-        reranker = await run_in_threadpool(ensure_reranker)
-        rispondibilita = await run_in_threadpool_until_complete(
-            answerability.assess, reranker, query.question,
-            [chunks_store[cid]["text"] for cid in ordine_contesto],
-            mode=ANSWERABILITY_MODE, top_n=ANSWERABILITY_TOP_N, threshold=ANSWERABILITY_THRESHOLD,
-        )
+        # Le sezioni via grafo PRIMA delle semantiche: `top_n` taglia dalla coda, e con un
+        # top_k grande il ramo grafo (in coda al contesto) restava fuori — proprio dove sta la
+        # risposta delle catene multihop. Per il massimo l'ordine non conta.
+        da_giudicare = ordine_contesto[n_sezioni_semantiche:] + ordine_contesto[:n_sezioni_semantiche]
+        try:
+            # Il primo caricamento del modello è lento: fuori dall'event loop.
+            reranker = await run_in_threadpool(ensure_reranker)
+            rispondibilita = await run_in_threadpool_until_complete(
+                answerability.assess, reranker, query.question,
+                [chunks_store[cid]["text"] for cid in da_giudicare],
+                mode=ANSWERABILITY_MODE, top_n=ANSWERABILITY_TOP_N, threshold=ANSWERABILITY_THRESHOLD,
+            )
+        except Exception:
+            # Fail-open anche sul calcolo, non solo sul caricamento: il gate è un'osservazione,
+            # un suo errore non deve trasformare in un 500 una risposta che il LLM può dare.
+            logger.exception("ask answerability request_id=%s: gate non calcolato.", request_id)
 
     # 5. Sintesi finale tramite il layer LLM unificato (core.llm, purpose "ask"): il prompt
     #    è costruito dalla funzione pura retrieval.build_ask_prompt (system storico +

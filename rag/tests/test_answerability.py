@@ -56,26 +56,12 @@ def test_would_abstain_segue_la_soglia():
     assert _assess(_StubReranker([0.6]), ["a"], threshold=0.5)["would_abstain"] is False
 
 
-@pytest.mark.parametrize("mode, would_abstain, has_code, thread_active, atteso", [
-    ("shadow", True, False, False, False),
-    ("enforce", True, True, False, False),
-    ("enforce", True, False, True, False),
-    ("enforce", None, False, False, False),
-    ("enforce", False, False, False, False),
-    ("enforce", True, False, False, True),
-])
-def test_should_short_circuit(mode, would_abstain, has_code, thread_active, atteso):
-    esito = {"mode": mode, "would_abstain": would_abstain}
-    assert answerability.should_short_circuit(
-        esito, has_code=has_code, thread_active=thread_active) is atteso
-
-
-def test_should_short_circuit_senza_giudizio():
-    assert answerability.should_short_circuit(None, has_code=False, thread_active=False) is False
-
-
 def test_modalita_ignota_rifiutata():
     with pytest.raises(ValueError, match="banana"):
         config._answerability_mode("banana")
+    # Review finale: enforce non è implementato (esito NO-GO); accettarlo darebbe ~18 s di
+    # latenza in più a richiesta senza saltare mai il LLM.
+    with pytest.raises(ValueError, match="enforce"):
+        config._answerability_mode("enforce")
     assert config._answerability_mode(None) == "off"
     assert config._answerability_mode(" Shadow ") == "shadow"

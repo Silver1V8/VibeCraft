@@ -538,8 +538,10 @@ CODE_SEARCH_API_SNIPPET_CHARS: int = int(_retrieval_cfg.get("code_search_api_sni
 # `retrieval`: non tocca il ranking, decide solo se chiamare il LLM.
 def _answerability_mode(value) -> str:
     mode = str(value or "off").strip().lower()
-    if mode not in {"off", "shadow", "enforce"}:
-        raise ValueError(f"answerability.mode non valido: {mode!r} (off, shadow, enforce).")
+    # `enforce` non esiste: la misura del 2026-11-03 ha dato NO-GO e il salto del LLM non è
+    # stato scritto. Accettarlo darebbe la latenza del gate senza il suo risparmio.
+    if mode not in {"off", "shadow"}:
+        raise ValueError(f"answerability.mode non valido: {mode!r} (off, shadow).")
     return mode
 
 

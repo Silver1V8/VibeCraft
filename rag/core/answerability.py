@@ -3,8 +3,9 @@
 Il MaxSim ColBERT ordina bene ma cambia scala da query a query, quindi non dice se il contesto
 BASTA a rispondere: oggi lo decide solo il LLM con [REGOLA-ASTENSIONE], dopo una generazione
 intera. Un cross-encoder dà invece un punteggio per coppia (domanda, sezione) confrontabile fra
-domande diverse. Qui si calcola quel punteggio e si decide se saltare il LLM; il contesto non
-viene né riordinato né filtrato, così la calibrazione congiunta S11 resta intatta.
+domande diverse. Qui si calcola quel punteggio; il contesto non viene né riordinato né
+filtrato, così la calibrazione congiunta S11 resta intatta. Saltare il LLM sotto soglia era il
+passo successivo: la misura del 2026-11-03 ha dato NO-GO (Esito nel piano) e non è stato scritto.
 
 Logica pura: il reranker arriva come parametro (lo carica api.index_runtime.ensure_reranker).
 """
@@ -35,14 +36,3 @@ def assess(reranker, question: str, passages: list[str], *, mode: str, top_n: in
         "would_abstain": None if threshold is None else score < threshold,
         "latency_ms": round((time.perf_counter() - start) * 1000, 2),
     }
-
-
-def should_short_circuit(assessment: dict | None, *, has_code: bool, thread_active: bool) -> bool:
-    """Saltare il LLM solo quando il gate è in enforce e il giudizio è netto.
-
-    Il codice non è fra i passaggi giudicati e può rispondere da solo; una domanda di seguito
-    nel filo è ellittica ("e per l'altro caso?") e scora basso pur avendo risposta.
-    """
-    if assessment is None or has_code or thread_active:
-        return False
-    return assessment["mode"] == "enforce" and assessment["would_abstain"] is True

@@ -40,14 +40,26 @@ class _StubReranker:
         return [self.punteggio] * len(self.coppie)
 
 
-def _snapshot() -> deps.IndexSnapshot:
+_VIA_GRAFO = {"altro.md#01-x": {"doc_id": "altro.md", "section": "x", "text": "testo via grafo"}}
+
+
+def _snapshot(con_grafo: bool = False) -> deps.IndexSnapshot:
     g = nx.DiGraph()
     g.add_node("spec.md", type="document")
+    chunks = dict(_CHUNKS)
     for cid in _CHUNKS:
         g.add_node(cid, type="chunk")
         g.add_edge("spec.md", cid, relation="HAS_SECTION")
+    if con_grafo:
+        # Un secondo documento raggiunto SOLO via grafo: la sua sezione entra dal ramo 4b-bis.
+        g.add_node("altro.md", type="document")
+        g.add_edge("spec.md", "altro.md", relation="REFERENCES")
+        for cid in _VIA_GRAFO:
+            g.add_node(cid, type="chunk")
+            g.add_edge("altro.md", cid, relation="HAS_SECTION")
+        chunks.update(_VIA_GRAFO)
     return deps.IndexSnapshot(
-        graph=g, colbert_store={}, chunks=dict(_CHUNKS), rule_descriptions={},
+        graph=g, colbert_store={}, chunks=chunks, rule_descriptions={},
         code_store={}, version="v1", code_ids=[], code_matrix=None,
     )
 
@@ -59,7 +71,7 @@ def ask_env(monkeypatch):
                         {"active_provider": "fake", "models": {"fake": "fake-model"}, "purposes": {}})
 
     def _make(*, mode="shadow", punteggio=0.05, soglia=0.5, reranker="stub",
-              risultati=None, codice=None):
+              risultati=None, codice=None, con_grafo=False, top_n=8):
         chiamate_llm = []
 
         def _llm(model, prompt, timeout):
@@ -76,8 +88,9 @@ def ask_env(monkeypatch):
 
         monkeypatch.setattr(routes_retrieval, "ANSWERABILITY_MODE", mode)
         monkeypatch.setattr(routes_retrieval, "ANSWERABILITY_THRESHOLD", soglia)
+        monkeypatch.setattr(routes_retrieval, "ANSWERABILITY_TOP_N", top_n)
         monkeypatch.setattr(routes_retrieval, "ensure_reranker", _ensure)
-        monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot())
+        monkeypatch.setattr(routes_retrieval, "require_snapshot", lambda project: _snapshot(con_grafo))
         monkeypatch.setitem(deps.state, "qdrant", object())
         monkeypatch.setitem(deps.state, "embed_model", _StubEmbed())
         if risultati is None:
@@ -130,6 +143,30 @@ def test_solo_codice_nessun_giudizio(ask_env):
     body = client.post("/ask", json=_DOMANDA).json()
     assert body["answerability"] is None
     assert stub.coppie == [] and len(chiamate_llm) == 1
+
+
+class _RerankerRotto:
+    def compute_score(self, coppie, **kw):
+        raise RuntimeError("Already borrowed")
+
+
+def test_errore_del_reranker_non_rompe_ask(ask_env):
+    """Review finale, Important 1: il fail-open copriva il caricamento ma non il calcolo."""
+    client, _stub, chiamate_llm, _ = ask_env(reranker=_RerankerRotto())
+    resp = client.post("/ask", json=_DOMANDA)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "success" and body["answerability"] is None
+    assert len(chiamate_llm) == 1
+
+
+def test_le_sezioni_via_grafo_sono_sempre_giudicate(ask_env):
+    """Review finale, Important 2: con top_k grande il taglio a top_n lasciava fuori il ramo
+    grafo, che sta in coda al contesto — proprio dove sta la risposta delle catene multihop."""
+    client, stub, _, _ = ask_env(con_grafo=True, top_n=1)
+    body = client.post("/ask", json=_DOMANDA).json()
+    assert "testo via grafo" in body["graph_context"]["context_text"]  # il ramo ha iniettato
+    assert ("domanda?", "testo via grafo") in stub.coppie
 
 
 def test_modello_non_caricato_risposta_normale(ask_env):

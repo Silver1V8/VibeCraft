@@ -244,9 +244,10 @@ retrieval:
 # sezioni restano sulla macchina.
 #   off      default: il modello non viene nemmeno caricato.
 #   shadow   calcola e logga il punteggio, lo espone in `answerability`, non decide nulla.
-#   enforce  salta il LLM sotto soglia (mai con codice in contesto né nel filo). Solo dopo
-#            l'esito "go" di eval/calibrate_answerability.py.
-# threshold: null finché la calibrazione non la misura — con null anche enforce osserva soltanto.
+#            Costa ~18 s di CPU a richiesta (misurato): solo per rimisurare.
+# Nessun `enforce`: la misura del 2026-11-03 ha dato NO-GO (Esito nel piano) — 0/17 domande
+# senza risposta prese a zero positivi persi, e l'astensione del LLM ne prende già 15/17.
+# threshold: null, la calibrazione non ha trovato una soglia che regga.
 answerability:
   mode: "off"      # tra virgolette: in YAML 1.1 `off` nudo è il booleano false
   model: "BAAI/bge-reranker-v2-m3"
