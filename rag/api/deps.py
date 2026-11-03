@@ -13,6 +13,7 @@ from collections import OrderedDict
 
 # Re-export espliciti (`as name`): seam monkeypatchabili e superficie stabile per i test.
 from FlagEmbedding import BGEM3FlagModel as BGEM3FlagModel
+from FlagEmbedding import FlagReranker as FlagReranker
 from qdrant_client import QdrantClient as QdrantClient
 
 from core.artifacts import (
@@ -26,6 +27,9 @@ from core.artifacts import (
 )
 from core.projects import ProjectRegistry as ProjectRegistry
 from core.config import (
+    ANSWERABILITY_MAX_LENGTH as ANSWERABILITY_MAX_LENGTH,
+    ANSWERABILITY_MODE as ANSWERABILITY_MODE,
+    ANSWERABILITY_MODEL as ANSWERABILITY_MODEL,
     COLLECTION_NAME as COLLECTION_NAME,
     DATABASE_DIR as DATABASE_DIR,
     EMBEDDING_MODEL as EMBEDDING_MODEL,
@@ -55,6 +59,9 @@ state: dict = {
     "snapshot": None,
     "qdrant": None,
     "embed_model": None,
+    # Cross-encoder del gate di rispondibilità (G1): caricato solo se answerability.mode != off.
+    "reranker": None,
+    "reranker_failed": False,
     "reload_error": None,
     "lock": threading.RLock(),
 }
@@ -112,6 +119,7 @@ from api.index_runtime import (  # noqa: E402
     ask_runtime_for_app as ask_runtime_for_app,
     current_snapshot as current_snapshot,
     embed_in_threadpool as embed_in_threadpool,
+    ensure_reranker as ensure_reranker,
     ensure_shared_resources as ensure_shared_resources,
     evict_project as evict_project,
     get_project as get_project,

@@ -507,6 +507,28 @@ def ensure_shared_resources(*, embedding: bool = True) -> None:
                                             "message": "Shared resources unavailable"}) from exc
 
 
+def ensure_reranker():
+    """Cross-encoder del gate di rispondibilità (G1), caricato alla prima /ask che lo usa.
+
+    Fail-open, al contrario di ensure_shared_resources: il gate è un risparmio, non una
+    dipendenza. Se il modello non si carica (cache HF vuota offline, RAM) /ask risponde come
+    prima col LLM, e non si ritenta a ogni richiesta un caricamento da minuti fino al riavvio.
+    """
+    if deps.ANSWERABILITY_MODE == "off":
+        return None
+    with deps._resources_lock:
+        if deps.state.get("reranker") is None and not deps.state.get("reranker_failed"):
+            try:
+                # CPU come l'embedding di /ask: la GPU della stessa richiesta è di Ollama.
+                deps.state["reranker"] = deps.FlagReranker(
+                    deps.ANSWERABILITY_MODEL, use_fp16=False, devices="cpu",
+                    normalize=True, max_length=deps.ANSWERABILITY_MAX_LENGTH)
+            except Exception:
+                deps.logger.exception("Reranker del gate di rispondibilità non caricato: gate spento.")
+                deps.state["reranker_failed"] = True
+        return deps.state.get("reranker")
+
+
 def _publish_snapshot(project: ProjectContext | None, snapshot: IndexSnapshot) -> None:
     project_id = project.id if project else "legacy"
     deps._snapshots[project_id] = snapshot
