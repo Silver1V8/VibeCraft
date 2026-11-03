@@ -1,0 +1,796 @@
+{
+  "report": {
+    "threshold": {
+      "threshold": -0.0166,
+      "neg_caught": 0,
+      "neg_total": 17,
+      "neg_caught_ratio": 0.0,
+      "go_ratio": false
+    },
+    "skipped": {},
+    "matrix": {
+      "gate_answer&llm_success": 67,
+      "gate_answer&llm_abstained": 16
+    },
+    "latency_ms": {
+      "p50": 18236.89,
+      "p95": 19834.18
+    },
+    "lowest_positives": [
+      {
+        "q": "posso aggiungere una funzionalità non richiesta se mi sembra utile",
+        "score": 0.0034
+      },
+      {
+        "q": "cosa devo fare se trovo un caso non coperto dalle specifiche",
+        "score": 0.0048
+      },
+      {
+        "q": "quando una funzionalità può essere considerata completata",
+        "score": 0.0098
+      },
+      {
+        "q": "perché non posso scrivere un colore direttamente in un componente?",
+        "score": 0.0246
+      },
+      {
+        "q": "che tipi di test servono e in che proporzione",
+        "score": 0.0367
+      }
+    ],
+    "negatives": [
+      {
+        "q": "qual è lo SLA di disponibilità mensile del servizio in percentuale",
+        "kind": "valore_mancante",
+        "score": 0.0012
+      },
+      {
+        "q": "come si configura il bilanciatore di carico davanti ai servizi in produzione",
+        "kind": "fuori_tema_adiacente",
+        "score": 0.0017
+      },
+      {
+        "q": "quale CDN serve gli asset statici del frontend e con quale politica di cache",
+        "kind": "fuori_tema_adiacente",
+        "score": 0.0054
+      },
+      {
+        "q": "qual è la strategia di backup e disaster recovery del database",
+        "kind": "fuori_tema_adiacente",
+        "score": 0.006
+      },
+      {
+        "q": "come si gestisce l'internazionalizzazione e la traduzione dei testi dell'interfaccia",
+        "kind": "fuori_tema_adiacente",
+        "score": 0.0068
+      },
+      {
+        "q": "quante richieste al minuto può fare un client prima di ricevere un 429",
+        "kind": "valore_mancante",
+        "score": 0.0086
+      },
+      {
+        "q": "per quanti giorni vanno conservati i log applicativi",
+        "kind": "valore_mancante",
+        "score": 0.01
+      },
+      {
+        "q": "qual è la lunghezza minima della password degli utenti e ogni quanto va cambiata",
+        "kind": "fuori_tema_adiacente",
+        "score": 0.0125
+      },
+      {
+        "q": "quali obblighi dell'articolo 17 del GDPR recepisce la baseline",
+        "kind": "presupposto_falso",
+        "score": 0.02
+      },
+      {
+        "q": "cosa prescrive la regola REGOLA-CACHE-01 sull'invalidazione della cache",
+        "kind": "presupposto_falso",
+        "score": 0.0211
+      },
+      {
+        "q": "come si applica SAFEGUARD-SEC-07 alla cifratura dei backup",
+        "kind": "presupposto_falso",
+        "score": 0.023
+      },
+      {
+        "q": "quante sessioni contemporanee può avere aperte lo stesso utente",
+        "kind": "valore_mancante",
+        "score": 0.0236
+      },
+      {
+        "q": "qual è il timeout massimo di una chiamata verso il provider di notifiche",
+        "kind": "valore_mancante",
+        "score": 0.0392
+      },
+      {
+        "q": "in quale versione del change log è stato introdotto il deploy su Kubernetes",
+        "kind": "presupposto_falso",
+        "score": 0.0568
+      },
+      {
+        "q": "dopo quanti tentativi di login falliti l'account viene bloccato",
+        "kind": "valore_mancante",
+        "score": 0.0727
+      },
+      {
+        "q": "a quale canale o indirizzo vanno inviati gli alert operativi",
+        "kind": "valore_mancante",
+        "score": 0.1408
+      },
+      {
+        "q": "quale regola REGOLA-ML-02 governa il retraining del modello di embedding",
+        "kind": "presupposto_falso",
+        "score": 0.1591
+      }
+    ],
+    "go": false
+  },
+  "rows": [
+    {
+      "group": "pos",
+      "q": "come gestire il lock transazionale su una risorsa contesa in concorrenza",
+      "kind": null,
+      "outcome": 0.9541,
+      "llm_status": "success",
+      "latency_ms": 18240.45
+    },
+    {
+      "group": "pos",
+      "q": "due utenti consumano l'ultima unità disponibile nello stesso istante",
+      "kind": null,
+      "outcome": 0.6696,
+      "llm_status": "success",
+      "latency_ms": 18243.0
+    },
+    {
+      "group": "pos",
+      "q": "sicurezza degli accessi, autenticazione e verifica dell'identità",
+      "kind": null,
+      "outcome": 0.97,
+      "llm_status": "success",
+      "latency_ms": 18291.74
+    },
+    {
+      "group": "pos",
+      "q": "quanto tempo può passare prima che la revoca di un account sia effettiva",
+      "kind": null,
+      "outcome": 0.6309,
+      "llm_status": "success",
+      "latency_ms": 18236.89
+    },
+    {
+      "group": "pos",
+      "q": "immutabilità dei dati e auditability del giornale di audit",
+      "kind": null,
+      "outcome": 0.9687,
+      "llm_status": "success",
+      "latency_ms": 18325.72
+    },
+    {
+      "group": "pos",
+      "q": "posso cancellare fisicamente un record che ha figli che lo referenziano",
+      "kind": null,
+      "outcome": 0.9784,
+      "llm_status": "success",
+      "latency_ms": 18113.67
+    },
+    {
+      "group": "pos",
+      "q": "gestione dei segreti e delle credenziali nel codice sorgente",
+      "kind": null,
+      "outcome": 0.9046,
+      "llm_status": "success",
+      "latency_ms": 18233.95
+    },
+    {
+      "group": "pos",
+      "q": "privacy, confine dei dati local-first e trattamento dei dati personali PII",
+      "kind": null,
+      "outcome": 0.991,
+      "llm_status": "success",
+      "latency_ms": 18798.08
+    },
+    {
+      "group": "pos",
+      "q": "posso mandare dati reali nel contesto di un LLM remoto durante lo sviluppo",
+      "kind": null,
+      "outcome": 0.9404,
+      "llm_status": "success",
+      "latency_ms": 18047.53
+    },
+    {
+      "group": "pos",
+      "q": "qual è la lunghezza massima ammessa per una funzione",
+      "kind": null,
+      "outcome": 0.393,
+      "llm_status": "success",
+      "latency_ms": 17802.12
+    },
+    {
+      "group": "pos",
+      "q": "come vanno gestite le eccezioni e i blocchi di cattura generici",
+      "kind": null,
+      "outcome": 0.8273,
+      "llm_status": "success",
+      "latency_ms": 17412.28
+    },
+    {
+      "group": "pos",
+      "q": "come si collega una riga di codice alla regola di business che implementa",
+      "kind": null,
+      "outcome": 0.4089,
+      "llm_status": "success",
+      "latency_ms": 17436.19
+    },
+    {
+      "group": "pos",
+      "q": "posso usare un sinonimo per nominare una variabile o devo seguire il glossario",
+      "kind": null,
+      "outcome": 0.2665,
+      "llm_status": "success",
+      "latency_ms": 17365.92
+    },
+    {
+      "group": "pos",
+      "q": "quando devo fermarmi e chiedere conferma umana prima di scrivere codice",
+      "kind": null,
+      "outcome": 0.6478,
+      "llm_status": "success",
+      "latency_ms": 17482.85
+    },
+    {
+      "group": "pos",
+      "q": "il silenzio dell'utente vale come approvazione di un checkpoint",
+      "kind": null,
+      "outcome": 0.925,
+      "llm_status": "success",
+      "latency_ms": 17420.09
+    },
+    {
+      "group": "pos",
+      "q": "cosa devo fare se trovo un caso non coperto dalle specifiche",
+      "kind": null,
+      "outcome": 0.0048,
+      "llm_status": "success",
+      "latency_ms": 17453.7
+    },
+    {
+      "group": "pos",
+      "q": "posso aggiungere una funzionalità non richiesta se mi sembra utile",
+      "kind": null,
+      "outcome": 0.0034,
+      "llm_status": "abstained",
+      "latency_ms": 17429.7
+    },
+    {
+      "group": "pos",
+      "q": "il modello ha scritto codice sbagliato, di chi è la responsabilità",
+      "kind": null,
+      "outcome": 0.2479,
+      "llm_status": "success",
+      "latency_ms": 17476.46
+    },
+    {
+      "group": "pos",
+      "q": "come vengono segmentati i documenti in chunk durante l'indicizzazione",
+      "kind": null,
+      "outcome": 0.5489,
+      "llm_status": "success",
+      "latency_ms": 17870.51
+    },
+    {
+      "group": "pos",
+      "q": "quali blocchi di testo non devono mai essere spezzati dal chunker",
+      "kind": null,
+      "outcome": 0.8371,
+      "llm_status": "success",
+      "latency_ms": 20111.52
+    },
+    {
+      "group": "pos",
+      "q": "come funziona il boost di autorità nel ranking dei risultati",
+      "kind": null,
+      "outcome": 0.7296,
+      "llm_status": "success",
+      "latency_ms": 17544.89
+    },
+    {
+      "group": "pos",
+      "q": "cosa succede se modifico un documento senza incrementare la versione",
+      "kind": null,
+      "outcome": 0.8778,
+      "llm_status": "success",
+      "latency_ms": 17534.32
+    },
+    {
+      "group": "pos",
+      "q": "due documenti possono dichiarare lo stesso node_id nel grafo",
+      "kind": null,
+      "outcome": 0.9954,
+      "llm_status": "success",
+      "latency_ms": 17759.63
+    },
+    {
+      "group": "pos",
+      "q": "come faccio a sapere se il grafo è disallineato rispetto ai documenti",
+      "kind": null,
+      "outcome": 0.0952,
+      "llm_status": "success",
+      "latency_ms": 21747.26
+    },
+    {
+      "group": "pos",
+      "q": "che forma deve avere la risposta di errore di un endpoint",
+      "kind": null,
+      "outcome": 0.6527,
+      "llm_status": "success",
+      "latency_ms": 20892.45
+    },
+    {
+      "group": "pos",
+      "q": "posso includere lo stack trace nella risposta di errore al client",
+      "kind": null,
+      "outcome": 0.7239,
+      "llm_status": "success",
+      "latency_ms": 18881.22
+    },
+    {
+      "group": "pos",
+      "q": "quale status HTTP usare per un conflitto di concorrenza",
+      "kind": null,
+      "outcome": 0.9387,
+      "llm_status": "success",
+      "latency_ms": 18341.59
+    },
+    {
+      "group": "pos",
+      "q": "come si gestisce l'idempotenza e la paginazione delle collezioni",
+      "kind": null,
+      "outcome": 0.7167,
+      "llm_status": "success",
+      "latency_ms": 18037.63
+    },
+    {
+      "group": "pos",
+      "q": "differenza fra audit log e log applicativo",
+      "kind": null,
+      "outcome": 0.9968,
+      "llm_status": "success",
+      "latency_ms": 18846.17
+    },
+    {
+      "group": "pos",
+      "q": "come si correlano log tracing e audit di una stessa richiesta",
+      "kind": null,
+      "outcome": 0.7183,
+      "llm_status": "success",
+      "latency_ms": 18425.09
+    },
+    {
+      "group": "pos",
+      "q": "quando usare il livello ERROR invece di WARNING nei log",
+      "kind": null,
+      "outcome": 0.3475,
+      "llm_status": "success",
+      "latency_ms": 19351.18
+    },
+    {
+      "group": "pos",
+      "q": "come evitare che dati personali finiscano nei log o negli APM esterni",
+      "kind": null,
+      "outcome": 0.4367,
+      "llm_status": "success",
+      "latency_ms": 18901.63
+    },
+    {
+      "group": "pos",
+      "q": "quali metriche deve esporre un servizio e come deve funzionare l'health check",
+      "kind": null,
+      "outcome": 0.8562,
+      "llm_status": "success",
+      "latency_ms": 18968.11
+    },
+    {
+      "group": "pos",
+      "q": "che tipi di test servono e in che proporzione",
+      "kind": null,
+      "outcome": 0.0367,
+      "llm_status": "success",
+      "latency_ms": 18558.05
+    },
+    {
+      "group": "pos",
+      "q": "cosa fare con un test che fallisce in modo intermittente",
+      "kind": null,
+      "outcome": 0.9024,
+      "llm_status": "success",
+      "latency_ms": 19324.07
+    },
+    {
+      "group": "pos",
+      "q": "come si verifica che un safeguard sia davvero applicato",
+      "kind": null,
+      "outcome": 0.8666,
+      "llm_status": "success",
+      "latency_ms": 18896.72
+    },
+    {
+      "group": "pos",
+      "q": "come si testa correttamente un percorso protetto da lock pessimistico",
+      "kind": null,
+      "outcome": 0.6373,
+      "llm_status": "success",
+      "latency_ms": 19834.18
+    },
+    {
+      "group": "pos",
+      "q": "qual è la soglia minima di copertura dei test",
+      "kind": null,
+      "outcome": 0.9638,
+      "llm_status": "success",
+      "latency_ms": 18540.04
+    },
+    {
+      "group": "pos",
+      "q": "come deve essere l'aspetto grafico rispetto all'identità visiva aziendale",
+      "kind": null,
+      "outcome": 0.6772,
+      "llm_status": "success",
+      "latency_ms": 18745.81
+    },
+    {
+      "group": "pos",
+      "q": "posso scrivere un colore direttamente nel componente o devo usare i design token",
+      "kind": null,
+      "outcome": 0.5134,
+      "llm_status": "success",
+      "latency_ms": 19516.19
+    },
+    {
+      "group": "pos",
+      "q": "quale rapporto di contrasto devono rispettare i colori dell'interfaccia",
+      "kind": null,
+      "outcome": 0.771,
+      "llm_status": "success",
+      "latency_ms": 18480.08
+    },
+    {
+      "group": "pos",
+      "q": "quando una funzionalità può essere considerata completata",
+      "kind": null,
+      "outcome": 0.0098,
+      "llm_status": "success",
+      "latency_ms": 18612.15
+    },
+    {
+      "group": "pos",
+      "q": "cosa va verificato prima del rilascio e del sign-off finale",
+      "kind": null,
+      "outcome": 0.942,
+      "llm_status": "success",
+      "latency_ms": 18586.54
+    },
+    {
+      "group": "pos",
+      "q": "posso saltare una voce della checklist se non si applica al mio caso",
+      "kind": null,
+      "outcome": 0.1818,
+      "llm_status": "success",
+      "latency_ms": 18844.02
+    },
+    {
+      "group": "pos",
+      "q": "come si versionano i documenti della knowledge base",
+      "kind": null,
+      "outcome": 0.9854,
+      "llm_status": "success",
+      "latency_ms": 19115.6
+    },
+    {
+      "group": "pos",
+      "q": "quali campi sono obbligatori nel frontmatter di un documento",
+      "kind": null,
+      "outcome": 0.9932,
+      "llm_status": "success",
+      "latency_ms": 18831.1
+    },
+    {
+      "group": "pos",
+      "q": "quando serve incrementare la major invece della minor di un documento",
+      "kind": null,
+      "outcome": 0.3423,
+      "llm_status": "success",
+      "latency_ms": 18993.77
+    },
+    {
+      "group": "pos",
+      "q": "quali documenti compongono la baseline e come si avvia un nuovo progetto",
+      "kind": null,
+      "outcome": 0.986,
+      "llm_status": "success",
+      "latency_ms": 18368.57
+    },
+    {
+      "group": "pos",
+      "q": "dove sono definiti i segnaposto da compilare per riusare la baseline",
+      "kind": null,
+      "outcome": 0.7338,
+      "llm_status": "success",
+      "latency_ms": 18587.61
+    },
+    {
+      "group": "pos",
+      "q": "cosa non deve mai finire committato in un repository git",
+      "kind": null,
+      "outcome": 0.5463,
+      "llm_status": "success",
+      "latency_ms": 18207.37
+    },
+    {
+      "group": "pos",
+      "q": "il correlation id va propagato anche sui record di audit",
+      "kind": null,
+      "outcome": 0.9077,
+      "llm_status": "success",
+      "latency_ms": 18981.44
+    },
+    {
+      "group": "pos",
+      "q": "cosa blocca l'ingestion quando qualcuno dimentica il bump di versione del documento",
+      "kind": null,
+      "outcome": 0.9217,
+      "llm_status": "success",
+      "latency_ms": 18544.87
+    },
+    {
+      "group": "pos",
+      "q": "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento",
+      "kind": null,
+      "outcome": 0.746,
+      "llm_status": "success",
+      "latency_ms": 18530.93
+    },
+    {
+      "group": "pos",
+      "q": "in quale ordine il chunker tenta i tagli: blocchi atomici, poi H2, poi H3, poi paragrafi",
+      "kind": null,
+      "outcome": 0.9756,
+      "llm_status": "success",
+      "latency_ms": 19121.34
+    },
+    {
+      "group": "pos",
+      "q": "tracciabilità bidirezionale nei commenti fra riga di codice e regola di business",
+      "kind": null,
+      "outcome": 0.6978,
+      "llm_status": "success",
+      "latency_ms": 19989.91
+    },
+    {
+      "group": "pos",
+      "q": "posso mandare la motivazione scritta dal dipendente a un LLM remoto",
+      "kind": null,
+      "outcome": 0.2759,
+      "llm_status": "success",
+      "latency_ms": 17855.45
+    },
+    {
+      "group": "pos",
+      "q": "controllo stilistico della palette colori verificabile nel codice sorgente",
+      "kind": null,
+      "outcome": 0.0436,
+      "llm_status": "success",
+      "latency_ms": 18115.97
+    },
+    {
+      "group": "pos",
+      "q": "posso usare un servizio di inferenza remoto per il debug di un record reale",
+      "kind": null,
+      "outcome": 0.3865,
+      "llm_status": "success",
+      "latency_ms": 17987.23
+    },
+    {
+      "group": "pos",
+      "q": "dove finisce il correlation id di una richiesta e chi lo impone?",
+      "kind": null,
+      "outcome": 0.3395,
+      "llm_status": "success",
+      "latency_ms": 18050.68
+    },
+    {
+      "group": "pos",
+      "q": "quali vincoli valgono sui dati personali fra log, test e chiamate a LLM esterni?",
+      "kind": null,
+      "outcome": 0.7723,
+      "llm_status": "success",
+      "latency_ms": 18475.08
+    },
+    {
+      "group": "pos",
+      "q": "come si implementa e come si verifica la protezione sull'ultima unità disponibile?",
+      "kind": null,
+      "outcome": 0.395,
+      "llm_status": "success",
+      "latency_ms": 18035.56
+    },
+    {
+      "group": "pos",
+      "q": "qual è la differenza fra il giornale di audit e i log applicativi?",
+      "kind": null,
+      "outcome": 0.7865,
+      "llm_status": "success",
+      "latency_ms": 18227.36
+    },
+    {
+      "group": "pos",
+      "q": "come faccio a sapere se una funzionalità è davvero finita?",
+      "kind": null,
+      "outcome": 0.0483,
+      "llm_status": "success",
+      "latency_ms": 18046.28
+    },
+    {
+      "group": "pos",
+      "q": "come si collega una regola documentata al codice che la implementa e al test che la verifica?",
+      "kind": null,
+      "outcome": 0.5589,
+      "llm_status": "success",
+      "latency_ms": 18287.43
+    },
+    {
+      "group": "pos",
+      "q": "cosa devo fare quando modifico un documento della knowledge base?",
+      "kind": null,
+      "outcome": 0.737,
+      "llm_status": "success",
+      "latency_ms": 18227.57
+    },
+    {
+      "group": "pos",
+      "q": "perché non posso scrivere un colore direttamente in un componente?",
+      "kind": null,
+      "outcome": 0.0246,
+      "llm_status": "success",
+      "latency_ms": 18165.83
+    },
+    {
+      "group": "neg",
+      "q": "qual è la strategia di backup e disaster recovery del database",
+      "kind": "fuori_tema_adiacente",
+      "outcome": 0.006,
+      "llm_status": "abstained",
+      "latency_ms": 18085.11
+    },
+    {
+      "group": "neg",
+      "q": "come si configura il bilanciatore di carico davanti ai servizi in produzione",
+      "kind": "fuori_tema_adiacente",
+      "outcome": 0.0017,
+      "llm_status": "success",
+      "latency_ms": 17958.8
+    },
+    {
+      "group": "neg",
+      "q": "come si gestisce l'internazionalizzazione e la traduzione dei testi dell'interfaccia",
+      "kind": "fuori_tema_adiacente",
+      "outcome": 0.0068,
+      "llm_status": "abstained",
+      "latency_ms": 18526.39
+    },
+    {
+      "group": "neg",
+      "q": "qual è la lunghezza minima della password degli utenti e ogni quanto va cambiata",
+      "kind": "fuori_tema_adiacente",
+      "outcome": 0.0125,
+      "llm_status": "abstained",
+      "latency_ms": 18096.33
+    },
+    {
+      "group": "neg",
+      "q": "quale CDN serve gli asset statici del frontend e con quale politica di cache",
+      "kind": "fuori_tema_adiacente",
+      "outcome": 0.0054,
+      "llm_status": "abstained",
+      "latency_ms": 9150.89
+    },
+    {
+      "group": "neg",
+      "q": "per quanti giorni vanno conservati i log applicativi",
+      "kind": "valore_mancante",
+      "outcome": 0.01,
+      "llm_status": "abstained",
+      "latency_ms": 18284.05
+    },
+    {
+      "group": "neg",
+      "q": "a quale canale o indirizzo vanno inviati gli alert operativi",
+      "kind": "valore_mancante",
+      "outcome": 0.1408,
+      "llm_status": "success",
+      "latency_ms": 18041.98
+    },
+    {
+      "group": "neg",
+      "q": "quante richieste al minuto può fare un client prima di ricevere un 429",
+      "kind": "valore_mancante",
+      "outcome": 0.0086,
+      "llm_status": "abstained",
+      "latency_ms": 18182.52
+    },
+    {
+      "group": "neg",
+      "q": "qual è il timeout massimo di una chiamata verso il provider di notifiche",
+      "kind": "valore_mancante",
+      "outcome": 0.0392,
+      "llm_status": "abstained",
+      "latency_ms": 18024.0
+    },
+    {
+      "group": "neg",
+      "q": "quante sessioni contemporanee può avere aperte lo stesso utente",
+      "kind": "valore_mancante",
+      "outcome": 0.0236,
+      "llm_status": "abstained",
+      "latency_ms": 18073.95
+    },
+    {
+      "group": "neg",
+      "q": "qual è lo SLA di disponibilità mensile del servizio in percentuale",
+      "kind": "valore_mancante",
+      "outcome": 0.0012,
+      "llm_status": "abstained",
+      "latency_ms": 18137.65
+    },
+    {
+      "group": "neg",
+      "q": "dopo quanti tentativi di login falliti l'account viene bloccato",
+      "kind": "valore_mancante",
+      "outcome": 0.0727,
+      "llm_status": "abstained",
+      "latency_ms": 18122.92
+    },
+    {
+      "group": "neg",
+      "q": "cosa prescrive la regola REGOLA-CACHE-01 sull'invalidazione della cache",
+      "kind": "presupposto_falso",
+      "outcome": 0.0211,
+      "llm_status": "abstained",
+      "latency_ms": 18609.05
+    },
+    {
+      "group": "neg",
+      "q": "come si applica SAFEGUARD-SEC-07 alla cifratura dei backup",
+      "kind": "presupposto_falso",
+      "outcome": 0.023,
+      "llm_status": "abstained",
+      "latency_ms": 17930.88
+    },
+    {
+      "group": "neg",
+      "q": "in quale versione del change log è stato introdotto il deploy su Kubernetes",
+      "kind": "presupposto_falso",
+      "outcome": 0.0568,
+      "llm_status": "abstained",
+      "latency_ms": 18066.4
+    },
+    {
+      "group": "neg",
+      "q": "quali obblighi dell'articolo 17 del GDPR recepisce la baseline",
+      "kind": "presupposto_falso",
+      "outcome": 0.02,
+      "llm_status": "abstained",
+      "latency_ms": 18023.82
+    },
+    {
+      "group": "neg",
+      "q": "quale regola REGOLA-ML-02 governa il retraining del modello di embedding",
+      "kind": "presupposto_falso",
+      "outcome": 0.1591,
+      "llm_status": "abstained",
+      "latency_ms": 18040.95
+    }
+  ]
+}

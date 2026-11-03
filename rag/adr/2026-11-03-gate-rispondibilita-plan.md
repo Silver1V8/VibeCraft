@@ -31,6 +31,39 @@ rispondibilità. Il gate decide solo SE chiamare il LLM: non riordina e non filt
 - **Criterio go/no-go (Task 6):** con la soglia più alta che non fa perdere NESSUN positivo,
   almeno il 50% dei negativi è sotto soglia, E la latenza del gate ha p95 ≤ 2000 ms su CPU.
 
+## Esito (Task 6, 2026-11-03): NO-GO
+
+Run in shadow sul progetto `legacy` (snapshot `v20261030T111436`, 384 chunk), server con cache
+di /ask spenta (`vibecraft-rag-nocache`), `top_n` 8, `max_length` 512, qwen3.5:9b-text.
+83 domande, nessuna scartata né persa. Evidenza:
+`eval/results/answerability_shadow_20261103/evidence/answerability_20261103-162806.json`.
+
+**Criterio 1 — separazione: fallito.** Il positivo più basso scora 0.0034, quindi la soglia a
+zero positivi persi è negativa e prende 0 negativi su 17 (serviva ≥ 50%). I negativi stanno
+fra 0.0012 e 0.159; 8 positivi su 66 stanno sotto 0.16. Sono tutte domande di processo e
+governance ("posso aggiungere una funzionalità non richiesta", "quando una funzionalità è
+completata", "perché non posso scrivere un colore in un componente"): la regola che risponde
+è scritta come norma ([REGOLA-DEV-02], DoD, [REGOLA-UI-01]) e il cross-encoder, addestrato su
+pertinenza di tipo domanda/passaggio, non lega il dubbio alla norma. Sulle domande fattuali la
+separazione era netta (0.94 contro 0.006 nella prova a mano).
+
+**Criterio 2 — latenza: fallito.** Gate p50 18,2 s, p95 19,8 s su CPU (tetto 2 s), più della
+generazione stessa (5-11 s). In enforce avrebbe rallentato di ~18 s ogni risposta per
+risparmiarne 5-10 sulle sole domande senza risposta.
+
+**Il dato che conta di più.** L'astensione che esiste già ([REGOLA-ASTENSIONE], A16/R27) ha
+preso 15 negativi su 17 (88%) e si è astenuta su 1 positivo su 66: proprio quello che il gate
+scorava più basso. I due negativi a cui il LLM ha risposto sono "bilanciatore di carico"
+(gate 0.0017) e "canale degli alert" (gate 0.14, segnaposto `<<CANALE_ALERT>>`). Il gate non
+aggiunge capacità di astensione: al più anticipa una decisione che il LLM prende già bene.
+
+**Cosa resta.** Il gate rimane `off` e il Task 7 non si fa. Restano utili il set di negativi
+(`eval/golden_unanswerable.yaml`, verificato su baseline E corpus indicizzato) e lo script di
+calibrazione, che insieme sono il primo set di valutazione sulle RISPOSTE di /ask — quello che
+il commento su `graph_context_min_ratio` in `rag_config.yaml` aspetta per essere riaperto.
+Da riaprire solo con un giudice diverso: un reranker più piccolo o una GPU libera per la
+latenza, e un modello addestrato su domande normative per la separazione.
+
 ## Vincoli globali
 
 - Nessuna dipendenza nuova: `uv.lock` e `pyproject.toml` non cambiano.
