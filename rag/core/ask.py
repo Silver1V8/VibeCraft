@@ -24,6 +24,7 @@ from api.deps import (
     ask_runtime_for_app,
     get_project,
     require_snapshot,
+    ensure_reranker,
     ensure_shared_resources,
     embed_in_threadpool,
     qdrant_collection_for_version,
@@ -31,10 +32,13 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import ask_cache, ask_thread, graph_ops, llm, retrieval, router as question_router
+from core import answerability, ask_cache, ask_thread, graph_ops, llm, retrieval, router as question_router
 from core.ask_thread import AskThreadStorageError
 from core.projects import ProjectError, _unlinked
 from core.config import (
+    ANSWERABILITY_MODE,
+    ANSWERABILITY_THRESHOLD,
+    ANSWERABILITY_TOP_N,
     CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT,
     CODE_CONTEXT_TOTAL_SNIPPETS,
@@ -449,6 +453,9 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     chunks_store: dict = snap.chunks
     context_parts: list[str] = []
     seen_chunks: set[str] = set()
+    # Gli stessi chunk in ordine d'iniezione (il set lo perde): il gate di rispondibilità (G1)
+    # giudica ciò che vede il LLM, nell'ordine in cui lo vede.
+    ordine_contesto: list[str] = []
     # Le fonti EFFETTIVAMENTE finite nel contesto, per costruire la scala di [CLASSE-FONTI]:
     # non i candidati recuperati, che possono essere scartati qui sotto. Una scala che
     # nominasse una classe assente dal prompt sarebbe una regola che parla del nulla.
@@ -459,6 +466,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         if entry is None or cid in seen_chunks:
             continue
         seen_chunks.add(cid)
+        ordine_contesto.append(cid)
         fonti_nel_contesto.append(r)
         # La CLASSE nell'intestazione (A3): il boost di autorità riordinava i candidati e poi
         # spariva, e l'LLM riceveva blocchi indistinguibili. Con 8 sezioni in finestra la spec
@@ -613,6 +621,7 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
             if entry is None:
                 continue
             seen_chunks.add(cid)
+            ordine_contesto.append(cid)
             info = trust_by_node[provenienza[cid]]
             pertinenza = f", pertinenza {punteggio:.3f}" if punteggio is not None else ""
             # Anche qui la classe, e non per simmetria: un blocco senza etichetta in mezzo a
@@ -685,6 +694,20 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         )
         context = f"{context}\n\n=== CODICE ESISTENTE (implementazione) ===\n\n{code_block}" if context else code_block
 
+    # 4d. Gate di rispondibilità (G1, core/answerability.py). Il cross-encoder giudica le
+    #     sezioni in contesto — semantiche E via grafo: nelle catene multihop la risposta sta
+    #     spesso proprio nella sezione arrivata dal grafo. Il codice non è giudicato. Il gate
+    #     non tocca il contesto: in shadow osserva soltanto.
+    rispondibilita = None
+    if ANSWERABILITY_MODE != "off" and ordine_contesto:
+        # Il primo caricamento del modello è lento: fuori dall'event loop.
+        reranker = await run_in_threadpool(ensure_reranker)
+        rispondibilita = await run_in_threadpool_until_complete(
+            answerability.assess, reranker, query.question,
+            [chunks_store[cid]["text"] for cid in ordine_contesto],
+            mode=ANSWERABILITY_MODE, top_n=ANSWERABILITY_TOP_N, threshold=ANSWERABILITY_THRESHOLD,
+        )
+
     # 5. Sintesi finale tramite il layer LLM unificato (core.llm, purpose "ask"): il prompt
     #    è costruito dalla funzione pura retrieval.build_ask_prompt (system storico +
     #    contesto + domanda). Su LLMError la risposta è un 502 esplicito: MAI un testo
@@ -744,10 +767,11 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     logger.info(
         "ask request_id=%s index_version=%s qdrant_collection=%s qdrant_alias=%s "
         "retrieval_strategy=%s top_k=%s n_results=%s latency_retrieval_ms=%s "
-        "latency_generation_ms=%s latency_total_ms=%s abstained=%s",
+        "latency_generation_ms=%s latency_total_ms=%s abstained=%s answerability_score=%s",
         request_id, index_version, qdrant_collection, project.collection_name,
         retrieval_strategy, query.top_k, len(search_results),
         latency_retrieval_ms, latency_generation_ms, latency_total_ms, astenuta,
+        rispondibilita["score"] if rispondibilita else None,
     )
 
     payload = {
@@ -788,6 +812,8 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         # Codice iniettato nel contesto via archi IMPLEMENTS (vuoto se il grafo non ha
         # ancora simboli linkati alle sezioni recuperate): trasparenza su cosa ha visto l'LLM.
         "implementing_code": implementing_code,
+        # Giudizio del gate (G1): None con il gate spento o senza sezioni da giudicare.
+        "answerability": rispondibilita,
     }
     # Si memorizza SOLO questo payload: gli errori (502 su LLMError) e gli esiti a vuoto
     # (no_results/no_graph_nodes, che tornano prima) non entrano mai in cache. Un'astensione

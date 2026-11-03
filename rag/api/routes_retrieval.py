@@ -24,6 +24,7 @@ from api.deps import (
     ask_runtime_for_app as ask_runtime_for_app,  # noqa: F401
     get_project,
     require_snapshot,
+    ensure_reranker as ensure_reranker,  # noqa: F401 — seam rebind /ask (G1)
     ensure_shared_resources,
     embed_in_threadpool,
     qdrant_collection_for_version,
@@ -37,6 +38,7 @@ from api.models import AskQuery
 from core import ask as _ask_core
 # Simboli usati dal bytecode di core.ask via rebind (e dai test che patchano il modulo).
 from core import (  # noqa: F401
+    answerability as answerability,
     ask_cache as ask_cache,
     ask_thread,
     graph_ops as graph_ops,
@@ -47,6 +49,9 @@ from core import (  # noqa: F401
 from core.ask_thread import AskThreadStorageError
 from core.projects import ProjectError as ProjectError, _unlinked as _unlinked  # noqa: F401
 from core.config import (  # noqa: F401
+    ANSWERABILITY_MODE as ANSWERABILITY_MODE,
+    ANSWERABILITY_THRESHOLD as ANSWERABILITY_THRESHOLD,
+    ANSWERABILITY_TOP_N as ANSWERABILITY_TOP_N,
     CODE_CONTEXT_MAX_SNIPPETS as CODE_CONTEXT_MAX_SNIPPETS,
     CODE_CONTEXT_MIN_WEIGHT as CODE_CONTEXT_MIN_WEIGHT,
     CODE_CONTEXT_TOTAL_SNIPPETS as CODE_CONTEXT_TOTAL_SNIPPETS,
