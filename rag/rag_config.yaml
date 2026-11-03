@@ -237,6 +237,23 @@ retrieval:
   # chiave, scrivila qui.
   tech_scope_tag_key: "tags"
 
+# Gate di rispondibilità pre-LLM di /ask (G1, core/answerability.py; piano in
+# adr/2026-11-03-gate-rispondibilita-plan.md). Un cross-encoder locale su CPU giudica le
+# sezioni che entrano nel contesto e decide SOLO se chiamare il LLM: non riordina e non filtra,
+# quindi non tocca la calibrazione congiunta S11 qui sopra. Niente servizi ospitati: domanda e
+# sezioni restano sulla macchina.
+#   off      default: il modello non viene nemmeno caricato.
+#   shadow   calcola e logga il punteggio, lo espone in `answerability`, non decide nulla.
+#   enforce  salta il LLM sotto soglia (mai con codice in contesto né nel filo). Solo dopo
+#            l'esito "go" di eval/calibrate_answerability.py.
+# threshold: null finché la calibrazione non la misura — con null anche enforce osserva soltanto.
+answerability:
+  mode: "off"      # tra virgolette: in YAML 1.1 `off` nudo è il booleano false
+  model: "BAAI/bge-reranker-v2-m3"
+  threshold: null
+  top_n: 8         # sezioni giudicate, nell'ordine del contesto (semantiche, poi via grafo)
+  max_length: 512  # token per coppia domanda+sezione
+
 # Ri-ponderazione per autorità nel retrieval (core/retrieval.py): i pesi per classe di
 # documento modulano il ranking finale (fonti normative > informative; archiviate < attive).
 # I valori qui sono i default calibrati a mano; ricalibrabili sul golden set con

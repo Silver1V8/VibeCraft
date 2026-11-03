@@ -533,6 +533,24 @@ CODE_LINK_MIN_QUESTION_SCORE: float = float(
 CODE_SEARCH_API_MAX_K: int = int(_retrieval_cfg.get("code_search_api_max_k", 25))
 CODE_SEARCH_API_SNIPPET_CHARS: int = int(_retrieval_cfg.get("code_search_api_snippet_chars", 400))
 
+
+# Gate di rispondibilità pre-LLM di /ask (G1, core/answerability.py). Blocco separato da
+# `retrieval`: non tocca il ranking, decide solo se chiamare il LLM.
+def _answerability_mode(value) -> str:
+    mode = str(value or "off").strip().lower()
+    if mode not in {"off", "shadow", "enforce"}:
+        raise ValueError(f"answerability.mode non valido: {mode!r} (off, shadow, enforce).")
+    return mode
+
+
+_answerability_cfg: dict = config.get("answerability") or {}
+ANSWERABILITY_MODE: str = _answerability_mode(_answerability_cfg.get("mode"))
+ANSWERABILITY_MODEL: str = str(_answerability_cfg.get("model") or "BAAI/bge-reranker-v2-m3")
+ANSWERABILITY_THRESHOLD: float | None = (
+    None if _answerability_cfg.get("threshold") is None else float(_answerability_cfg["threshold"]))
+ANSWERABILITY_TOP_N: int = int(_answerability_cfg.get("top_n", 8))
+ANSWERABILITY_MAX_LENGTH: int = int(_answerability_cfg.get("max_length", 512))
+
 # Eval-gate continuo sulla promozione blue/green (core/eval_gate.py) + golden set del retrieval.
 _eval_gate_cfg: dict = config.get("eval_gate") or {}
 EVAL_GATE_ENABLED: bool = bool(_eval_gate_cfg.get("enabled", True))
