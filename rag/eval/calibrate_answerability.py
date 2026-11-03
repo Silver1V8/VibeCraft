@@ -104,25 +104,41 @@ def summarize(rows: list[dict], *, margin: float = 0.02) -> dict:
     }
 
 
-def _ask(client: httpx2.Client, url: str, question: str, *, max_waits: int = 10) -> dict:
+def _ask(client: httpx2.Client, url: str, question: str, *, max_waits: int = 10,
+         max_502: int = 3) -> dict:
+    """POST /ask con attesa sui 429/503 (coda piena) e qualche tentativo sui 502.
+
+    Il 502 è un errore del LLM, non del gate: il 2026-11-03 uno solo, alla domanda 61 di 83,
+    fermava l'intera run senza salvare nulla.
+    """
+    falliti_502 = 0
     for _ in range(max_waits):
         resp = client.post(f"{url}/ask", json={"question": question, "use_thread": False})
-        if resp.status_code not in (429, 503):
+        if resp.status_code == 502 and falliti_502 < max_502 - 1:
+            falliti_502 += 1
+        elif resp.status_code not in (429, 503):
             break
         time.sleep(float(resp.headers.get("Retry-After", "1")))
     resp.raise_for_status()
     return resp.json()
 
 
-def collect(client: httpx2.Client, url: str) -> list[dict]:
-    cases = ([("pos", c["q"], None) for c in load_cases(GOLDEN)]
-             + [("pos", c["q"], None) for c in load_multihop() if c.get("kind") == "multihop"]
-             + [("neg", c["q"], c["kind"])
-                for c in yaml.safe_load(UNANSWERABLE.read_text(encoding="utf-8"))["cases"]])
+def load_all_cases() -> list[tuple[str, str, str | None]]:
+    return ([("pos", c["q"], None) for c in load_cases(GOLDEN)]
+            + [("pos", c["q"], None) for c in load_multihop() if c.get("kind") == "multihop"]
+            + [("neg", c["q"], c["kind"])
+               for c in yaml.safe_load(UNANSWERABLE.read_text(encoding="utf-8"))["cases"]])
+
+
+def collect(client: httpx2.Client, url: str, cases: list[tuple[str, str, str | None]]) -> list[dict]:
     rows = []
     for i, (group, q, kind) in enumerate(cases, 1):
-        payload = _ask(client, url, q)
-        outcome = classify(payload)
+        try:
+            payload = _ask(client, url, q)
+        except httpx2.HTTPStatusError:
+            # Una domanda persa resta nel report come "error" (exit 1), le altre si misurano.
+            payload = {"status": "error"}
+        outcome = "error" if payload["status"] == "error" else classify(payload)
         judged = payload.get("answerability") or {}
         rows.append({"group": group, "q": q, "kind": kind, "outcome": outcome,
                      "llm_status": payload.get("status"), "latency_ms": judged.get("latency_ms")})
@@ -142,7 +158,7 @@ def main() -> int:
         headers["X-API-Key"] = os.environ["VIBECRAFT_API_KEY"]
     try:
         with httpx2.Client(timeout=600, headers=headers) as client:
-            rows = collect(client, a.url)
+            rows = collect(client, a.url, load_all_cases())
     except httpx2.HTTPError as e:
         print(f"❌ /ask non raggiungibile: {e}")
         return 2
@@ -163,7 +179,7 @@ def main() -> int:
     for p in report["lowest_positives"]:
         print(f"  {p['score']:.4f}  {p['q']}")
     print(f"\nEsito: {'GO' if report['go'] else 'NO-GO'}   report: {out}")
-    return 1 if report["skipped"].get("cached") or report["skipped"].get("missing") else 0
+    return 1 if any(report["skipped"].get(k) for k in ("cached", "missing", "error")) else 0
 
 
 if __name__ == "__main__":

@@ -3,7 +3,37 @@ Solo la parte pura: scelta della soglia e smistamento delle risposte di /ask. La
 gira dal vivo nel Task 6 del piano."""
 import pytest
 
-from eval.calibrate_answerability import choose_threshold, classify, summarize
+import httpx2
+
+from eval import calibrate_answerability as calib
+from eval.calibrate_answerability import choose_threshold, classify, collect, summarize
+
+
+class _Client:
+    """POST /ask finto: per ogni domanda una coda di status; 200 risponde con un punteggio."""
+
+    def __init__(self, status_per_domanda):
+        self.status = {q: list(s) for q, s in status_per_domanda.items()}
+
+    def post(self, url, json):
+        status = self.status[json["question"]].pop(0)
+        body = {"status": "success", "cached": False,
+                "answerability": {"score": 0.5, "latency_ms": 7.0}} if status == 200 else {}
+        return httpx2.Response(status, json=body, request=httpx2.Request("POST", url))
+
+
+def test_una_domanda_che_fallisce_non_ferma_la_run(monkeypatch):
+    """Il 502 di Ollama su UNA domanda fermava la run alla 61/83 senza salvare nulla."""
+    monkeypatch.setattr(calib.time, "sleep", lambda s: None)
+    client = _Client({"rotta": [502, 502, 502], "buona": [200]})
+    righe = collect(client, "http://x", [("pos", "rotta", None), ("pos", "buona", None)])
+    assert [r["outcome"] for r in righe] == ["error", 0.5]
+
+
+def test_il_502_transitorio_si_riprova(monkeypatch):
+    monkeypatch.setattr(calib.time, "sleep", lambda s: None)
+    client = _Client({"lenta": [502, 200]})
+    assert collect(client, "http://x", [("neg", "lenta", "valore_mancante")])[0]["outcome"] == 0.5
 
 
 def test_soglia_sotto_il_positivo_piu_basso():
