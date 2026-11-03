@@ -29,6 +29,7 @@ indicizzare.
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | la proposta di pipeline Docling alternativa al pilot Granite, con configurazione e criteri di valutazione |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |
+| [`2026-11-03-gate-rispondibilita-plan.md`](2026-11-03-gate-rispondibilita-plan.md) | gate di rispondibilità prima del LLM (G1): piano, criteri go/no-go ed esito del 3 novembre 2026 — NO-GO, il gate resta spento |
 
 ## Scalabilità sidecar — esecuzione del 21 settembre 2026
 

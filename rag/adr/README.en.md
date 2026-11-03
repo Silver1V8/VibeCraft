@@ -29,6 +29,7 @@ corpus to index.
 | [`DOCLING_PIPELINE_ALTERNATIVA.md`](DOCLING_PIPELINE_ALTERNATIVA.md) | proposal for an alternative Docling pipeline to the Granite pilot, with configuration and evaluation criteria |
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | improvements and bug fixes from the Docling pilot and independent of it: cause, diff, checks, risk, and rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | operational gate, end-to-end cycle verified on 15 September 2026, measurements, friction log, and open issues |
+| [`2026-11-03-gate-rispondibilita-plan.md`](2026-11-03-gate-rispondibilita-plan.md) | pre-LLM answerability gate (G1): plan, go/no-go criteria and the 3 November 2026 outcome — no-go, the gate stays off (Italian) |
 
 ## Sidecar scalability — run of 21 September 2026
 

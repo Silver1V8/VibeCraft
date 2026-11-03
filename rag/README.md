@@ -7,7 +7,7 @@ Italiano | [English](README.en.md)
 
 # rag/ — Console Graph-RAG
 
-**Stato documentato: `main`, 30 ottobre 2026.**
+**Stato documentato: `main`, 3 novembre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
 dal 12. I manuali in console sono del 25. Dal 29 il grafo collega le chiamate HTTP del
 frontend agli endpoint Minimal API del backend (archi `CALLS`, vedi
@@ -17,7 +17,7 @@ tenuta da Ollama prima di embeddare su GPU (vedi
 Dal 30 un menu **Impostazioni** sceglie i modelli LLM, locali, cloud o per attività, anche
 Claude con l'abbonamento (vedi [LLM](docs/llm.md#menu-impostazioni-della-console-2026-10-30)),
 e il giudice di attribuzione Claude chiude R29 (vedi [Eval](docs/eval-e-ci.md)). Sempre dal 30
-i casi avversariali sono 5 su 5 al primo posto, con una correzione del corpus e non dei pesi.
+i casi avversariali sono 5 su 5 al primo posto, con una correzione del corpus e non dei pesi. Il 3 novembre è stato misurato un gate di rispondibilità prima del LLM (un cross-encoder locale): esito negativo, resta spento, e l'astensione del modello regge da sola (vedi [Eval](docs/eval-e-ci.md#la-quarta-misura-quando-ask-deve-astenersi)).
 I numeri di un gate restano quelli del giorno in cui sono stati misurati. Lo stesso stato
 è in [`../README.md`](../README.md).
 

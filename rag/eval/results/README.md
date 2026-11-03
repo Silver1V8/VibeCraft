@@ -2,6 +2,15 @@ Italiano | [English](README.en.md)
 
 # Evidenze delle valutazioni
 
+## Rispondibilità di /ask — 3 novembre 2026
+
+| Evidenza | Cosa dimostra |
+|---|---|
+| [Run in shadow](answerability_shadow_20261103/evidence/answerability_20261103-162806.json) | 83 domande (66 con risposta, 17 senza) sul progetto `legacy`: a zero positivi persi il gate non prende nessun negativo, latenza p95 19,8 s su CPU. L'astensione del LLM: 15 negativi su 17, 1 positivo su 66 |
+
+Esito NO-GO, il gate resta spento. Piano e lettura dei numeri in
+[adr/2026-11-03-gate-rispondibilita-plan.md](../../adr/2026-11-03-gate-rispondibilita-plan.md).
+
 ## Scalabilità sidecar — 21 settembre 2026
 
 Implementazione integrata in `3eda61a`: ColBERT NPY per documento, letture a

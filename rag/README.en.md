@@ -7,13 +7,13 @@
 
 # rag/ — Graph-RAG console
 
-**Documented state: `main`, 30 October 2026.**
+**Documented state: `main`, 3 November 2026.**
 Same status note as [`../README.md`](../README.md) / [`README.md`](README.md). New on the
 29th: the graph links frontend HTTP calls to backend Minimal API endpoints (`CALLS` edges),
 and a full rebuild frees the VRAM held by Ollama before embedding on GPU. New on the 30th: a
 **Settings** menu picks LLM models (local, cloud or per activity, including Claude on your
 subscription), and the Claude attribution judge closes R29. Adversarial cases are now 5 of 5 at rank 1,
-after a corpus fix rather than a weight change.
+after a corpus fix rather than a weight change. On 3 November a pre-LLM answerability gate (a local cross-encoder) was measured: no-go, it stays off, and the model's own abstention holds up (see [Eval](docs/eval-e-ci.md#la-quarta-misura-quando-ask-deve-astenersi)).
 
 Pages under `docs/` explain *how* to operate the console. They are not corpus and
 are not indexed.

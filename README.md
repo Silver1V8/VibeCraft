@@ -56,7 +56,7 @@ Source attribution has an automatic judge since 30 October 2026: `claude-opus-5-
 
 α was not picked by gut feeling (S11, 7 September 2026): a joint grid of 2,160 points, 5-fold × 5 seeds, with the winner confirmed held out. And sometimes the measurement said no: full multiplication (α 1), the one the governing rule prescribed, cost 15 points of recall@5. The rule was amended, not the numbers. Full story in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) (Italian) and in the `authority:` block of [rag_config.yaml](rag/rag_config.yaml).
 
-**Answers are grounded in sources, not guaranteed.** Citations, partial results, and open points still need checking, and retrieval does not promise it found everything the corpus contains.
+**Answers are grounded in sources, not guaranteed.** Citations, partial results, and open points still need checking, and retrieval does not promise it found everything the corpus contains. When the context does not hold the answer, `/ask` says so instead of inventing one: on 17 questions the corpus cannot answer the model abstained on 15, and it abstained on 1 of 66 answerable ones (measured 3 November 2026, [details](rag/adr/2026-11-03-gate-rispondibilita-plan.md)).
 
 ## How it works
 
@@ -175,7 +175,7 @@ No, and be wary of any system that tells you otherwise. Answers carry their sour
 
 [Apache-2.0](LICENSE). The model weights downloaded at runtime (`bge-m3`, `qwen3.5`) each have their own license: check it before commercial use.
 
-<sub>Documented status: `main`, 30 October 2026.</sub>
+<sub>Documented status: `main`, 3 November 2026.</sub>
 
 </details>
 
@@ -220,7 +220,7 @@ L'attribuzione della fonte ha un giudice automatico dal 30 ottobre 2026: `claude
 
 α non è stato scelto a intuito (S11, 7 settembre 2026): griglia congiunta di 2.160 punti, 5-fold × 5 seed, con il vincitore confermato fuori campione. E a volte la misura ha detto di no: la moltiplicazione piena (α 1), quella che la norma prescriveva, costava 15 punti di recall@5. Si è emendata la norma, non i numeri. Storia completa in [ADR 0002](rag/adr/0002-autorita-dichiarata-e-fiducia-sul-cammino.md) e nel blocco `authority:` di [rag_config.yaml](rag/rag_config.yaml).
 
-**Le risposte sono ancorate alle fonti, non garantite.** Citazioni, risultati parziali e punti aperti restano da verificare, e il retrieval non promette di aver trovato tutto ciò che il corpus contiene.
+**Le risposte sono ancorate alle fonti, non garantite.** Citazioni, risultati parziali e punti aperti restano da verificare, e il retrieval non promette di aver trovato tutto ciò che il corpus contiene. Quando il contesto non contiene la risposta, `/ask` lo dice invece di inventarla: su 17 domande a cui il corpus non risponde il modello si è astenuto 15 volte, e si è astenuto su 1 delle 66 domande con risposta (misura del 3 novembre 2026, [dettagli](rag/adr/2026-11-03-gate-rispondibilita-plan.md)).
 
 ## Come funziona
 
@@ -341,6 +341,6 @@ No, e diffida di qualunque sistema che ti dica il contrario. Le risposte portano
 
 [Apache-2.0](LICENSE). I pesi dei modelli scaricati a runtime (`bge-m3`, `qwen3.5`) hanno ciascuno la propria licenza: verificala prima di un uso commerciale.
 
-<sub>Stato documentato: `main`, 30 ottobre 2026.</sub>
+<sub>Stato documentato: `main`, 3 novembre 2026.</sub>
 
 </details>

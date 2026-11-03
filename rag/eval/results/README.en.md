@@ -2,6 +2,15 @@ English | [Italiano](README.md)
 
 # Evaluation evidence
 
+## /ask answerability — 3 November 2026
+
+| Evidence | What it shows |
+|---|---|
+| [Shadow run](answerability_shadow_20261103/evidence/answerability_20261103-162806.json) | 83 questions (66 answerable, 17 not) on the `legacy` project: at zero lost positives the gate catches no negative, gate latency p95 19.8 s on CPU. LLM abstention: 15 of 17 negatives, 1 of 66 positives |
+
+No-go: the gate stays off. Plan and reading of the numbers (Italian) in
+[adr/2026-11-03-gate-rispondibilita-plan.md](../../adr/2026-11-03-gate-rispondibilita-plan.md).
+
 ## Sidecar scalability — 21 September 2026
 
 Implementation integrated in `3eda61a`: per-document ColBERT NPY, on-demand reads,

@@ -243,6 +243,33 @@ metriche vere restano i comandi qui sopra.
    soglia, e da lì la leggono gate, guardrail, check notturno e dashboard.
 
 
+### La quarta misura: quando /ask deve astenersi
+
+Il 3 novembre 2026 (G1) si è provato a decidere **prima** del LLM se il contesto recuperato basta
+a rispondere: un cross-encoder locale (`BAAI/bge-reranker-v2-m3`, su CPU) giudica le sezioni in
+contesto e, sotto soglia, avrebbe saltato la generazione. Piano, criteri ed esito in
+[adr/2026-11-03-gate-rispondibilita-plan.md](../adr/2026-11-03-gate-rispondibilita-plan.md).
+
+| Cosa | Dove |
+|---|---|
+| 17 domande **senza risposta** nel corpus (fuori tema, valore mancante, presupposto falso), verificate sulla baseline committata e sul corpus indicizzato del progetto `legacy` | [eval/golden_unanswerable.yaml](../eval/golden_unanswerable.yaml) |
+| calibrazione: positivi (golden set + multihop) contro negativi, soglia a zero positivi persi, matrice gate × LLM, latenza del gate | [eval/calibrate_answerability.py](../eval/calibrate_answerability.py) |
+| evidenza della run del 3 novembre | [answerability_shadow_20261103](../eval/results/answerability_shadow_20261103/evidence/answerability_20261103-162806.json) |
+
+**Esito: NO-GO.** A zero positivi persi la soglia non prende nessun negativo: otto domande di
+processo con risposta (la norma è scritta come regola, la domanda come dubbio) scorano quanto
+quelle senza. E il gate costa circa 18 s di CPU a richiesta, più della generazione. Il dato utile
+è l'altro: l'astensione già esistente di `/ask` (`[REGOLA-ASTENSIONE]`) si è astenuta su 15
+negativi su 17 e su 1 positivo su 66. Il gate resta in `rag_config.yaml` con
+`answerability.mode: "off"`; `shadow` serve solo a rimisurare, su un server riavviato con la
+cache di `/ask` spenta (configurazione `vibecraft-rag-nocache`):
+
+```bash
+uv run python -m eval.calibrate_answerability
+```
+
+Per riprovarci serve un giudice diverso, non una soglia diversa.
+
 ### Strumenti senza ancora una misura: link, governance, corpus esterno
 
 Tre strumenti del 31 ottobre 2026 (rivisti il 1° novembre). Sono **implementati e testati su
