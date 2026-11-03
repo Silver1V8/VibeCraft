@@ -4,9 +4,13 @@
 # come contraltare dei positivi (golden_set.yaml, golden_multihop.yaml): il gate vale solo se
 # sta SOTTO soglia su queste senza far scendere sotto soglia nessuna di quelle.
 #
-# Corpus: la baseline COMMITTATA in templates/docs (commit a633060, 2026-11-03), lo stesso dei
-# positivi. Ogni caso è verificato con grep sul testo committato, non sul docs/ locale: è la
-# divergenza docs/<->git che il 2026-08-25 rese non riproducibili 4 casi di golden_set.yaml.
+# Corpus: ogni caso è verificato con grep su DUE corpora, e deve restare senza risposta in
+# entrambi: la baseline COMMITTATA in templates/docs (commit a633060, 2026-11-03), lo stesso dei
+# positivi, e il corpus INDICIZZATO del progetto legacy (projects/legacy/docs, 50 documenti),
+# che è quello che /ask interroga davvero. La prima versione era verificata solo sulla baseline
+# e tre casi (provider OIDC, capienza, cifratura a riposo) avevano risposta nelle spec del
+# progetto: è la stessa divergenza docs/<->git che il 2026-08-25 rese non riproducibili 4 casi
+# di golden_set.yaml, vista dall'altro lato.
 #
 # Tre tipi, scelti perché sbagliano in modi diversi:
 #   fuori_tema_adiacente  il tema è vicino al corpus ma nessun documento lo tratta.
@@ -37,8 +41,8 @@ cases:
     why: "«password» compare solo in safeguards_security.md come esempio di segreto da non committare; l'autenticazione è delegata a un provider OIDC (SEC-01)."
   - id: fa5
     kind: fuori_tema_adiacente
-    q: "come si cifrano i dati personali a riposo nel database"
-    why: "safeguards_security.md cita solo la cifratura in transito (TLS 1.2+, riga 465); nulla sulla cifratura a riposo."
+    q: "quale CDN serve gli asset statici del frontend e con quale politica di cache"
+    why: "nessuna occorrenza di CDN né di Cache-Control in nessuno dei due corpora; la cache citata è solo quella di sessione (TTL 30 s, SEC-02)."
   - id: vm1
     kind: valore_mancante
     q: "per quanti giorni vanno conservati i log applicativi"
@@ -57,12 +61,12 @@ cases:
     why: "vibe_coding_workflow.md [REGOLA-PROC-02] dice che il timeout non deve propagarsi, senza dare un valore; nessun altro documento lo fissa."
   - id: vm5
     kind: valore_mancante
-    q: "quale provider OAuth OIDC è adottato per l'autenticazione degli utenti"
-    why: "safeguards_security.md, <<PROVIDER_IDENTITA>> è «*(da compilare)*»."
+    q: "quante sessioni contemporanee può avere aperte lo stesso utente"
+    why: "SEC-02 e spec_auth_1.1.md trattano revoca e scadenza della sessione (8h) senza un limite di sessioni parallele; nessun limite in nessuno dei due corpora."
   - id: vm6
     kind: valore_mancante
-    q: "qual è la capienza totale della risorsa contesa protetta dal lock pessimistico"
-    why: "safeguards_security.md, <<CAPIENZA_TOTALE>> è «*(da compilare)*»; TXN-01 descrive il lock senza il valore."
+    q: "qual è lo SLA di disponibilità mensile del servizio in percentuale"
+    why: "observability_standards.md chiede health check e metriche ([REGOLA-OBS-09], [REGOLA-OBS-10]) senza un obiettivo di disponibilità; nessuna occorrenza di SLA o uptime in nessuno dei due corpora."
   - id: vm7
     kind: valore_mancante
     q: "dopo quanti tentativi di login falliti l'account viene bloccato"
