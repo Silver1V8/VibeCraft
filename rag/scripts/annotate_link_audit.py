@@ -114,6 +114,44 @@ def cmd_confirm_all_draft(args) -> int:
     return 0
 
 
+def cmd_dual_compare(args) -> int:
+    """Confronta schede A vs dual_schede_B. Non pubblica GT; scrive report locale."""
+    run = Path(args.run)
+    a_cards = {c["edge_id"]: c for c in _read(run / "schede.json")}
+    b_cards = {c["edge_id"]: c for c in _read(run / "dual_schede_B.json")}
+    subset = _read(run / "dual_subset.json")["edge_ids"]
+    agree, disagree, rows = [], [], []
+    for eid in subset:
+        a_lab = (a_cards.get(eid) or {}).get("label")
+        b = b_cards.get(eid) or {}
+        b_lab = b.get("label")
+        if a_lab not in LABELS or b_lab not in LABELS:
+            disagree.append(eid)
+            rows.append({"edge_id": eid, "A": a_lab, "B": b_lab, "agree": False, "reason": "missing_label"})
+            continue
+        ok = a_lab == b_lab
+        (agree if ok else disagree).append(eid)
+        rows.append({
+            "edge_id": eid, "A": a_lab, "B": b_lab, "agree": ok,
+            "B_annotator": b.get("annotator"), "B_not_human_gt": b.get("not_human_gt"),
+        })
+    report = {
+        "status": "dual_compare",
+        "n": len(subset),
+        "agree": len(agree),
+        "disagree": len(disagree),
+        "agreement_rate": round(len(agree) / len(subset), 4) if subset else None,
+        "human_gt": not any((b_cards.get(e) or {}).get("not_human_gt") for e in subset),
+        "disagreements": disagree,
+        "rows": rows,
+    }
+    out = run / "dual_agreement_provisional.json"
+    _write(out, report)
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    print(f"Scritto {out}", file=sys.stderr)
+    return 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="Annotazione schede IMPLEMENTS")
     p.add_argument("--run", default=str(DEFAULT_RUN))
@@ -135,6 +173,9 @@ def main(argv=None) -> int:
     c = sub.add_parser("confirm-all-draft")
     c.add_argument("--i-reviewed-all", action="store_true")
     c.set_defaults(func=cmd_confirm_all_draft)
+
+    d = sub.add_parser("dual-compare", help="Accordo A vs dual_schede_B (report locale)")
+    d.set_defaults(func=cmd_dual_compare)
 
     args = p.parse_args(argv)
     return args.func(args)

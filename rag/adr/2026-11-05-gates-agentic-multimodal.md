@@ -39,4 +39,8 @@ risolvibili senza interpretazione visiva, local-first.
 
 - `eval/failures/retrieval_misses_register.json`
 - `eval/routing_cases.yaml`
-- Link audit: campione verificato, etichette umane assenti
+- Link audit: campione etichettato da `$ilver` (conferma A); dual B solo bozza agente
+- Chiusura EXP-B flag-off: `2026-11-05-exp-b-closure.md`
+
+**Conferma 2026-11-05:** EXP-D e EXP-E restano **NO-GO**. Nessuna nuova evidenza
+di riapertura in questa sessione.

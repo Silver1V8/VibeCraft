@@ -57,3 +57,14 @@ Un risultato `misurato` richiede anche almeno un caso utilizzabile, `run_id`, sp
 
 - Set di 12 domande (10 con fonte + 2 `no_answer`), una fonte attesa tipicamente = un capitolo ASVS: claim di trasferimento **debole** finché non c'è un set più duro/ampio human-verified.
 - `validato: false` è l'esito corretto del protocollo, non un bug dello strumento.
+
+## Set più duro (misurato, non validato)
+
+Casi human-verified (`$ilver`, 2026-11-05):
+`projects/external_asvs/metadata/cases_hard_test.json` (12 casi: cross-chapter,
+parafrasi, near-miss, conflitti, `no_answer`).
+
+Run `asvs-hard-20261105` (config frozen, `--used-for-tuning no`):
+Recall@5/@10 **1.0**, MRR **0.933**, astensione **2/2**.
+Report in-repo: [external/transfer_asvs-hard-20261105.json](external/transfer_asvs-hard-20261105.json).
+`validato` resta **false**.

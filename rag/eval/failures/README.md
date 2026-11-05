@@ -13,4 +13,8 @@ Classificazione:
 - `corrective_candidate`: `best_rank` ∈ [2, 10]
 
 Azione proposta: **`follow_ref`**, flag
-`retrieval.corrective_pass.enabled: false` finché EXP-B non dà GO.
+`retrieval.corrective_pass.enabled: false`.
+
+**Chiusura 2026-11-05:** EXP-B **non** dà GO — vedi
+`adr/2026-11-05-exp-b-closure.md`. Il flag resta spento finché non esiste un
+registro di miss *corrente* e un confronto appaiato pre-registrato.

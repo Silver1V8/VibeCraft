@@ -1,0 +1,24 @@
+{
+  "status": "misurato",
+  "validato": false,
+  "misurato": true,
+  "indipendente": true,
+  "motivi": [],
+  "recall_at_k": {
+    "5": 1.0,
+    "10": 1.0
+  },
+  "k": [
+    5,
+    10
+  ],
+  "mrr": 0.9333333333333333,
+  "astensione": {
+    "n": 2,
+    "corrette": 2,
+    "quota": 1.0,
+    "senza_esito": 0
+  },
+  "duplicati": [],
+  "run_id": "asvs-hard-20261105"
+}

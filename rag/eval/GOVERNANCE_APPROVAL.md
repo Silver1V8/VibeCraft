@@ -11,10 +11,10 @@ Lo strumento **rileva**. Non approva, non sceglie un reviewer, non blocca il mer
 | Rilevamento (documento, campo, prima, dopo) | implementato |
 | Confronto per parsing, non sul testo del diff | implementato |
 | Test del rilevatore | testato, su fixture |
-| Review obbligatoria su GitHub | da configurare |
-| CODEOWNERS | assente. Se verrà aggiunto, è per file, non per campo |
-| Ruleset, dismiss delle approval stantie | da configurare. Enforcement non attivo |
-| Check di stato obbligatorio | non attivo. Il workflow resta verde di proposito |
+| Review obbligatoria su GitHub | **residuo accettato** (2026-11-05): un solo collaboratore; review obbligatoria bloccherebbe o sarebbe bypass Admin |
+| CODEOWNERS | assente di proposito finché non c’è un secondo revisore con accesso |
+| Ruleset, dismiss delle approval stantie | non imposto oltre il ruleset già attivo su `main` (test obbligatorio) |
+| Check di stato obbligatorio | il workflow `governance-diff` rileva; non blocca il merge di proposito |
 
 Un rilevamento non è un fatto di conformità. Un arco, una classe o un numero non diventano certificati perché il check è verde.
 

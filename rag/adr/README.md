@@ -31,6 +31,7 @@ indicizzare.
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |
 | [`2026-11-03-gate-rispondibilita-plan.md`](2026-11-03-gate-rispondibilita-plan.md) | gate di rispondibilità prima del LLM (G1): piano, criteri go/no-go ed esito del 3 novembre 2026 — NO-GO, il gate resta spento |
 | [`2026-11-05-gates-agentic-multimodal.md`](2026-11-05-gates-agentic-multimodal.md) | gate EXP-D (agentic su `/ask`) e EXP-E (multimodalità): entrambi NO-GO finché mancano evidenze; non ribalta ADR 0001 |
+| [`2026-11-05-exp-b-closure.md`](2026-11-05-exp-b-closure.md) | EXP-B (`follow_ref`): **non** abilitare; flag resta off finché manca miss register corrente + confronto appaiato |
 
 ## Scalabilità sidecar — esecuzione del 21 settembre 2026
 
