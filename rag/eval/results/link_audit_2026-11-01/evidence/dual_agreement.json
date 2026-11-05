@@ -1,0 +1,80 @@
+{
+  "status": "dual_resolved",
+  "human_gt": true,
+  "annotator_A": "$ilver",
+  "annotator_B": "Valsus",
+  "n": 16,
+  "agree": 10,
+  "disagree": 6,
+  "agreement_rate": 0.625,
+  "disagreements": [
+    {
+      "edge_id": "0819e04c6047c2b7",
+      "A": "IMPLEMENTA",
+      "B": "CORRELATO",
+      "A_motivation": "Il test Il_catalogo_segnala_il_budget_annuo_non_capiente esercita il blocco per budget insufficiente: comportamento di REGOLA-VAL-01 nella sezione budget.",
+      "B_motivation": "Il test verifica il flag budget_sufficiente del catalogo (/api/me/events); REGOLA-VAL-01 chiede il blocco al click su Approva, che il test non esercita."
+    },
+    {
+      "edge_id": "4b6d728ddb98a49d",
+      "A": "IMPLEMENTA",
+      "B": "ERRATO",
+      "A_motivation": "CatalogFilters organizza filtri catalogo eventi: allinea alle regole di organizzazione del mockup normativo catalogo.",
+      "B_motivation": "La sezione regola naming dei file mockup e raggruppamento per ruolo; CatalogFilters e' UI del catalogo eventi, legame solo lessicale su 'catalogo'."
+    },
+    {
+      "edge_id": "51983f66982597e9",
+      "A": "CORRELATO",
+      "B": "IMPLEMENTA",
+      "A_motivation": "docker-compose backend verso infrastruttura condivisa LogicAgent: correlato a infra, ma il file è del backend e la sezione LA elenca servizi condivisi in senso architetturale.",
+      "B_motivation": "Il compose locale fornisce PostgreSQL, RabbitMQ e MinIO condivisi con il Logic Agent, come prescrive la sezione 7 per lo sviluppo locale."
+    },
+    {
+      "edge_id": "8598ac55c47e4f27",
+      "A": "IMPLEMENTA",
+      "B": "CORRELATO",
+      "A_motivation": "NotificationChannelResolver.Resolve sceglie il canale di notifica: implementa la risoluzione canale della sezione dispacciamento.",
+      "B_motivation": "Resolve sceglie un canale registrato per nome: infrastruttura generica, non l'invio Slack al manager alla sottomissione richiesto da REGOLA-NOTIF-02."
+    },
+    {
+      "edge_id": "ca1336f9ccea1065",
+      "A": "IMPLEMENTA",
+      "B": "CORRELATO",
+      "A_motivation": "Test assenza account Slack → errore permanente senza scritture: verifica comportamento dispacciamento Slack della sezione notifiche.",
+      "B_motivation": "Il test classifica users_not_found come errore permanente del canale Slack; e' tolleranza ai guasti, non l'instradamento al manager di REGOLA-NOTIF-02."
+    },
+    {
+      "edge_id": "cd50989b6f9fb48b",
+      "A": "IMPLEMENTA",
+      "B": "CORRELATO",
+      "A_motivation": "POST reject booking-request esegue rifiuto: realizza l'azione di rifiuto prevista dalla matrice permessi RBAC.",
+      "B_motivation": "Endpoint di rifiuto (azione F-06); il target e' il chunk di F-02 Sottomette richiesta: stessa RICHIESTA e stesso RBAC, funzione diversa."
+    }
+  ],
+  "final_overrides": {
+    "0819e04c6047c2b7": {
+      "from_A": "IMPLEMENTA",
+      "final": "CORRELATO"
+    },
+    "4b6d728ddb98a49d": {
+      "from_A": "IMPLEMENTA",
+      "final": "ERRATO"
+    },
+    "51983f66982597e9": {
+      "from_A": "CORRELATO",
+      "final": "IMPLEMENTA"
+    },
+    "8598ac55c47e4f27": {
+      "from_A": "IMPLEMENTA",
+      "final": "CORRELATO"
+    },
+    "ca1336f9ccea1065": {
+      "from_A": "IMPLEMENTA",
+      "final": "CORRELATO"
+    },
+    "cd50989b6f9fb48b": {
+      "from_A": "IMPLEMENTA",
+      "final": "CORRELATO"
+    }
+  }
+}

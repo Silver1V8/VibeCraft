@@ -1,0 +1,798 @@
+{
+  "status": "misurato",
+  "methodology_version": 2,
+  "estimand": "quota di archi IMPLEMENTS etichettati IMPLEMENTA fra gli archi valutabili (IMPLEMENTA + CORRELATO + ERRATO) della popolazione sottoposta ad audit",
+  "population_precision": 0.19595555555555555,
+  "recall": null,
+  "note": "La recall non si misura su questi archi: il campione non contiene i collegamenti assenti. La precisione non dimostra conformità normativa e non vale per altri corpus.",
+  "annotation_completeness": {
+    "sample_size": 80,
+    "resolved": 80,
+    "missing": 0,
+    "disagreements": 0,
+    "errors": 0,
+    "complete": true
+  },
+  "validation": {
+    "errors": [],
+    "disagreements": [],
+    "missing": []
+  },
+  "sampling_coverage": {
+    "design": "campione casuale semplice senza reinserimento in ogni strato",
+    "strata": 33,
+    "strata_sampled": 33,
+    "population": 1221,
+    "population_in_sampled_strata": 1221,
+    "census": false
+  },
+  "sample_precision": 0.24,
+  "sample_precision_scope": "grezza sul campione, non pesata: non stima la popolazione",
+  "population_precision_estimator": "rapporto combinato Σ w_h·I_h / Σ w_h·A_h, w_h = N_h/n_h",
+  "estimated_implements_total": 220.45,
+  "estimated_evaluable_total": 1125.0,
+  "precision_numerator": "IMPLEMENTA",
+  "precision_denominator": "IMPLEMENTA + CORRELATO + ERRATO",
+  "non_evaluable_excluded_from_precision": true,
+  "sample_non_evaluable_share": 0.0625,
+  "weighted_non_evaluable_share": 0.07862407862407862,
+  "counts": {
+    "IMPLEMENTA": 18,
+    "CORRELATO": 45,
+    "ERRATO": 12,
+    "NON_VALUTABILE": 5
+  },
+  "interval": {
+    "bounds": [
+      0.01483924154987634,
+      0.9942965779467681
+    ],
+    "reason": null,
+    "nominal_level": 0.95,
+    "conservative": true,
+    "method": "inversione ipergeometrica per strato, Bonferroni su 2H intervalli, rapporto dei limiti simultanei",
+    "per_tail_alpha": 0.0005208333333333333,
+    "strata_with_sampling_error": 24,
+    "implements_total_bounds": [
+      18,
+      1046
+    ],
+    "evaluable_total_bounds": [
+      240,
+      1213
+    ],
+    "scope": "solo errore di campionamento: non copre disaccordo fra annotatori né altri corpus"
+  },
+  "per_stratum": [
+    {
+      "stratum": "0.60_0.75|class",
+      "N_h": 57,
+      "n_h": 3,
+      "pi_h": 0.052632,
+      "w_h": 19.0,
+      "counts": {
+        "IMPLEMENTA": 2,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.6666666666666666,
+      "implements_bounds": [
+        2,
+        56
+      ],
+      "evaluable_bounds": [
+        6,
+        57
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|component",
+      "N_h": 27,
+      "n_h": 2,
+      "pi_h": 0.074074,
+      "w_h": 13.5,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 2,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        25
+      ],
+      "evaluable_bounds": [
+        2,
+        27
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|compose",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 0,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 1.0,
+      "implements_bounds": [
+        1,
+        1
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|config",
+      "N_h": 5,
+      "n_h": 2,
+      "pi_h": 0.4,
+      "w_h": 2.5,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 2,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        3
+      ],
+      "evaluable_bounds": [
+        2,
+        5
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|connection-string",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        0
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|context",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        0
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|endpoint",
+      "N_h": 9,
+      "n_h": 2,
+      "pi_h": 0.222222,
+      "w_h": 4.5,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        8
+      ],
+      "evaluable_bounds": [
+        2,
+        9
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|enum",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 0,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 1.0,
+      "implements_bounds": [
+        1,
+        1
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|function",
+      "N_h": 52,
+      "n_h": 3,
+      "pi_h": 0.057692,
+      "w_h": 17.333333333333332,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 0,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 3
+      },
+      "sample_precision": null,
+      "implements_bounds": [
+        0,
+        46
+      ],
+      "evaluable_bounds": [
+        0,
+        46
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|hook",
+      "N_h": 2,
+      "n_h": 2,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        1
+      ],
+      "evaluable_bounds": [
+        2,
+        2
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|interface",
+      "N_h": 5,
+      "n_h": 2,
+      "pi_h": 0.4,
+      "w_h": 2.5,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        4
+      ],
+      "evaluable_bounds": [
+        2,
+        5
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|method",
+      "N_h": 129,
+      "n_h": 6,
+      "pi_h": 0.046512,
+      "w_h": 21.5,
+      "counts": {
+        "IMPLEMENTA": 2,
+        "CORRELATO": 4,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.3333333333333333,
+      "implements_bounds": [
+        2,
+        117
+      ],
+      "evaluable_bounds": [
+        39,
+        129
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|project",
+      "N_h": 4,
+      "n_h": 2,
+      "pi_h": 0.5,
+      "w_h": 2.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 2,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        2
+      ],
+      "evaluable_bounds": [
+        2,
+        4
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|property",
+      "N_h": 62,
+      "n_h": 4,
+      "pi_h": 0.064516,
+      "w_h": 15.5,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 3,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.25,
+      "implements_bounds": [
+        1,
+        57
+      ],
+      "evaluable_bounds": [
+        11,
+        62
+      ]
+    },
+    {
+      "stratum": "0.60_0.75|record",
+      "N_h": 17,
+      "n_h": 2,
+      "pi_h": 0.117647,
+      "w_h": 8.5,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        16
+      ],
+      "evaluable_bounds": [
+        2,
+        17
+      ]
+    },
+    {
+      "stratum": "0.75_0.90|project",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 0,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 1.0,
+      "implements_bounds": [
+        1,
+        1
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|class",
+      "N_h": 138,
+      "n_h": 5,
+      "pi_h": 0.036232,
+      "w_h": 27.6,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 2,
+        "ERRATO": 3,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        105
+      ],
+      "evaluable_bounds": [
+        33,
+        138
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|component",
+      "N_h": 75,
+      "n_h": 4,
+      "pi_h": 0.053333,
+      "w_h": 18.75,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 2,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.25,
+      "implements_bounds": [
+        1,
+        70
+      ],
+      "evaluable_bounds": [
+        13,
+        75
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|connection-string",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        0
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|context",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        0
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|endpoint",
+      "N_h": 16,
+      "n_h": 2,
+      "pi_h": 0.125,
+      "w_h": 8.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        15
+      ],
+      "evaluable_bounds": [
+        2,
+        16
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|enum",
+      "N_h": 7,
+      "n_h": 2,
+      "pi_h": 0.285714,
+      "w_h": 3.5,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        6
+      ],
+      "evaluable_bounds": [
+        2,
+        7
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|external-endpoint",
+      "N_h": 4,
+      "n_h": 2,
+      "pi_h": 0.5,
+      "w_h": 2.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        2
+      ],
+      "evaluable_bounds": [
+        2,
+        4
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|function",
+      "N_h": 200,
+      "n_h": 5,
+      "pi_h": 0.025,
+      "w_h": 40.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 2,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 1
+      },
+      "sample_precision": 0.25,
+      "implements_bounds": [
+        1,
+        178
+      ],
+      "evaluable_bounds": [
+        22,
+        199
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|hook",
+      "N_h": 8,
+      "n_h": 2,
+      "pi_h": 0.25,
+      "w_h": 4.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 1
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        6
+      ],
+      "evaluable_bounds": [
+        1,
+        7
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|image",
+      "N_h": 1,
+      "n_h": 1,
+      "pi_h": 1.0,
+      "w_h": 1.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        0
+      ],
+      "evaluable_bounds": [
+        1,
+        1
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|interface",
+      "N_h": 16,
+      "n_h": 2,
+      "pi_h": 0.125,
+      "w_h": 8.0,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 1,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.5,
+      "implements_bounds": [
+        1,
+        15
+      ],
+      "evaluable_bounds": [
+        2,
+        16
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|method",
+      "N_h": 199,
+      "n_h": 5,
+      "pi_h": 0.025126,
+      "w_h": 39.8,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 3,
+        "ERRATO": 2,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        153
+      ],
+      "evaluable_bounds": [
+        46,
+        199
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|project",
+      "N_h": 4,
+      "n_h": 2,
+      "pi_h": 0.5,
+      "w_h": 2.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        2
+      ],
+      "evaluable_bounds": [
+        2,
+        4
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|property",
+      "N_h": 131,
+      "n_h": 5,
+      "pi_h": 0.038168,
+      "w_h": 26.2,
+      "counts": {
+        "IMPLEMENTA": 1,
+        "CORRELATO": 4,
+        "ERRATO": 0,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.2,
+      "implements_bounds": [
+        1,
+        116
+      ],
+      "evaluable_bounds": [
+        31,
+        131
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|record",
+      "N_h": 30,
+      "n_h": 2,
+      "pi_h": 0.066667,
+      "w_h": 15.0,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        28
+      ],
+      "evaluable_bounds": [
+        2,
+        30
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|service",
+      "N_h": 5,
+      "n_h": 2,
+      "pi_h": 0.4,
+      "w_h": 2.5,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        3
+      ],
+      "evaluable_bounds": [
+        2,
+        5
+      ]
+    },
+    {
+      "stratum": "sotto_0.60|table",
+      "N_h": 11,
+      "n_h": 2,
+      "pi_h": 0.181818,
+      "w_h": 5.5,
+      "counts": {
+        "IMPLEMENTA": 0,
+        "CORRELATO": 1,
+        "ERRATO": 1,
+        "NON_VALUTABILE": 0
+      },
+      "sample_precision": 0.0,
+      "implements_bounds": [
+        0,
+        9
+      ],
+      "evaluable_bounds": [
+        2,
+        11
+      ]
+    }
+  ],
+  "inputs": {
+    "sigillo_sha256": "bb1dbc31f3335711f9d5f462e51bb5bcba975713f83444cdf103568ad3dbf811",
+    "schede_sha256": "1922e6047f4faa8cf954a2ee3c00d4058ec0a553c6752e6b18f5e60ff2b7eb17"
+  }
+}

@@ -2,6 +2,14 @@ Italiano | [English](README.en.md)
 
 # Evidenze delle valutazioni
 
+## Link audit IMPLEMENTS — 5 novembre 2026
+
+| Evidenza | Cosa dimostra |
+|---|---|
+| [Run post-dual](link_audit_2026-11-01/evidence/) | Precisione popolazione **0.196** (era 0.289 pre-dual); accordo A/B 10/16; CI largo accettato. Schede complete fuori git |
+
+Sintesi anche in [docs/eval-e-ci.md](../../docs/eval-e-ci.md).
+
 ## Rispondibilità di /ask — 3 novembre 2026
 
 | Evidenza | Cosa dimostra |

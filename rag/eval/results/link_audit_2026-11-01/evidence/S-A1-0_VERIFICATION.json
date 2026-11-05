@@ -1,0 +1,23 @@
+{
+  "decision": "annotate_as_is",
+  "current_version": "v20261030T111436",
+  "sigillo_index_version": "v20261030T111436",
+  "index_match": true,
+  "sigillo_doc_hashes": "6eeba5abed530916e7214131e50ee19e869267d753d6da3e28c9103232c4cff4",
+  "live_doc_hashes": "6eeba5abed530916e7214131e50ee19e869267d753d6da3e28c9103232c4cff4",
+  "doc_hashes_match": true,
+  "sigillo_code_hashes": "f5fe684443428f81affbff231a9fec4dc6af1601f8d1747c625ca7abb99233bd",
+  "live_code_hashes": "f5fe684443428f81affbff231a9fec4dc6af1601f8d1747c625ca7abb99233bd",
+  "code_hashes_match": true,
+  "population_sigillo": 1221,
+  "live_implements_links": 1221,
+  "sample_size": 80,
+  "n_schede": 80,
+  "n_labeled": 0,
+  "embedding_match": true,
+  "embedding_model": "BAAI/bge-m3",
+  "linking_threshold": 0.45,
+  "documents_sigillo": 384,
+  "documents_live": 384,
+  "population_soft_match": true
+}

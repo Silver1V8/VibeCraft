@@ -1,0 +1,39 @@
+{
+  "proposal": "APPROVATO percorso dual 2026-11-05; annotatore B umano designato: Valsus (distinto da A=$ilver). Bozze agente archiviate in _bozze_agente_B/, da non aprire.",
+  "seed": 20261105,
+  "n_dual": 16,
+  "edge_ids": [
+    "0819e04c6047c2b7",
+    "282e1f516068afe3",
+    "35fb1851466c179f",
+    "3f2da86c2632827b",
+    "4b6d728ddb98a49d",
+    "51983f66982597e9",
+    "733b087c26d7a1ac",
+    "7ddaad1470d3656d",
+    "8031b36804120fc5",
+    "8598ac55c47e4f27",
+    "ca1336f9ccea1065",
+    "cd50989b6f9fb48b",
+    "dba9bae41909b544",
+    "efdf7f5c30a36773",
+    "f4dfeb41907f84b3",
+    "fbdf4a9ce4e137a2"
+  ],
+  "kind_coverage": {
+    "method": 3,
+    "property": 2,
+    "external-endpoint": 1,
+    "hook": 1,
+    "component": 2,
+    "compose": 1,
+    "function": 1,
+    "endpoint": 2,
+    "connection-string": 1,
+    "class": 2
+  },
+  "status": "resolved_2026-11-05",
+  "annotator_B": "Valsus",
+  "agreement_rate": 0.625,
+  "n_disagree": 6
+}
