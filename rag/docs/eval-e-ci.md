@@ -270,18 +270,26 @@ uv run python -m eval.calibrate_answerability
 
 Per riprovarci serve un giudice diverso, non una soglia diversa.
 
-### Strumenti senza ancora una misura: link, governance, corpus esterno
+### Link audit, governance, corpus esterno
 
-Tre strumenti del 31 ottobre 2026 (rivisti il 1° novembre). Sono **implementati e testati su
-fixture**; nessuno ha ancora prodotto un numero, e non vanno citati come risultati.
+Tre strumenti del 31 ottobre 2026 (rivisti il 1° e il 5 novembre). Link audit e transfer
+hanno una misura; governance resta «rileva, non approva». Nessuno dei tre cambia ranking,
+α, soglie di linking o affidabilità.
 
 | Strumento | Cosa fa | Stato |
 |---|---|---|
-| [scripts/link_audit.py](../scripts/link_audit.py) · [protocollo](../eval/LINK_AUDIT.md) | campione stratificato degli archi `IMPLEMENTS`, schede senza punteggi per l'annotatore, precisione sui valutabili (stimatore di rapporto, metodologia v2), quota NON_VALUTABILE pesata, intervallo conservativo | precisione **non ancora misurata**: servono annotazioni umane |
+| [scripts/link_audit.py](../scripts/link_audit.py) · [protocollo](../eval/LINK_AUDIT.md) | campione stratificato degli archi `IMPLEMENTS`, schede senza punteggi per l'annotatore, precisione sui valutabili (stimatore di rapporto, metodologia v2), quota NON_VALUTABILE pesata, intervallo conservativo | **misurato** (2026-11-05) su `projects/legacy/eval/link_audit/2026-11-01`, indice `v20261030T111436`, annotatore `$ilver` (conferma A). `population_precision` **0.2893**; NON_VALUTABILE pesata **0.0786**; CI 95% conservativo **[0.0247, 0.9936]** — **largo** (33 strati): misura fragile, non «validazione». Dual annotatore B (16/80) **preparato, non eseguito**. File: `metriche-v2.json`. Non è recall né conformità normativa. |
 | [scripts/governance_diff.py](../scripts/governance_diff.py) · [protocollo](../eval/GOVERNANCE_APPROVAL.md) | confronta base e head di una PR per parsing: `authority`, `classification`, `status`, precedenze, `authority.*`/`graph_trust.*`, rilevatore e workflow | rileva, non approva; il workflow usa lo script del base. Enforcement su GitHub **da configurare** |
-| [scripts/external_transfer.py](../scripts/external_transfer.py) · [protocollo](../eval/EXTERNAL_TRANSFER.md) | Recall@k binaria, MRR e astensione su un corpus di terzi, con configurazione congelata | **bloccato**: nessun corpus di terzi autorizzato |
+| [scripts/external_transfer.py](../scripts/external_transfer.py) · [protocollo](../eval/EXTERNAL_TRANSFER.md) · [criteri](../eval/EXTERNAL_CORPUS_CRITERIA.md) · [shortlist](../eval/EXTERNAL_CORPUS_SHORTLIST.md) | Recall@k binaria, MRR e astensione su un corpus di terzi, con configurazione congelata | **misurato** (**non validato**) run `asvs-4.0.3-20261105` su `External-ASVS` / ASVS 4.0.3: Recall@5 **1.0**, @10 **1.0**, MRR **0.883**; astensione **2/2**. Set piccolo/facile → claim debole finché non c'è un set più duro human-verified. Report in-repo: [eval/external/transfer_asvs-4.0.3-20261105.json](../eval/external/transfer_asvs-4.0.3-20261105.json); casi/originali fuori git in `projects/external_asvs/`. |
 
-Nessuno dei tre cambia ranking, α, soglie di linking o affidabilità.
+### EXP-B / EXP-C / gate D–E (2026-11-05)
+
+| Pezzo | Dove | Stato |
+|---|---|---|
+| Registro fallimenti retrieval (archivio storico, non verifica corrente) | [eval/failures/retrieval_misses_register.json](../eval/failures/retrieval_misses_register.json) | 17 candidati correttivi a k>1 sulla run 2026-09-08 |
+| Passaggio correttivo `follow_ref` | `core/corrective.py`, flag `retrieval.corrective_pass.enabled` (default **false**) | prototipo; **non** abilitato in produzione |
+| Casi di routing etichettati | [eval/routing_cases.yaml](../eval/routing_cases.yaml) + `tests/test_routing_cases.py` | baseline deterministica confermata sui casi del file |
+| Gate agentic / multimodalità | [adr/2026-11-05-gates-agentic-multimodal.md](../adr/2026-11-05-gates-agentic-multimodal.md) | **NO-GO** entrambi finché mancano evidenze |
 
 ## CI
 

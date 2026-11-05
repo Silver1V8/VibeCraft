@@ -30,6 +30,7 @@ indicizzare.
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | migliorie e bugfix emersi dal pilot Docling e indipendenti da esso: causa, diff, verifiche, rischio e rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | gate operativo, ciclo end-to-end verificato il 15 settembre 2026, misure, registro degli attriti e problemi aperti |
 | [`2026-11-03-gate-rispondibilita-plan.md`](2026-11-03-gate-rispondibilita-plan.md) | gate di rispondibilità prima del LLM (G1): piano, criteri go/no-go ed esito del 3 novembre 2026 — NO-GO, il gate resta spento |
+| [`2026-11-05-gates-agentic-multimodal.md`](2026-11-05-gates-agentic-multimodal.md) | gate EXP-D (agentic su `/ask`) e EXP-E (multimodalità): entrambi NO-GO finché mancano evidenze; non ribalta ADR 0001 |
 
 ## Scalabilità sidecar — esecuzione del 21 settembre 2026
 

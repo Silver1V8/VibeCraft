@@ -1,0 +1,22 @@
+{
+  "terza_parte": true,
+  "provenienza": "OWASP Foundation — Application Security Verification Standard (ASVS), release ufficiale GitHub v4.0.3_release",
+  "versione": "4.0.3",
+  "licenza": "CC-BY-SA-3.0 (Creative Commons Attribution-ShareAlike 3.0; dichiarato nel Frontispiece ASVS 4.0.3)",
+  "autorizzazione": "Scelta operatore $ilver 2026-11-05: corpus=C1; uso locale per eval di trasferimento VibeCraft con attribuzione OWASP e rispetto CC-BY-SA-3.0. Originali: projects/external_asvs/originals/; metadati separati: projects/external_asvs/metadata/ e docs generati in projects/external_asvs/docs/.",
+  "originali_conservati": true,
+  "metadati_aggiunti_separati": true,
+  "generated": false,
+  "scritto_per_il_sistema": false,
+  "costruito_per_favorire_il_sistema": false,
+  "corpus_id": "external_asvs",
+  "project_id": "External-ASVS",
+  "index_version": "v20261105T100718",
+  "docs_path": "../../projects/External-ASVS/docs",
+  "originals_path": "../../../projects/external_asvs/originals",
+  "download_urls": [
+    "https://github.com/OWASP/ASVS/releases/tag/v4.0.3_release",
+    "https://github.com/OWASP/ASVS/releases/download/v4.0.3_release/OWASP.Application.Security.Verification.Standard.4.0.3-en.csv"
+  ],
+  "attribution": "OWASP Application Security Verification Standard 4.0.3, © 2008-2021 The OWASP Foundation, CC-BY-SA-3.0"
+}

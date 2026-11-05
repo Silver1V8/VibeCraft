@@ -32,7 +32,7 @@ from api.deps import (
     state,
 )
 from api.models import AskQuery
-from core import answerability, ask_cache, ask_thread, graph_ops, llm, retrieval, router as question_router
+from core import answerability, ask_cache, ask_thread, corrective, graph_ops, llm, retrieval, router as question_router
 from core.ask_thread import AskThreadStorageError
 from core.projects import ProjectError, _unlinked
 from core.config import (
@@ -46,6 +46,8 @@ from core.config import (
     CODE_SEARCH_MAX_PER_FILE,
     CODE_SEARCH_MAX_SNIPPETS,
     CODE_SEARCH_MIN_SCORE,
+    CORRECTIVE_PASS_ACTION,
+    CORRECTIVE_PASS_ENABLED,
     AUTHORITY_BOOST_ALPHA,
     AUTHORITY_PRECEDENCE_RELATION,
     GRAPH_CONTEXT_MAX_CHUNKS,
@@ -500,6 +502,27 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
     n_parti_semantiche = len(context_parts)
     n_sezioni_semantiche = len(ordine_contesto)
 
+    # === 4b-ter. EXP-B: al più UN passaggio correttivo locale (default OFF) ===
+    # Non è una seconda hybrid_search né un ciclo agentico: al più un chunk in più,
+    # solo se un riferimento esplicito manca dalla finestra. Trace in risposta.
+    corrective_cfg = retrieval_settings.get("corrective_pass") or {}
+    corrective_trace = corrective.apply_corrective_pass(
+        enabled=bool(corrective_cfg.get("enabled", CORRECTIVE_PASS_ENABLED)),
+        action=str(corrective_cfg.get("action") or CORRECTIVE_PASS_ACTION),
+        question=query.question,
+        search_results=search_results,
+        chunks_store=chunks_store,
+        seen_chunks=seen_chunks,
+        context_parts=context_parts,
+        ordine_contesto=ordine_contesto,
+        fonti_nel_contesto=fonti_nel_contesto,
+        source_label=retrieval.source_label,
+        cap_text=_cap_text,
+    )
+    if corrective_trace.get("applied"):
+        n_parti_semantiche = len(context_parts)
+        n_sezioni_semantiche = len(ordine_contesto)
+
     # === 4b-bis. FASE 6 DI [REGOLA-WF-01]: LE SEZIONI RAGGIUNTE SOLO VIA GRAFO ===
     # Fino a S3 l'espansione del grafo alimentava solo la mappa della dashboard e le ancore
     # del codice: il testo dei documenti raggiunti via grafo non entrava MAI nel contesto.
@@ -824,6 +847,8 @@ async def _ask_pipeline(request: Request, query: AskQuery, *, emit=None, resourc
         "implementing_code": implementing_code,
         # Giudizio del gate (G1): None con il gate spento o senza sezioni da giudicare.
         "answerability": rispondibilita,
+        # EXP-B: trace del passaggio correttivo (applied=false se disabled o senza ref).
+        "corrective_pass": corrective_trace,
     }
     # Si memorizza SOLO questo payload: gli errori (502 su LLMError) e gli esiti a vuoto
     # (no_results/no_graph_nodes, che tornano prima) non entrano mai in cache. Un'astensione

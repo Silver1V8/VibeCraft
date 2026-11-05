@@ -41,6 +41,7 @@ from core import (  # noqa: F401
     answerability as answerability,
     ask_cache as ask_cache,
     ask_thread,
+    corrective as corrective,  # EXP-B: seam rebind di _ask_pipeline (core/ask.py:509)
     graph_ops as graph_ops,
     llm as llm,
     retrieval,
@@ -63,6 +64,8 @@ from core.config import (  # noqa: F401
     CODE_SEARCH_MIN_SCORE,
     AUTHORITY_BOOST_ALPHA as AUTHORITY_BOOST_ALPHA,
     AUTHORITY_PRECEDENCE_RELATION as AUTHORITY_PRECEDENCE_RELATION,
+    CORRECTIVE_PASS_ACTION as CORRECTIVE_PASS_ACTION,  # EXP-B: seam rebind
+    CORRECTIVE_PASS_ENABLED as CORRECTIVE_PASS_ENABLED,  # EXP-B: seam rebind
     GRAPH_CONTEXT_MAX_CHUNKS as GRAPH_CONTEXT_MAX_CHUNKS,
     GRAPH_CONTEXT_MIN_RATIO as GRAPH_CONTEXT_MIN_RATIO,
     ROLE as ROLE,

@@ -1,0 +1,44 @@
+# Casi etichettati per percorso (EXP-C). Baseline = router deterministico attuale.
+# expected_route: graph | hybrid
+# path_class: structural | document | code_relation | composite | ambiguous
+# Lettore: tests/test_routing_cases.py. Nessun segreto. Piano eval EXP-C.
+version: 1
+cases:
+  - id: struct-docs
+    q: "quali documenti esistono nel corpus?"
+    expected_route: graph
+    path_class: structural
+  - id: struct-entita
+    q: "quali entità del dominio esistono?"
+    expected_route: graph
+    path_class: structural
+  - id: struct-relazioni
+    q: "quali relazioni ha lo standard di codifica?"
+    expected_route: graph
+    path_class: structural
+  - id: struct-impatto
+    q: "cosa viene impattato se modifico le safeguard di sicurezza?"
+    expected_route: graph
+    path_class: structural
+  - id: struct-vicini
+    q: "dammi i nodi adiacenti alla matrice dei permessi"
+    expected_route: graph
+    path_class: structural
+  - id: doc-semantico
+    q: "quando usare il livello ERROR invece di WARNING nei log"
+    expected_route: hybrid
+    path_class: document
+  - id: code-ponte
+    q: "come si collega una riga di codice alla regola di business che implementa"
+    expected_route: hybrid
+    path_class: code_relation
+  - id: multihop-composito
+    q: "quale contratto di errore e quale regola di validazione governano insieme il rifiuto di una richiesta"
+    expected_route: hybrid
+    path_class: composite
+    notes: "Richiesta composta: resta hybrid; non istrada su graph."
+  - id: ambiguo-impatto-lessicale
+    q: "che impatto ha la cache sulle prestazioni?"
+    expected_route: hybrid
+    path_class: ambiguous
+    notes: "Contiene 'impatto' ma non la forma strutturale; conservativo → hybrid."

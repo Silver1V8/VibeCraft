@@ -1,0 +1,248 @@
+{
+  "source_run": "rag/eval/results/p0_20260908-152239/evidence/original_eval/eval_20260908_153902.json",
+  "source_note": "Archivio storico 2026-09-08; NON e una verifica corrente. Usato per progettare EXP-B.",
+  "n_miss_k1": 17,
+  "n_corrective_candidates": 17,
+  "proposed_action": "follow_ref",
+  "proposed_action_rationale": "Un solo recupero di sezione citata esplicitamente (REGOLA/SAFEGUARD/...) e il passo minimo. Non e un ciclo agentico.",
+  "cases": [
+    {
+      "case_index": 0,
+      "q": "come gestire il lock transazionale su una risorsa contesa in concorrenza",
+      "best_rank": 2,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "02_specs_normative/spec_concurrency_2.3.md",
+        "section": "1. Obiettivo e Contesto di Isolamento"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 11,
+      "q": "come si collega una riga di codice alla regola di business che implementa",
+      "best_rank": 2,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 16,
+      "q": "posso aggiungere una funzionalità non richiesta se mi sembra utile",
+      "best_rank": 3,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/matrice_permessi.md",
+        "section": "Appendice: Indice Inverso (Ruolo → Funzionalità Concesse)"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 17,
+      "q": "il modello ha scritto codice sbagliato, di chi è la responsabilità",
+      "best_rank": 6,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 18,
+      "q": "come vengono segmentati i documenti in chunk durante l'indicizzazione",
+      "best_rank": 2,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "02_specs_normative/spec_graph_rag_ingestion.md",
+        "section": "5. Regole di Aggiornamento Incrementale e Delta Ingestion"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 21,
+      "q": "cosa succede se modifico un documento senza incrementare la versione",
+      "best_rank": 3,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "2. Regole di Gestione delle Versioni"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 22,
+      "q": "due documenti possono dichiarare lo stesso node_id nel grafo",
+      "best_rank": 3,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "README.md",
+        "section": "Vincoli di stabilità"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 23,
+      "q": "come faccio a sapere se il grafo è disallineato rispetto ai documenti",
+      "best_rank": 7,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "1. Obiettivo e Controllo del Versionamento"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 25,
+      "q": "posso includere lo stack trace nella risposta di errore al client",
+      "best_rank": 6,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "05_project_specs/spec_tech_frontend.md",
+        "section": "1. Direzione Architetturale"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 29,
+      "q": "come si correlano log tracing e audit di una stessa richiesta",
+      "best_rank": 2,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "02_specs_normative/spec_monitor_admin_3.3.md",
+        "section": "2. Regole di Tracciamento e Immutabilità"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 30,
+      "q": "quando usare il livello ERROR invece di WARNING nei log",
+      "best_rank": 2,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/safeguards_security.md",
+        "section": "Categoria 2 — Concorrenza Critica sul Database"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 36,
+      "q": "come si testa correttamente un percorso protetto da lock pessimistico",
+      "best_rank": 4,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "02_specs_normative/spec_concurrency_2.3.md",
+        "section": "4. Scenari Comportamentali BDD (Gherkin)"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 38,
+      "q": "come deve essere l'aspetto grafico rispetto all'identità visiva aziendale",
+      "best_rank": 2,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "01_architecture_norms/ui_ux_brand_directives.md",
+        "section": "2. Direttive Vincolanti"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 40,
+      "q": "quale rapporto di contrasto devono rispettare i colori dell'interfaccia",
+      "best_rank": 4,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "01_architecture_norms/ui_ux_brand_directives.md",
+        "section": "2. Direttive Vincolanti"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 41,
+      "q": "quando una funzionalità può essere considerata completata",
+      "best_rank": 3,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/definition_of_done.md",
+        "section": "4. Checklist — Livello Rilascio"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 44,
+      "q": "come si versionano i documenti della knowledge base",
+      "best_rank": 4,
+      "adversarial": false,
+      "top1": {
+        "doc_id": "00_meta_governance/policy_versionamento_documentale.md",
+        "section": "1. Obiettivo e Controllo del Versionamento"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    },
+    {
+      "case_index": 52,
+      "q": "quanti caratteri al massimo può avere un chunk e con quale severità viene segnalato lo sforamento",
+      "best_rank": 2,
+      "adversarial": true,
+      "top1": {
+        "doc_id": "04_knowledge_informative/graph_rag_ingestion_strategy.md",
+        "section": "2. Perché il limite di chunking è ~1500 caratteri (non 500, non 4000)"
+      },
+      "evidence_class": "present_but_not_top1",
+      "failure_class": "retrieval_rank",
+      "corrective_candidate": true,
+      "notes": "Fonte attesa in corpus (aggregate recall@10=1.0 su questa run storica); rank suboptimal."
+    }
+  ]
+}

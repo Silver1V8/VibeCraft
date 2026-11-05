@@ -524,6 +524,11 @@ CODE_CONTEXT_TOTAL_SNIPPETS: int = int(
 # del codice); il valore effettivo è quello di rag_config.yaml.
 CODE_LINK_MIN_QUESTION_SCORE: float = float(
     _retrieval_cfg.get("code_link_min_question_score", 0.0))
+# EXP-B (2026-11-05): un solo passaggio correttivo locale su /ask. Default OFF — prototipo
+# sperimentale; non abilitare nel path normale senza gate GO documentato.
+_corrective_cfg = _retrieval_cfg.get("corrective_pass") or {}
+CORRECTIVE_PASS_ENABLED: bool = bool(_corrective_cfg.get("enabled", False))
+CORRECTIVE_PASS_ACTION: str = str(_corrective_cfg.get("action") or "follow_ref")
 # Tetti dell'endpoint GET /api/code/search (api/routes_retrieval.py), che espone la stessa
 # ricerca semantica sui simboli a un agente esterno. Sono tetti di CONTESTO, non di qualità:
 # l'endpoint esiste per far leggere all'agente MENO codice (gli dice quali file aprire), quindi

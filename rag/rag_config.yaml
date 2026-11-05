@@ -177,6 +177,14 @@ retrieval:
   # Riaprire quando esiste un set di valutazione sulle risposte, non prima.
   graph_context_min_ratio: 0.0
 
+  # EXP-B (2026-11-05): un solo passaggio correttivo locale su /ask dopo il retrieval
+  # semantico. Default OFF. Azione unica supportata: follow_ref (al più un chunk citato
+  # esplicitamente). Non è un ciclo agentico; non fa una seconda hybrid_search.
+  # Abilitare solo dopo confronto appaiato documentato (eval/failures/).
+  corrective_pass:
+    enabled: false
+    action: follow_ref
+
   code_context_max_snippets: 10  # tetto sugli snippet di codice iniettati (0 = disattiva del tutto)
   code_context_min_weight: 0.5   # soglia sul peso dell'arco IMPLEMENTS (cosine); >= soglia di linking (0.45)
 
