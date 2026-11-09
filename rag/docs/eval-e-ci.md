@@ -371,3 +371,20 @@ fine reale del thread via `ReindexManager.join_all`) esiste già altrove nella
 storia del repo e va portato su questa linea prima di considerare la suite
 completamente stabile in CI.
 
+## Screenshot del manuale e del percorso guidato
+
+Le immagini di `static/manuale/*.html` sono webp in base64 dentro gli HTML. Si rifanno in due passi,
+con un progetto indicizzato e allineato (di default `Tetris`), il server acceso e, per la domanda
+reale della Console, Ollama:
+
+1. `NODE_PATH=<dir>/node_modules node scripts/manual_screenshots.cjs --out <cartella>` cattura le
+   schermate in PNG (Playwright 1.62.1, come la CI). Usa dati reali del progetto; l'esecuzione
+   dell'agente, il drift, l'archivio e le operazioni di staging/import sono simulati con
+   `page.route`, quindi una cattura non scrive nel progetto né nell'indice. `--only s05,s13`
+   ne rifà solo alcune; la prima domanda reale è salvata in `ask_fixture.ndjson` e riusata.
+2. `uv run python scripts/embed_manual_screenshots.py --shots <cartella>` converte i PNG e li
+   sostituisce nei quattro HTML (manuale e percorso, IT ed EN: le immagini sono le stesse).
+   Con `--dry-run` controlla solo che l'ordine delle figure combaci.
+
+Se si aggiunge o si riordina una figura nel manuale vanno aggiornati l'elenco delle sigle in
+`embed_manual_screenshots.py` (`QUICK_START`, `TOUR`) e lo scatto corrispondente nello script.
