@@ -41,7 +41,7 @@ from api.models import (
     OpenPointDecisionRequest,
 )
 from api.routes_reindex import enqueue_full_rebuild
-from core import canvas_review, llm, pipeline, retrieval, spec_format, pipeline_gate as gate, pipeline_validation as validation
+from core import canvas_review, interview as explore_interview, llm, pipeline, retrieval, spec_format, pipeline_gate as gate, pipeline_validation as validation
 from core import pipeline_activity, verification
 from core.artifacts import manifest_path
 from core.pipeline_store import PipelineStore, PipelineStorageError, PipelineStorageBusyError
@@ -464,23 +464,56 @@ async def pipeline_create_dev_type(req: DevTypeCreateRequest, project=Depends(ge
 @router.post("/api/pipeline/explore/turn",
              dependencies=[Depends(require_not_cross_site_request)])
 async def pipeline_explore_turn(req: ExploreTurnRequest, project=Depends(get_project)):
-    """Esegue un turno di intervista (equivalente al loop input() di explore.py)."""
-    scope_note = (
-        f" Il tipo di sviluppo richiesto per questa feature è '{req.dev_type}' (cartella code/{req.dev_type}): "
-        f"concentra le domande esclusivamente sugli aspetti pertinenti a questo ambito."
-        if req.dev_type else ""
-    )
-    history = req.history or (
-        f"Sei un Tech Lead e un 'thinking partner'. Stiamo definendo i requisiti per "
-        f"la feature: {req.feature_name}.{scope_note} Fai domande brevi e mirate per sviscerare i casi limite.\n"
-    )
-    prompt = history + f"\nUtente: {req.user_input}\nRispondi in modo conciso:"
+    """Esegue un turno di intervista ancorato ai docs (core/interview.py): le domande
+    candidate la cui risposta è già nei documenti indicizzati tornano come «già documentato»
+    con la fonte, i disaccordi fra documenti come scelta; all'utente si chiede solo il resto.
+    Senza indice o retrieval l'intervista prosegue, ma lo dichiara nel testo del turno."""
+    history = req.history or explore_interview.intro(req.feature_name, req.dev_type)
     try:
-        ai_response = await llm.agenerate(prompt, purpose="explore")
+        raw = await llm.agenerate(explore_interview.candidates_prompt(history, req.user_input),
+                                  purpose="explore")
+        parsed = explore_interview.parse_candidates(raw)
+        if parsed is None:
+            ai_response = ("⚠ Risposta del modello non strutturata: le domande non sono state "
+                           "confrontate con i docs del progetto.\n\n" + raw)
+        else:
+            comment, questions = parsed
+            result, unchecked = {"known": [], "conflicts": [], "questions": questions}, ""
+            if questions:
+                try:
+                    snap = await run_in_threadpool(require_snapshot, project)
+                    await run_in_threadpool(ensure_shared_resources)
+                    sections = await embed_in_threadpool(_interview_sections, questions, snap, project=project)
+                except (HTTPException, retrieval.RetrievalUnavailable) as exc:
+                    logger.warning("Intervista senza confronto con i docs", exc_info=exc)
+                    sections = []
+                    unchecked = ("progetto non indicizzato" if getattr(exc, "status_code", 0) == 409
+                                 else "retrieval non disponibile")
+                if sections:
+                    try:
+                        verdict = await llm.agenerate(explore_interview.check_prompt(questions, sections),
+                                                      purpose="explore")
+                        result = explore_interview.classify(questions, sections, verdict)
+                    except llm.LLMError as exc:
+                        logger.warning("Verifica delle domande sui docs non riuscita", exc_info=exc)
+                        unchecked = "verifica sui docs non riuscita"
+            ai_response = explore_interview.render(comment, result, unchecked_reason=unchecked)
     except llm.LLMError as exc:
         ai_response = _public_error(exc)
     new_history = history + f"\nUtente: {req.user_input}\nIA: {ai_response}"
     return {"ai_response": ai_response, "history": new_history}
+
+
+def _interview_sections(questions: list[str], snap: IndexSnapshot, project=None) -> list[dict]:
+    """Sezioni governate recuperate con la formulazione di OGNI domanda candidata (ranking
+    ibrido già pesato per autorità). Sincrono (embedding delle query) → threadpool."""
+    graph, chunks, colbert_store = _snap_fields(snap)
+    hits = [retrieval.select_governed_chunks(
+        question, graph=graph, max_chunks=explore_interview.SECTIONS_PER_QUESTION,
+        qdrant=state.get("qdrant"), embed_model=state.get("embed_model"),
+        colbert_store=colbert_store, project=project, collection_name=snap.collection_name)
+        for question in questions]
+    return explore_interview.build_sections(hits, chunks_store=chunks, graph=graph)
 
 
 @router.post("/api/pipeline/explore/save",

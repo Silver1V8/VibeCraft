@@ -114,11 +114,13 @@ def test_explore_provider_failure_preserves_safe_tolerant_history(projects, monk
         assert 'A history\nUtente: A input\nIA: ' in result['history']
         assert 'private-provider-key' not in response.text and str(a.root) not in result['history']
         async def success(*args, **kwargs):
-            return 'A answer'
+            return '{"commento": "A answer", "domande": []}'
         monkeypatch.setattr(routes.llm, 'agenerate', success)
         response = client.post('/api/pipeline/explore/turn', headers={'X-VibeCraft-Project': a.id},
                                json={'feature_name': 'same-feature', 'user_input': 'A input', 'history': 'A history'})
-        assert response.json() == {'ai_response': 'A answer', 'history': 'A history\nUtente: A input\nIA: A answer'}
+        result = response.json()
+        assert result['ai_response'].startswith('A answer\n\n')
+        assert result['history'] == 'A history\nUtente: A input\nIA: ' + result['ai_response']
 
 
 def test_missing_staged_markdown_preserves_safe_404(projects, monkeypatch):

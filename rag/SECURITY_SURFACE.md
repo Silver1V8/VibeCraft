@@ -305,7 +305,7 @@ oltre a `require_api_key` del router.
 | 7 | GET | `/api/pipeline/agent/modes` | require_api_key (bypass localhost) | assente | Sì | read-only (elenco modi) | Basso | nessuna |
 | 8 | POST | `/api/pipeline/agent/run` | require_api_key **+ require_api_key_strict** | JSON Pydantic | **No (strict)** | **esegue agente** (`agentic`: Write/Edit confinati a `code/`, **Bash rimosso** — vedi §5) | **Alto** | **strict** |
 | 9 | GET | `/api/pipeline/dev-types` | require_api_key | assente | Sì | read-only | Basso | nessuna |
-| 10 | POST | `/api/pipeline/explore/turn` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (no mutazione) | Basso (Medio DoS) | **anti-x-site** |
+| 10 | POST | `/api/pipeline/explore/turn` | require_api_key | JSON Pydantic | No (preflight) | esegue LLM (2 chiamate per turno dal 2026-11-09: domande candidate + verifica sui docs) + retrieval read-only (≤5 query embedding CPU sull'indice del progetto selezionato; no mutazione) | Basso (Medio DoS) | **anti-x-site** |
 | 11 | POST | `/api/pipeline/explore/save` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`changes/<slug>/explore.md`, dev_type) | Medio | **anti-x-site** |
 | 12 | POST | `/api/pipeline/canvas/generate` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`canvas.md`, `meta.json`) + esegue LLM | Medio | **anti-x-site** |
 | 13 | POST | `/api/pipeline/propose/generate` | require_api_key | JSON Pydantic | No (preflight) | **scrive filesystem** (`spec.md`, `spec.raw.md`) + esegue LLM | Medio | **anti-x-site** |
