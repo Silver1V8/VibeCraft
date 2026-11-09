@@ -173,3 +173,27 @@ def test_provider_claude_code_usa_l_agent_sdk_senza_strumenti(monkeypatch):
     with pytest.raises(llm.LLMError, match="CLAUDE CODE"):
         llm._claude_code_generate("claude-opus-5-5", "domanda", 5)
     assert "claude_code" not in store.KEY_PROVIDERS  # niente chiave, prezzo o budget
+
+
+def test_provider_antigravity_api_key_e_vertex_auth(files, monkeypatch):
+    store.set_api_key("antigravity", "AIza-test-key")
+    view = store.save({"mode": "cloud", "cloud_provider": "antigravity",
+                       "models": {"antigravity": "gemini-3.8-flash"},
+                       "antigravity_vertex": False,
+                       "antigravity_project": "mio-progetto",
+                       "antigravity_location": "europe-west1"})
+    assert view["providers"]["antigravity"]["key"] == "file"
+    assert view["providers"]["antigravity"]["project"] == "mio-progetto"
+    assert view["providers"]["antigravity"]["location"] == "europe-west1"
+    assert llm._antigravity_endpoint_kwargs() == {"api_key": "AIza-test-key"}
+
+    store.save({"mode": "cloud", "cloud_provider": "antigravity",
+                "models": {"antigravity": "gemini-3.8-flash"},
+                "antigravity_vertex": True,
+                "antigravity_project": "mio-progetto",
+                "antigravity_location": "europe-west1"})
+    assert llm._antigravity_endpoint_kwargs() == {
+        "vertex": True, "project": "mio-progetto", "location": "europe-west1",
+    }
+    models = store.list_models("antigravity")
+    assert "gemini-3.8-flash" in models["models"]

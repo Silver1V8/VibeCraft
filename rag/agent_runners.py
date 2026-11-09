@@ -13,12 +13,14 @@ Perimetri, runner per runner:
 Il prompt CLI va sempre su stdin, mai negli argomenti: gli shim .cmd
 di npm su Windows passerebbero il testo a cmd.exe, che ne interpreta i metacaratteri.
 """
+import asyncio
 import json
 import os
 import queue
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -41,12 +43,24 @@ from native_sandbox import (
 
 RUNNERS: dict[str, dict] = {
     "claude": {"label": "Claude Code", "modes": ("suggest", "agentic", "oneshot"), "bin": "claude"},
+    "antigravity": {"label": "Google Antigravity", "modes": ("suggest", "agentic", "oneshot")},
     "local": {"label": "LLM locale (Ollama)", "modes": ("suggest", "agentic", "oneshot")},
     # agentic è nella lista per Codex: validate_run lo ammette solo se la prova scrittura passa.
     "codex": {"label": "Codex CLI", "modes": ("suggest", "oneshot", "agentic"), "bin": "codex"},
     "cursor": {"label": "Cursor CLI", "modes": ("suggest", "oneshot"), "bin": "agent"},
 }
 CLAUDE_MODELS = ["sonnet", "opus", "haiku"]
+ANTIGRAVITY_MODELS = ["gemini-3.8-flash", "gemini-2.5-pro", "gemini-2.5-flash"]
+CODEX_MODELS = ["", "gpt-5.3-codex", "gpt-5.2-codex", "gpt-5", "o3", "o4-mini"]
+CURSOR_MODELS = ["", "claude-4-sonnet", "claude-4-opus", "gpt-5", "gemini-2.5-pro"]
+
+
+def _antigravity_installed() -> bool:
+    try:
+        from google.antigravity.connections.local.local_connection import _get_default_binary_path
+        return Path(_get_default_binary_path(None)).is_file()
+    except Exception:
+        return False
 # Il modello finisce negli argomenti delle CLI: niente '-' iniziale (flag) né metacaratteri.
 MODEL_RE = re.compile(r"^(|[A-Za-z0-9][\w.:/-]{0,99})$")
 
@@ -98,7 +112,7 @@ def validate_run(runner: str, mode: str, model: str, *, project=None) -> str | N
 def list_runners(*, project=None) -> list[dict]:
     """Runner con disponibilità reale sulla macchina del server (PATH e modelli Ollama)."""
     try:
-        with urllib.request.urlopen(f"{OLLAMA_URL.rstrip('/')}/api/tags", timeout=2) as r:
+        with urllib.request.urlopen(f"{OLLAMA_URL.rstrip('/')}/api/tags".replace("://localhost:", "://127.0.0.1:"), timeout=3) as r:
             local_models = [m["name"] for m in json.loads(r.read().decode()).get("models", [])]
     except (OSError, ValueError, KeyError):
         local_models = []
@@ -113,9 +127,15 @@ def list_runners(*, project=None) -> list[dict]:
             models = CLAUDE_MODELS
             available = installed
             code = reason = None
+        elif rid == "antigravity":
+            installed = _antigravity_installed()
+            configured = (config.get("llm_settings") or {}).get("models", {}).get("antigravity")
+            models = list(dict.fromkeys(([configured] if configured else []) + ANTIGRAVITY_MODELS))
+            available = installed
+            code = reason = None
         elif rid == "codex":
             installed = shutil.which(cfg["bin"]) is not None
-            models = []
+            models = CODEX_MODELS if rid == "codex" else CURSOR_MODELS
             # Disponibile solo se agentic può partire (prova scrittura ok). Suggest resta chiuso.
             available = bool(installed and write_isolation_ok("codex"))
             if not installed:
@@ -127,12 +147,12 @@ def list_runners(*, project=None) -> list[dict]:
                 code, reason = WRITE_UNAVAILABLE_CODE, probe.detail
         else:  # cursor
             installed = shutil.which(cfg["bin"]) is not None
-            models = []
+            models = CODEX_MODELS if rid == "codex" else CURSOR_MODELS
             available = False
             code = NATIVE_UNAVAILABLE_CODE if installed else None
             reason = NATIVE_UNAVAILABLE_MESSAGE if installed else (
                 "Runner non installato o modello locale non disponibile.")
-        if rid in ("claude", "local") and not available and reason is None:
+        if rid in ("claude", "antigravity", "local") and not available and reason is None:
             reason = "Runner non installato o modello locale non disponibile."
         out.append({"id": rid, "label": cfg["label"], "modes": list(cfg["modes"]),
                     "installed": installed, "export_available": True,
@@ -441,6 +461,162 @@ def run_cli(runner: str, prompt: str, mode: str, model: str, *, project_root: Pa
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Google Antigravity SDK
+# ---------------------------------------------------------------------------
+def _guard_antigravity_tool(call, *, mode: str, project_root: Path, code_root: Path, cwd: Path, registry=None):
+    from google.antigravity import types
+
+    server = getattr(call, "server_name", None)
+    name = str(getattr(call.name, "value", call.name))
+    args = getattr(call, "args", None) or {}
+    reason = None
+    try:
+        if (server == "vibecraft" and name in ("vibecraft_retrieve", "vibecraft_code_search", "vibecraft_graph_query")
+                and mode in ("suggest", "agentic")):
+            return types.HookResult(allow=True)
+        if not server and name == "finish":
+            return types.HookResult(allow=True)
+        raw_path = getattr(call, "canonical_path", None) or next(
+            (args[k] for k in ("path", "Path", "file_path", "directory_path", "TargetFile",
+                               "SearchPath", "SearchDirectory", "DirectoryPath", "AbsolutePath", "Directory")
+             if isinstance(args.get(k), str) and args.get(k)),
+            None,
+        )
+        if not server and name in ("view_file", "list_directory", "search_directory", "find_file") and mode in ("suggest", "agentic"):
+            if name == "view_file" and not isinstance(raw_path, str):
+                raise PermissionError("lettura senza path verificabile")
+            target = _read_path(raw_path or ".", cwd, project_root, registry)
+            pattern = Path(str(args.get("pattern") or args.get("Pattern") or "*"))
+            if name == "find_file" and (pattern.anchor or ".." in pattern.parts or "~" in pattern.parts):
+                raise PermissionError("pattern esterno al progetto")
+            if name in ("list_directory", "search_directory", "find_file") and target.is_dir():
+                for parent, dirs, files in os.walk(target, followlinks=False):
+                    for entry in dirs + files:
+                        _read_path(str(Path(parent) / entry), cwd, project_root, registry)
+            return types.HookResult(allow=True)
+        if not server and name in ("create_file", "edit_file") and mode == "agentic":
+            if not isinstance(raw_path, str) or not raw_path.strip():
+                reason = f"scrittura senza path verificabile (tool {name!r})"
+            else:
+                reason = _path_escapes_code(raw_path, code_root)
+                if reason is None:
+                    _read_path(raw_path, code_root, project_root, registry)
+                    return types.HookResult(allow=True)
+        else:
+            reason = f"tool {name!r} non consentito in modalità {mode}"
+    except (PermissionError, ProjectError, OSError, RuntimeError, ValueError, TypeError):
+        reason = "path o storage del progetto non disponibile per questo tool"
+    return types.HookResult(allow=False, message="[perimetro progetto] " + (reason or "negato"))
+
+
+def _build_antigravity_config(mode: str, model: str, *, project=None, save_dir: str | None = None):
+    from google.antigravity import AgentBehavior, BuiltinTools, CapabilitiesConfig, LocalAgentConfig, types
+    from google.antigravity.hooks import hooks, policy
+    from core.projects import _unlinked
+
+    root = project.root if project is not None else PROJECT_ROOT
+    code_root = project.code_dir if project is not None else CODE_ROOT
+    cwd = code_root if mode == "agentic" else root
+    model_name = model or (config.get("llm_settings") or {}).get("models", {}).get("antigravity") or ANTIGRAVITY_MODELS[0]
+    endpoint_kw = llm._antigravity_endpoint_kwargs()
+    if mode == "oneshot":
+        enabled_tools: list = []
+        mcp_servers = None
+        hook_list: list = []
+        max_calls = 1
+    else:
+        registry = ProjectRegistry(readonly=True)
+        _unlinked(root)
+        _unlinked(code_root)
+        if mode == "agentic":
+            Path(cwd).mkdir(parents=True, exist_ok=True)
+        read_tools = [BuiltinTools.VIEW_FILE, BuiltinTools.LIST_DIR, BuiltinTools.SEARCH_DIR,
+                      BuiltinTools.FIND_FILE, BuiltinTools.FINISH]
+        write_tools = [BuiltinTools.CREATE_FILE, BuiltinTools.EDIT_FILE] if mode == "agentic" else []
+        enabled_tools = read_tools + write_tools
+        mcp_servers = [types.McpStdioServer(
+            name="vibecraft",
+            command=sys.executable,
+            args=["-B", str(agent_bridge.INSTALL_ROOT / "rag" / "mcp_server.py")],
+            env={"VIBECRAFT_PROJECT_ID": project.id if project is not None else "legacy"},
+            enabled_tools=["vibecraft_retrieve", "vibecraft_code_search", "vibecraft_graph_query"],
+        )]
+
+        @hooks.pre_tool_call_decide
+        async def _decide(call: types.ToolCall) -> types.HookResult:
+            return _guard_antigravity_tool(call, mode=mode, project_root=root, code_root=code_root,
+                                           cwd=Path(cwd), registry=registry)
+
+        hook_list = [_decide]
+        max_calls = agent_bridge._max_turns()
+    return LocalAgentConfig(
+        model=model_name,
+        workspaces=[str(cwd)],
+        save_dir=save_dir,
+        app_data_dir=save_dir,
+        capabilities=CapabilitiesConfig(
+            enable_subagents=False,
+            agent_behavior=AgentBehavior.AUTONOMOUS,
+            enabled_tools=enabled_tools,
+        ),
+        policies=policy.confirm_run_command(),
+        hooks=hook_list,
+        mcp_servers=mcp_servers,
+        budget_config=types.BudgetConfig(max_model_calls=max_calls),
+        **endpoint_kw,
+    )
+
+
+async def _antigravity_session(prompt: str, mode: str, model: str, q: queue.Queue, *, project=None) -> None:
+    from google.antigravity import Agent, types
+
+    started = time.monotonic()
+    final_text: list[str] = []
+    turns = 0
+    try:
+        with tempfile.TemporaryDirectory(prefix="vibecraft_agy_") as tmp:
+            cfg = _build_antigravity_config(mode, model, project=project, save_dir=tmp)
+            model_name = (cfg.models[0].name if cfg.models else model) or ANTIGRAVITY_MODELS[0]
+            async with Agent(cfg) as agent:
+                resp = await agent.chat(prompt)
+                async for chunk in resp.chunks:
+                    if isinstance(chunk, types.Text) and chunk.text:
+                        final_text.append(chunk.text)
+                        q.put({"type": "text", "text": chunk.text})
+                    elif isinstance(chunk, types.ToolCall):
+                        final_text.clear()
+                        turns += 1
+                        q.put({"type": "tool_use", "tool": str(getattr(chunk.name, "value", chunk.name))})
+                usage = resp.usage_metadata
+                if usage is not None:
+                    llm._log_usage("antigravity", model_name, usage.prompt_token_count, usage.candidates_token_count)
+                report = agent.conversation.last_response or "".join(final_text)
+                q.put({
+                    "type": "result",
+                    "is_error": False,
+                    "duration_ms": int((time.monotonic() - started) * 1000),
+                    "total_cost_usd": None,
+                    "num_turns": turns + 1,
+                    **read_report(report),
+                })
+    except Exception as exc:  # noqa: BLE001
+        q.put({"type": "error", "message": f"{type(exc).__name__}: {exc}", **read_report(None)})
+    finally:
+        q.put(None)
+
+
+def run_antigravity(prompt: str, mode: str, model: str, *, project=None):
+    q: queue.Queue = queue.Queue()
+    asyncio.run_coroutine_threadsafe(
+        _antigravity_session(prompt, mode, model, q, project=project),
+        agent_bridge._ensure_loop(),
+    )
+    while (ev := q.get()) is not None:
+        yield ev
+
+
+# ---------------------------------------------------------------------------
 # Streaming: stesso contratto di agent_bridge.run_agent_streaming
 # ---------------------------------------------------------------------------
 def _pump(events, out: queue.Queue, feature, attempt_id, on_finish, project=None) -> None:
@@ -472,6 +648,8 @@ def run_streaming(runner: str, prompt: str, mode: str, model: str, *, feature=No
         roots["code_root"] = project.code_dir
     if runner == "local":
         events = run_local(prompt, mode, model, **roots, registry=ProjectRegistry(readonly=True))
+    elif runner == "antigravity":
+        events = run_antigravity(prompt, mode, model, project=project)
     else:
         events = run_cli(runner, prompt, mode, model, **roots)
     out: queue.Queue = queue.Queue()

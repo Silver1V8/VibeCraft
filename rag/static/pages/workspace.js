@@ -724,9 +724,9 @@ registerActions({
    Le scelte LLM vivono sul server (/api/settings/llm, core/llm_settings_store.py) e
    valgono per tutti i progetti; le API key si scrivono e basta: il server risponde solo
    da dove arrivano (ambiente, file, nessuna). */
-const LLM_PROVIDERS = ['ollama', 'anthropic', 'openai', 'claude_code'];
+const LLM_PROVIDERS = ['ollama', 'anthropic', 'openai', 'claude_code', 'antigravity'];
 // Provider con API key e prezzo per token; claude_code usa il login dell'abbonamento.
-const LLM_CLOUD = ['anthropic', 'openai'];
+const LLM_CLOUD = ['anthropic', 'openai', 'antigravity'];
 let llmView = null;
 function settingsError(data, response) {
   if (Array.isArray(data.detail)) return data.detail.map(item => item.msg).join('; ');
@@ -830,6 +830,11 @@ async function loadLlmSettings() {
   const warning = document.getElementById('llm-claude-code-warning');
   warning.textContent = !claudeCode.cli ? t('settings.claudeCodeNoCli') : claudeCode.api_key_env ? t('settings.claudeCodeEnvKey') : '';
   warning.hidden = !warning.textContent;
+  const ag = llmView.providers.antigravity || {};
+  document.getElementById('llm-vertex-antigravity').checked = Boolean(ag.vertex);
+  document.getElementById('llm-project-antigravity').value = ag.project || '';
+  document.getElementById('llm-location-antigravity').value = ag.location || '';
+  document.getElementById('llm-adc-status-antigravity').textContent = ag.adc ? t('settings.antigravityAdcOk') : t('settings.antigravityAdcMissing');
   document.getElementById('llm-budget').value = llmView.budget_daily_usd ?? '';
   renderLlmActivities();
   renderLlmMode();
@@ -865,6 +870,9 @@ function llmPayload() {
   return {
     mode, cloud_provider: document.getElementById('llm-cloud-provider').value, models, purposes, pricing,
     openai_base_url: document.getElementById('llm-base-url-openai').value.trim() || null,
+    antigravity_vertex: document.getElementById('llm-vertex-antigravity').checked,
+    antigravity_project: document.getElementById('llm-project-antigravity').value.trim(),
+    antigravity_location: document.getElementById('llm-location-antigravity').value.trim(),
     budget_daily_usd: mode === 'local' || budget === '' ? null : Number(budget),
   };
 }
@@ -882,7 +890,7 @@ async function saveLlmSettings(event) {
     status.textContent = t('settings.saved');
     toast(t('settings.saved'), 'success');
     const used = payload.mode === 'cloud' ? [payload.cloud_provider] : Object.values(payload.purposes).map(choice => choice.provider);
-    const missing = LLM_CLOUD.filter(provider => used.includes(provider) && !llmView.providers[provider].key);
+    const missing = LLM_CLOUD.filter(provider => used.includes(provider) && !llmView.providers[provider].key && !(provider === 'antigravity' && llmView.providers.antigravity?.vertex));
     // Anche nella riga di stato: i toast stanno sotto il dialogo modale aperto.
     if (missing.length) status.textContent += ' ' + t('settings.keyNeeded', { provider: missing.map(p => t('settings.providerName.' + p)).join(', ') });
   } catch (error) {

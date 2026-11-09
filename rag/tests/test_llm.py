@@ -227,7 +227,7 @@ def test_valid_llm_providers_sincronizzati_con_registry():
     esattamente (la discrepanza è un errore di sincronizzazione)."""
     from core.config import VALID_LLM_PROVIDERS
 
-    assert VALID_LLM_PROVIDERS == {"ollama", "anthropic", "openai", "claude_code"}
+    assert VALID_LLM_PROVIDERS == {"ollama", "anthropic", "openai", "claude_code", "antigravity"}
     assert VALID_LLM_PROVIDERS <= set(llm._PROVIDERS)
 
 
@@ -246,7 +246,7 @@ def test_llm_settings_active_provider_non_registrato_errore_al_boot():
     assert "gemini" in err_msg
     assert "non è registrato" in err_msg
     # Verifica che il messaggio elenchi i provider ammessi in ordine alfabetico
-    assert "Provider ammessi: anthropic, claude_code, ollama, openai" in err_msg
+    assert "Provider ammessi: anthropic, antigravity, claude_code, ollama, openai" in err_msg
 
 
 def test_llm_settings_purpose_provider_non_registrato_errore_al_boot():

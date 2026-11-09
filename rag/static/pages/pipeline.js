@@ -129,6 +129,7 @@
       document.getElementById('validate-card').classList.toggle('hidden', !specApproved);
       document.getElementById('final-prompt-card').classList.toggle('hidden', !specApproved);
       if (specApproved) {
+        loadRunners();
         const details = document.getElementById('validate-details-root');
         if (details) details.open = false;
         if (scroll) document.getElementById('final-prompt-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -961,7 +962,7 @@
       const models = document.getElementById('agent-model-select');
       models.textContent = '';
       if (!runner.models.length) models.add(new Option(t('pipeline.agent.defaultModel'), ''));
-      for (const m of runner.models) models.add(new Option(m, m));
+      for (const m of runner.models) models.add(new Option(m || t('pipeline.agent.defaultModel'), m));
       const modes = document.getElementById('agent-mode-select');
       for (const o of modes.options) o.disabled = !runner.modes.includes(o.value);
       if (!runner.modes.includes(modes.value)) modes.value = runner.modes[0];

@@ -78,7 +78,7 @@ class AgentRunRequest(BaseModel):
     validation_id: str | None = Field(default=None, pattern=r'^val-[0-9a-f]{32}$')
     retry_of_attempt_id: str | None = Field(default=None, pattern=r'^attempt-[0-9a-f]{32}$')
     mode: str = "suggest"   # suggest | agentic | oneshot
-    runner: Literal['claude', 'local', 'codex', 'cursor'] = 'claude'
+    runner: Literal['claude', 'local', 'codex', 'cursor', 'antigravity'] = 'claude'
     # Alias Claude (sonnet|opus|haiku) o nome modello del runner; '' = predefinito della CLI.
     # Finisce negli argomenti delle CLI: niente '-' iniziale né metacaratteri (agent_runners.MODEL_RE).
     model: str = Field(default="sonnet", pattern=r'^(|[A-Za-z0-9][\w.:/-]{0,99})$')
@@ -131,10 +131,13 @@ class LLMSettingsRequest(BaseModel):
     valida i contenuti: modalità, provider, URL, prezzi, budget)."""
     model_config = ConfigDict(extra='forbid')
     mode: Literal['local', 'cloud', 'custom']
-    cloud_provider: Literal['anthropic', 'openai', 'claude_code'] = 'anthropic'
+    cloud_provider: Literal['anthropic', 'openai', 'claude_code', 'antigravity'] = 'anthropic'
     models: dict[str, Annotated[str, Field(max_length=200)]] = Field(default_factory=dict, max_length=10)
     purposes: dict[str, dict[str, Annotated[str, Field(max_length=200)]]] = Field(default_factory=dict, max_length=20)
     openai_base_url: str | None = Field(default=None, max_length=500)
+    antigravity_vertex: bool | None = None
+    antigravity_project: str | None = Field(default=None, max_length=200)
+    antigravity_location: str | None = Field(default=None, max_length=100)
     pricing: dict[str, dict[str, float | None]] = Field(default_factory=dict, max_length=20)
     budget_daily_usd: float | None = Field(default=None, ge=0)
 
@@ -142,5 +145,5 @@ class LLMSettingsRequest(BaseModel):
 class LLMKeyRequest(BaseModel):
     """API key di un provider cloud: stringa vuota = cancella la chiave salvata."""
     model_config = ConfigDict(extra='forbid')
-    provider: Literal['anthropic', 'openai']
+    provider: Literal['anthropic', 'openai', 'antigravity']
     api_key: str = Field(default='', max_length=512)

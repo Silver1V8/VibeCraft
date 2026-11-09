@@ -15,6 +15,7 @@ import json
 import logging
 import shutil
 import sys
+import tempfile
 import threading
 import time
 import urllib.error
@@ -38,7 +39,7 @@ from core.config import (
     config,
     validate_llm_settings,
 )
-from core.llm_settings_store import KEY_PROVIDERS, api_key, openai_base_url
+from core.llm_settings_store import KEY_PROVIDERS, antigravity_auth_config, api_key, openai_base_url
 
 logger = logging.getLogger(__name__)
 
@@ -690,6 +691,75 @@ async def _claude_code_agenerate(model: str, prompt: str, timeout: float) -> str
 
 
 # ---------------------------------------------------------------------------
+# Provider: antigravity (Google Antigravity SDK — Gemini API key o Vertex AI / gcloud ADC,
+# menu Impostazioni). Una sola chiamata senza tool né subagent.
+# ---------------------------------------------------------------------------
+
+def _antigravity_endpoint_kwargs() -> dict:
+    auth = antigravity_auth_config()
+    if auth["vertex"]:
+        if not auth["project"]:
+            raise LLMError(
+                "[ERRORE ANTIGRAVITY]: progetto Google Cloud mancante per Vertex AI. "
+                "Inseriscilo in Impostazioni → Modelli LLM o imposta GOOGLE_CLOUD_PROJECT.")
+        return {"vertex": True, "project": auth["project"], "location": auth["location"] or "us-central1"}
+    if not auth["api_key"]:
+        raise LLMError(
+            "[ERRORE ANTIGRAVITY]: credenziali Google mancanti. Inserisci GEMINI_API_KEY o attiva "
+            "Vertex AI (gcloud ADC) in Impostazioni → Modelli LLM.")
+    return {"api_key": auth["api_key"]}
+
+
+async def _antigravity_query(model: str, prompt: str) -> str:
+    try:
+        from google.antigravity import Agent, AgentBehavior, CapabilitiesConfig, LocalAgentConfig, types
+    except ImportError as e:
+        raise LLMError(
+            "[ERRORE ANTIGRAVITY]: pacchetto 'google-antigravity' non installato. "
+            "Esegui 'uv add google-antigravity' in rag/."
+        ) from e
+    endpoint_kw = _antigravity_endpoint_kwargs()
+    with tempfile.TemporaryDirectory(prefix="vibecraft_agy_") as tmp:
+        cfg = LocalAgentConfig(
+            model=model,
+            workspaces=[tmp],
+            save_dir=tmp,
+            app_data_dir=tmp,
+            capabilities=CapabilitiesConfig(
+                enable_subagents=False,
+                agent_behavior=AgentBehavior.AUTONOMOUS,
+                enabled_tools=[],
+            ),
+            budget_config=types.BudgetConfig(max_model_calls=1),
+            **endpoint_kw,
+        )
+        async with Agent(cfg) as agent:
+            resp = await agent.chat(prompt)
+            text = await resp.text()
+            usage = resp.usage_metadata
+            if usage is not None:
+                _log_usage("antigravity", model, usage.prompt_token_count, usage.candidates_token_count)
+            return text
+
+
+def _antigravity_generate(model: str, prompt: str, timeout: float) -> str:
+    async def run():
+        return await asyncio.wait_for(_antigravity_query(model, prompt), timeout)
+    try:
+        return asyncio.run(run())
+    except LLMError:
+        raise
+    except TimeoutError as e:
+        raise LLMError("[ERRORE DI TIMEOUT]: Google Antigravity sta impiegando troppo tempo a rispondere.") from e
+    except Exception as e:
+        raise LLMError(f"[ERRORE ANTIGRAVITY]: {type(e).__name__}: {str(e)[:300]}") from e
+
+
+async def _antigravity_agenerate(model: str, prompt: str, timeout: float) -> str:
+    return await asyncio.to_thread(_antigravity_generate, model, prompt, timeout)
+
+
+# ---------------------------------------------------------------------------
 # Registry e API pubblica
 # ---------------------------------------------------------------------------
 
@@ -699,6 +769,7 @@ _PROVIDERS: dict[str, tuple] = {
     "anthropic": (_anthropic_generate, _anthropic_agenerate),
     "openai": (_openai_generate, _openai_agenerate),
     "claude_code": (_claude_code_generate, _claude_code_agenerate),
+    "antigravity": (_antigravity_generate, _antigravity_agenerate),
 }
 _STREAM_PROVIDERS: dict[str, object] = {"ollama": _ollama_astream}
 

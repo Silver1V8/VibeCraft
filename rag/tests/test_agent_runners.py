@@ -169,3 +169,44 @@ def test_run_streaming_records_finish_and_errors(monkeypatch):
             runner, False, "unit-test force fail"))
     with pytest.raises(ValueError, match="native_write_isolation_unverified"):
         ar.run_streaming("codex", "p", "agentic", "")
+
+
+def test_antigravity_runner_validate_and_tool_guard(project):
+    assert ar.validate_run("antigravity", "suggest", "gemini-3.8-flash") is None
+    assert ar.validate_run("antigravity", "agentic", "gemini-3.8-flash") is None
+    assert ar.validate_run("antigravity", "oneshot", "gemini-3.8-flash") is None
+
+    class _Call:
+        def __init__(self, name, args=None, server_name=None, canonical_path=None):
+            self.name = name
+            self.args = args or {}
+            self.server_name = server_name
+            self.canonical_path = canonical_path
+
+    # Lettura consentita dentro project_root, negata fuori o su .env
+    assert ar._guard_antigravity_tool(
+        _Call("view_file", {"Path": str(project / "rag" / "cfg.yaml")}),
+        mode="suggest", project_root=project, code_root=project / "code", cwd=project,
+    ).allow is True
+    assert ar._guard_antigravity_tool(
+        _Call("view_file", {"Path": str(project / ".env")}),
+        mode="suggest", project_root=project, code_root=project / "code", cwd=project,
+    ).allow is False
+    # Scrittura negata in suggest, consentita in agentic solo sotto code_root
+    assert ar._guard_antigravity_tool(
+        _Call("create_file", {"Path": str(project / "code" / "a.py")}),
+        mode="suggest", project_root=project, code_root=project / "code", cwd=project,
+    ).allow is False
+    assert ar._guard_antigravity_tool(
+        _Call("create_file", {"Path": str(project / "code" / "a.py")}),
+        mode="agentic", project_root=project, code_root=project / "code", cwd=project / "code",
+    ).allow is True
+    assert ar._guard_antigravity_tool(
+        _Call("create_file", {"Path": str(project / "rag" / "cfg.yaml")}),
+        mode="agentic", project_root=project, code_root=project / "code", cwd=project / "code",
+    ).allow is False
+    # MCP vibecraft consentito
+    assert ar._guard_antigravity_tool(
+        _Call("vibecraft_retrieve", {"query": "test"}, server_name="vibecraft"),
+        mode="suggest", project_root=project, code_root=project / "code", cwd=project,
+    ).allow is True

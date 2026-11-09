@@ -24,9 +24,11 @@ from core import config as cfg
 MODES = ("local", "cloud", "custom")
 # claude_code è Claude via Claude Code con il login dell'abbonamento: cloud, ma senza API
 # key né prezzo per token, quindi fuori da chiavi, prezzi e budget (KEY_PROVIDERS).
-CLOUD_PROVIDERS = ("anthropic", "openai", "claude_code")
-KEY_PROVIDERS = ("anthropic", "openai")
-KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
+CLOUD_PROVIDERS = ("anthropic", "openai", "claude_code", "antigravity")
+KEY_PROVIDERS = ("anthropic", "openai", "antigravity")
+KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY", "antigravity": "GEMINI_API_KEY"}
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta"
+ANTIGRAVITY_DEFAULT_MODELS = ("gemini-3.8-flash", "gemini-2.5-pro", "gemini-2.5-flash")
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1"
 # Mostrati finché manca la chiave: con la chiave la lista viene dall'API (/v1/models).
@@ -104,6 +106,35 @@ def _claude_cli() -> str | None:
     return claude_cli_path() or "bundled"
 
 
+def _gcloud_adc_exists() -> bool:
+    cred_env = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    if cred_env and Path(cred_env).is_file():
+        return True
+    appdata = os.environ.get("APPDATA", "").strip()
+    if appdata and (Path(appdata) / "gcloud" / "application_default_credentials.json").is_file():
+        return True
+    return (Path.home() / ".config" / "gcloud" / "application_default_credentials.json").is_file()
+
+
+def antigravity_auth_config() -> dict:
+    raw = cfg.config.get("llm_settings") or {}
+    vertex = bool(raw.get("antigravity_vertex")) or (
+        os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("true", "1")
+        or os.environ.get("GOOGLE_GENAI_USE_ENTERPRISE", "").lower() in ("true", "1")
+    )
+    project = (raw.get("antigravity_project") or os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip() or None
+    location = (raw.get("antigravity_location") or os.environ.get("GOOGLE_CLOUD_LOCATION") or "").strip() or (
+        "us-central1" if vertex else None
+    )
+    return {
+        "vertex": vertex,
+        "project": project,
+        "location": location,
+        "api_key": api_key("antigravity"),
+        "adc": _gcloud_adc_exists(),
+    }
+
+
 def _valid_base_url(value: str) -> str:
     value = (value or "").strip().rstrip("/")
     parts = urlsplit(value)
@@ -140,6 +171,11 @@ def current_view() -> dict:
             "anthropic": {"key": key_source("anthropic"), "key_env": KEY_ENV["anthropic"]},
             "openai": {"key": key_source("openai"), "key_env": KEY_ENV["openai"], "base_url": openai_base_url()},
             "claude_code": {"cli": bool(_claude_cli()), "api_key_env": bool(os.environ.get("ANTHROPIC_API_KEY"))},
+            "antigravity": {
+                "key": key_source("antigravity"),
+                "key_env": KEY_ENV["antigravity"],
+                **{k: v for k, v in antigravity_auth_config().items() if k != "api_key"},
+            },
         },
         "pricing": dict(raw.get("pricing") or {}),
         "budget_daily_usd": (raw.get("budget") or {}).get("daily_usd"),
@@ -188,6 +224,12 @@ def build_overlay(payload: dict) -> dict:
             overlay["purposes"][purpose] = entry
     if payload.get("openai_base_url"):
         overlay["openai_base_url"] = _valid_base_url(payload["openai_base_url"])
+    if payload.get("antigravity_vertex") is not None:
+        overlay["antigravity_vertex"] = bool(payload["antigravity_vertex"])
+    if str(payload.get("antigravity_project") or "").strip():
+        overlay["antigravity_project"] = str(payload["antigravity_project"]).strip()
+    if str(payload.get("antigravity_location") or "").strip():
+        overlay["antigravity_location"] = str(payload["antigravity_location"]).strip()
     pricing = {}
     for model, entry in (payload.get("pricing") or {}).items():
         if not isinstance(entry, dict) or entry.get("input_per_mtok") in (None, ""):
@@ -232,10 +274,18 @@ def list_models(provider: str, *, timeout: float = 10.0) -> dict:
         raise ValueError(f"Provider sconosciuto: '{provider}'.")
     try:
         if provider == "ollama":
-            data = _get_json(f"{cfg.OLLAMA_URL.rstrip('/')}/api/tags", {}, timeout)
+            data = _get_json(f"{cfg.OLLAMA_URL.rstrip('/')}/api/tags".replace("://localhost:", "://127.0.0.1:"), {}, timeout)
             return {"models": sorted(m["name"] for m in data.get("models", [])), "source": "api"}
         if provider == "claude_code":
             return {"models": list(CLAUDE_CODE_MODELS), "source": "default"}
+        if provider == "antigravity":
+            key = api_key("antigravity")
+            if not key:
+                return {"models": list(ANTIGRAVITY_DEFAULT_MODELS), "source": "default"}
+            data = _get_json(f"{GEMINI_API_URL}/models?pageSize=100", {"x-goog-api-key": key}, timeout)
+            models = [m["name"].removeprefix("models/") for m in data.get("models", [])
+                      if "generateContent" in (m.get("supportedGenerationMethods") or []) and m.get("name")]
+            return {"models": models or list(ANTIGRAVITY_DEFAULT_MODELS), "source": "api" if models else "default"}
         if provider == "anthropic":
             key = api_key("anthropic")
             if not key:
@@ -249,5 +299,6 @@ def list_models(provider: str, *, timeout: float = 10.0) -> dict:
         data = _get_json(f"{openai_base_url()}/models", {"Authorization": f"Bearer {key}"}, timeout)
         return {"models": sorted(m["id"] for m in data.get("data", [])), "source": "api"}
     except Exception as exc:  # rete, HTTP, JSON inatteso: la UI mostra il motivo
-        fallback = list(ANTHROPIC_DEFAULT_MODELS) if provider == "anthropic" else []
+        fallback = (list(ANTHROPIC_DEFAULT_MODELS) if provider == "anthropic"
+                    else list(ANTIGRAVITY_DEFAULT_MODELS) if provider == "antigravity" else [])
         return {"models": fallback, "source": "default", "error": f"{type(exc).__name__}: {exc}"[:200]}

@@ -235,7 +235,7 @@ EMBEDDING_MODEL: str = config["vector_database"]["embedding_model"]
 
 # Provider LLM registrati (core/llm.py _PROVIDERS): lista di provider supportati.
 # Viene usata per validare il blocco llm_settings al boot.
-VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"ollama", "anthropic", "openai", "claude_code"})
+VALID_LLM_PROVIDERS: frozenset[str] = frozenset({"ollama", "anthropic", "openai", "claude_code", "antigravity"})
 
 
 class BudgetSettings(BaseModel):

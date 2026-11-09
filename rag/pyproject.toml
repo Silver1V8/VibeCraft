@@ -63,6 +63,7 @@ dependencies = [
     "tree-sitter-typescript>=0.23.2",
     "uvicorn==0.54.0",
     "anthropic>=2.3.0",
+    "google-antigravity>=0.1.23",
 ]
 
 [dependency-groups]

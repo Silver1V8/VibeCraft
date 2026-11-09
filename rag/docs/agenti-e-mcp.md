@@ -68,7 +68,7 @@ Su Windows viene usato, se presente accanto allo shim npm, il binario nativo
 
 ### Runner dell'agente: Claude, Ollama, Codex, Cursor
 
-`POST /api/pipeline/agent/run` accetta `runner` (`claude` | `local` | `codex` | `cursor`,
+`POST /api/pipeline/agent/run` accetta `runner` (`claude` | `local` | `codex` | `cursor` | `antigravity`,
 default `claude`) accanto a `mode`; `GET /api/pipeline/agent/runners` elenca quelli
 con capability esplicite (binario installato, modelli Ollama, export e lancio disponibili).
 Ammissione, gate, journal e formato NDJSON dello stream sono gli stessi per tutti
@@ -78,6 +78,7 @@ negli argomenti delle CLI, quindi niente `-` iniziale né metacaratteri.
 | runner | modalità | contesto | perimetro |
 |---|---|---|---|
 | `claude` | suggest, agentic, oneshot | tre tool MCP | bridge SDK descritto sopra |
+| `antigravity` | suggest, agentic, oneshot | tre tool MCP | `google-antigravity` SDK (`localharness` isolato, `can_call_tool` con stesso perimetro di lettura/scrittura di `claude`, niente shell) |
 | `local` (Ollama `/api/chat`) | suggest, agentic, oneshot | `read_file`/`list_files`/`grep` | i tool li esegue VibeCraft, niente shell; letture nella root del progetto, escludendo altre root, link, `.git` e `.env*`; in agentic `write_file`/`edit_file` passano da `_path_escapes_code`, la stessa decisione dell'hook Claude; output dei tool troncato a 6.000 caratteri |
 | `codex` | suggest/oneshot: export; agentic: gated | MCP esterno con ID esplicito | suggest/oneshot: `native_read_isolation_unverified`; agentic solo se `native_sandbox.probe_write_isolation("codex")` ok (`workspace-write`, cwd=`code/`) |
 | `cursor` | export prompt | MCP esterno con ID esplicito | integrato disabilitato (letture + scritture: `cursorsandbox` non ha confinato le scritture su Windows) |

@@ -175,7 +175,7 @@
           <label id="llm-local-label" for="llm-model-ollama" data-i18n="settings.localModel">Modello locale</label>
           <input id="llm-model-ollama" list="llm-models-ollama" autocomplete="off" spellcheck="false">
           <label id="llm-cloud-label" for="llm-cloud-provider" data-i18n="settings.cloudProvider">Provider cloud</label>
-          <select id="llm-cloud-provider" data-change="renderLlmMode"><option value="anthropic">Anthropic (Claude)</option><option value="openai" data-i18n="settings.openaiName">OpenAI-compatibile</option><option value="claude_code" data-i18n="settings.providerName.claude_code">Claude (abbonamento)</option></select>
+          <select id="llm-cloud-provider" data-change="renderLlmMode"><option value="anthropic">Anthropic (Claude)</option><option value="openai" data-i18n="settings.openaiName">OpenAI-compatibile</option><option value="claude_code" data-i18n="settings.providerName.claude_code">Claude (abbonamento)</option><option value="antigravity" data-i18n="settings.providerName.antigravity">Google Antigravity (Gemini)</option></select>
         </div>
         <table id="llm-activities" class="settings-activities">
           <thead><tr><th scope="col" data-i18n="settings.activity">Attività</th><th scope="col" data-i18n="settings.provider">Provider</th><th scope="col" data-i18n="settings.model">Modello</th></tr></thead>
@@ -225,6 +225,31 @@
           <input id="llm-model-claude_code" list="llm-models-claude_code" autocomplete="off" spellcheck="false">
           <p id="llm-models-note-claude_code" class="settings-note"></p>
         </fieldset>
+        <fieldset class="settings-provider" data-provider="antigravity">
+          <legend data-i18n="settings.providerName.antigravity">Google Antigravity (Gemini)</legend>
+          <p class="settings-note" data-i18n="settings.antigravityNote">Puoi usare una GEMINI_API_KEY (Google AI Studio) oppure l'account Google Cloud / Vertex AI (gcloud auth application-default login).</p>
+          <p id="llm-key-status-antigravity" class="settings-note"></p>
+          <label for="llm-key-antigravity" data-i18n="settings.apiKey">API key</label>
+          <div class="settings-inline">
+            <input id="llm-key-antigravity" type="password" autocomplete="off" spellcheck="false">
+            <button type="button" class="btn btn-secondary" data-click="saveLlmKey" data-arg="antigravity" data-i18n="settings.saveKey">Salva chiave</button>
+            <button type="button" class="btn btn-secondary" data-click="removeLlmKey" data-arg="antigravity" data-i18n="settings.removeKey">Rimuovi</button>
+          </div>
+          <label><input id="llm-vertex-antigravity" type="checkbox"> <span data-i18n="settings.antigravityVertex">Usa login Google Cloud / Vertex AI (abbonamento / progetto GCP)</span></label>
+          <p id="llm-adc-status-antigravity" class="settings-note"></p>
+          <div class="settings-inline">
+            <label><span data-i18n="settings.antigravityProject">Progetto GCP</span> <input id="llm-project-antigravity" autocomplete="off" spellcheck="false" placeholder="my-gcp-project"></label>
+            <label><span data-i18n="settings.antigravityLocation">Location</span> <input id="llm-location-antigravity" autocomplete="off" spellcheck="false" placeholder="us-central1"></label>
+          </div>
+          <label for="llm-model-antigravity" data-i18n="settings.model">Modello</label>
+          <input id="llm-model-antigravity" list="llm-models-antigravity" autocomplete="off" spellcheck="false" data-input="syncLlmPrice" data-arg="antigravity">
+          <p id="llm-models-note-antigravity" class="settings-note"></p>
+          <div class="settings-inline settings-prices">
+            <label><span data-i18n="settings.priceIn">Input $/Mtok</span> <input id="llm-price-in-antigravity" type="number" min="0" step="0.01"></label>
+            <label><span data-i18n="settings.priceOut">Output $/Mtok</span> <input id="llm-price-out-antigravity" type="number" min="0" step="0.01"></label>
+          </div>
+        <!-- fine antigravity -->
+        </fieldset>
         <div id="llm-budget-row" class="settings-grid">
           <label for="llm-budget" data-i18n="settings.budget">Budget cloud giornaliero (USD)</label>
           <input id="llm-budget" type="number" min="0" step="0.5" data-i18n-placeholder="settings.budgetNone" placeholder="nessun tetto">
@@ -233,6 +258,7 @@
         <datalist id="llm-models-anthropic"></datalist>
         <datalist id="llm-models-openai"></datalist>
         <datalist id="llm-models-claude_code"></datalist>
+        <datalist id="llm-models-antigravity"></datalist>
         <p id="llm-settings-status" class="settings-note" role="status" aria-live="polite"></p>
       </section>
       <div class="confirm-actions">

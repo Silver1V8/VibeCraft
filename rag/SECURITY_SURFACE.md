@@ -355,7 +355,7 @@ oltre a `require_api_key` del router.
 | 57 | GET | `/api/intake/project/brief/{job_id}` | require_api_key | path | Sì | read-only (stato job) | Basso | nessuna |
 | 58 | GET | `/api/pipeline/gate` | require_api_key | query | Sì | read-only (ricalcola ammissibilità, decisioni e rilievi) | Basso | nessuna |
 | 59 | POST | `/api/pipeline/open-points/decision` | require_api_key **+ require_api_key_strict** | JSON Pydantic stretto | **No (strict)** | scrive decisione operatore e associazioni esplicite, non avvia l'agente | **Alto** | **strict** |
-| 60 | GET | `/api/pipeline/agent/runners` | require_api_key | assente | Sì | read-only (elenco runner disponibili — Claude/local/Codex/Cursor —, modalità e modelli; interroga Ollama `/api/tags` con timeout 2 s e il PATH per i binari: rivela i modelli locali installati e quali CLI sono presenti sul server, §5) | Basso | nessuna |
+| 60 | GET | `/api/pipeline/agent/runners` | require_api_key | assente | Sì | read-only (elenco runner disponibili — Claude/local/Codex/Cursor/Antigravity —, modalità e modelli; interroga Ollama `/api/tags` con timeout 2 s e il PATH per i binari: rivela i modelli locali installati e quali CLI/SDK sono presenti sul server, §5) | Basso | nessuna |
 
 | 61 | GET | `/api/health/live` | require_api_key | assente | Sì | read-only (liveness, indipendente da indice/registry/risorse) | Basso | nessuna |
 | 62 | GET | `/api/projects` | require_api_key | query (`q`, `stale`) | Sì | read-only (metadata; filtro opzionale `q` su name/id; root solo loopback con bind locale, nessun segreto/settings) | Basso | nessuna |
@@ -566,7 +566,7 @@ niente build/test in-modalità; (d) la blocklist dei segmenti riservati può rif
 
 ### Runner alternativi (`agent_runners.py`)
 
-La stessa route accetta `runner` (`claude` | `local` | `codex` | `cursor`); ammissione,
+La stessa route accetta `runner` (`claude` | `local` | `codex` | `cursor` | `antigravity`); ammissione,
 gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agent/runners`
 (`require_api_key` del router, sola lettura) elenca disponibilità, modalità e modelli.
 
@@ -575,6 +575,7 @@ gate, journal e `require_api_key_strict` sono invariati. `GET /api/pipeline/agen
   stretto di Claude, limite b). In `agentic` `write_file`/`edit_file` passano da
   `_path_escapes_code`, la stessa decisione del hook Claude; il deny torna al modello come
   risultato del tool. Output dei tool troncato a 6.000 caratteri per la finestra di 16K.
+- **`antigravity` (`google-antigravity` SDK)**: avvia `localharness` isolato (`save_dir`/`app_data_dir` temporanei, nessun subagent, comando shell rimosso); il callback `can_call_tool` applica lo stesso perimetro di lettura (`PROJECT_ROOT`, esclusi `.git`, `.env*`, link e altre root), scrittura in `agentic` (`_path_escapes_code` su `code/`) e i soli tre tool MCP `vibecraft`. Autenticazione con `GEMINI_API_KEY` o Vertex AI / ADC (`gcloud auth application-default login`).
 - **`codex` / `cursor`**: `suggest`/`oneshot` restano rifiutati (`native_read_isolation_unverified`)
   perché l'isolamento **letture** fra progetti non è certificato. **Agentic Codex** si apre
   solo dopo la prova fail-closed in `native_sandbox.probe_write_isolation("codex")`

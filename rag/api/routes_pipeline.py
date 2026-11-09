@@ -399,7 +399,7 @@ async def agent_run(req: AgentRunRequest, project=Depends(get_project)):
             prompt = req.prompt
             if req.mode == 'agentic':
                 prompt = pipeline.build_agent_prompt(record.feature, record.dev_type, 'agentic',
-                                                     contract=record.contract, mcp=req.runner == 'claude', project=project)
+                                                     contract=record.contract, mcp=req.runner in ('claude', 'antigravity'), project=project)
                 prompt += '\nValidazione autorizzante: ' + record.validation_id
             try:
                 project_store(project).append_event('execution_started', **details)
@@ -678,7 +678,7 @@ async def pipeline_final_prompt(feature: str, dev_type: str = "", consumer: str 
         raise HTTPException(status_code=400, detail=f"Runner non valido: {runner}")
     folder = _safe_feature_dir(feature, project=project)
     dev = _safe_dev_type(dev_type or load_dev_type(folder), project=project)
-    prompt = build_final_prompt(folder.name, dev, consumer, mode=mode, mcp=runner == "claude", project=project)
+    prompt = build_final_prompt(folder.name, dev, consumer, mode=mode, mcp=runner in ("claude", "antigravity"), project=project)
     if consumer == "agent" and mode == "oneshot":
         try:
             contract = {name: (_feature_file(folder, name)).read_text(encoding="utf-8")
