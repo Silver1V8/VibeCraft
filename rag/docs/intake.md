@@ -20,10 +20,16 @@ documenti salva i file; il pulsante **Aggiorna indice** avvia l'indicizzazione d
 **Cinque flussi, un solo staging** (`database/staging/`, con journal append-only
 `intake.jsonl`):
 
-- **Genera con Ollama** (`POST /api/intake/generate`, [core/doc_generation.py](../core/doc_generation.py)):
+- **Genera con LLM** (`POST /api/intake/generate`, [core/doc_generation.py](../core/doc_generation.py)):
   fino a `intake.generation_max_files` documenti markdown grounded nel Graph RAG
   (hybrid_search) e nelle lezioni delle canvas review; ogni file è validato
-  (parse + chunking) prima di entrare in staging.
+  (parse + chunking) prima di entrare in staging. Dal 2026-11-03 la generazione ha uno
+  scopo LLM proprio, `intake` (riga **Generazione documenti (Intake)** in Impostazioni →
+  per attività), quindi può girare su un provider cloud; senza un override per attività
+  segue la scelta del Canvas, così salvare le impostazioni non sposta il corpus verso un
+  altro provider (vedi [llm.md](llm.md)). Su un progetto **mai indicizzato** (tipico al
+  primo avvio, con `docs/` ancora vuota) genera senza grounding invece di rispondere 409;
+  gli errori di storage restano 503.
 - **Importa documenti** (`POST /api/intake/docs`, [core/intake_convert.py](../core/intake_convert.py)):
   upload multipart convertito in Markdown **in locale** e messo in staging accanto
   all'originale. Il motore segue una matrice esplicita, misurata sulla versione installata:
@@ -123,6 +129,15 @@ documenti salva i file; il pulsante **Aggiorna indice** avvia l'indicizzazione d
   stato: un rifiuto o una raffinazione arrivati tardi non toccano un documento già
   approvato. In `docs/` entra
   solo il `.md` composto; l'originale resta in `staging/docs/` (o `staging/rejected/`).
+- **Cartelle di `docs/`** (`GET`/`POST /api/intake/categories`, dal 2026-11-03): le tendine
+  della categoria in Genera e in Approva elencano le sottocartelle reali di `docs/` del
+  progetto (nascoste e link esclusi), e **Nuova cartella docs/** ne crea una. Il nome viene
+  normalizzato (spazi → `_`) e deve essere un solo componente di path, senza punti,
+  separatori o nomi riservati di Windows; una cartella che esiste già con maiuscole diverse
+  viene riusata. `approve` accetta le categorie standard più ogni cartella reale; in una
+  cartella personalizzata il frontmatter prende `classification: METHODOLOGY`, la classe più
+  prudente, che non scavalca le fonti normative nel ranking per autorità. Route e rischi in
+  [SECURITY_SURFACE.md](../SECURITY_SURFACE.md), righe 77–78.
   Ogni pubblicazione dell'app in `docs/` è un `.md` — l'approve dell'intake e la copia storica
   della canvas review all'archive —, ma l'app non può impedire scritture manuali esterne.
   L'aggiornamento esplicito considera anche le altre modifiche/rimozioni presenti

@@ -30,6 +30,8 @@ corpus to index.
 | [`NOTA_IMPLEMENTAZIONE_MIGLIORIE.md`](NOTA_IMPLEMENTAZIONE_MIGLIORIE.md) | improvements and bug fixes from the Docling pilot and independent of it: cause, diff, checks, risk, and rollback |
 | [`PIPELINE_GATE.md`](PIPELINE_GATE.md) | operational gate, end-to-end cycle verified on 15 September 2026, measurements, friction log, and open issues |
 | [`2026-11-03-gate-rispondibilita-plan.md`](2026-11-03-gate-rispondibilita-plan.md) | pre-LLM answerability gate (G1): plan, go/no-go criteria and the 3 November 2026 outcome — no-go, the gate stays off (Italian) |
+| [`2026-11-05-gates-agentic-multimodal.md`](2026-11-05-gates-agentic-multimodal.md) | EXP-D (agentic orchestration on `/ask`) and EXP-E (multimodality) gates: both no-go until there is evidence; applies ADR 0001 rather than overturning it (Italian) |
+| [`2026-11-05-exp-b-closure.md`](2026-11-05-exp-b-closure.md) | EXP-B (`follow_ref` corrective pass): **do not** enable; the flag stays off until there is a current miss register and a paired comparison (Italian) |
 
 ## Sidecar scalability — run of 21 September 2026
 

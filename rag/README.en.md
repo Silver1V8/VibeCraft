@@ -7,13 +7,20 @@
 
 # rag/ — Graph-RAG console
 
-**Documented state: `main`, 3 November 2026.**
+**Documented state: `main`, 5 November 2026.**
 Same status note as [`../README.md`](../README.md) / [`README.md`](README.md). New on the
 29th: the graph links frontend HTTP calls to backend Minimal API endpoints (`CALLS` edges),
 and a full rebuild frees the VRAM held by Ollama before embedding on GPU. New on the 30th: a
 **Settings** menu picks LLM models (local, cloud or per activity, including Claude on your
 subscription), and the Claude attribution judge closes R29. Adversarial cases are now 5 of 5 at rank 1,
 after a corpus fix rather than a weight change. On 3 November a pre-LLM answerability gate (a local cross-encoder) was measured: no-go, it stays off, and the model's own abstention holds up (see [Eval](docs/eval-e-ci.md#la-quarta-misura-quando-ask-deve-astenersi)).
+Also from the 3rd, Intake generates documents with its own LLM purpose, local or cloud, even on
+a never-indexed project, into the `docs/` folders picked or created from the page (see
+[Intake](docs/intake.md)). On 5 November the eval tools that had no number yet got their first
+measures: transfer to a third-party corpus (OWASP ASVS 4.0.3) is measured but not validated,
+Recall@5 1.0 and MRR 0.883–0.933; `IMPLEMENTS` edge precision after dual annotation is 0.196,
+with a wide interval. The `follow_ref` corrective pass stays off, and agentic orchestration on
+`/ask` and multimodality stay no-go (see [Eval](docs/eval-e-ci.md#link-audit-governance-corpus-esterno)).
 
 Pages under `docs/` explain *how* to operate the console. They are not corpus and
 are not indexed.

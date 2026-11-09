@@ -2,6 +2,14 @@ English | [Italiano](README.md)
 
 # Evaluation evidence
 
+## IMPLEMENTS link audit — 5 November 2026
+
+| Evidence | What it shows |
+|---|---|
+| [Post-dual run](link_audit_2026-11-01/evidence/) | Population precision **0.196** (0.289 before the dual review); A/B agreement 10/16; wide CI accepted. Full annotation sheets stay outside git |
+
+Summary (Italian) also in [docs/eval-e-ci.md](../../docs/eval-e-ci.md).
+
 ## /ask answerability — 3 November 2026
 
 | Evidence | What it shows |

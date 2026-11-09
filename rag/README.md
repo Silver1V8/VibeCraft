@@ -7,7 +7,7 @@ Italiano | [English](README.en.md)
 
 # rag/ — Console Graph-RAG
 
-**Stato documentato: `main`, 3 novembre 2026.**
+**Stato documentato: `main`, 5 novembre 2026.**
 Il multi-progetto è in `main` dal 5 ottobre; il delta copy-on-write e l'embedding su GPU
 dal 12. I manuali in console sono del 25. Dal 29 il grafo collega le chiamate HTTP del
 frontend agli endpoint Minimal API del backend (archi `CALLS`, vedi
@@ -18,6 +18,14 @@ Dal 30 un menu **Impostazioni** sceglie i modelli LLM, locali, cloud o per attiv
 Claude con l'abbonamento (vedi [LLM](docs/llm.md#menu-impostazioni-della-console-2026-10-30)),
 e il giudice di attribuzione Claude chiude R29 (vedi [Eval](docs/eval-e-ci.md)). Sempre dal 30
 i casi avversariali sono 5 su 5 al primo posto, con una correzione del corpus e non dei pesi. Il 3 novembre è stato misurato un gate di rispondibilità prima del LLM (un cross-encoder locale): esito negativo, resta spento, e l'astensione del modello regge da sola (vedi [Eval](docs/eval-e-ci.md#la-quarta-misura-quando-ask-deve-astenersi)).
+Sempre dal 3 l'Intake genera documenti con uno scopo LLM proprio, locale o cloud, anche su un
+progetto mai indicizzato, nelle cartelle di `docs/` scelte o create dalla pagina (vedi
+[Intake & Import](docs/intake.md)). Il 5 novembre sono arrivate le prime misure degli strumenti
+di eval rimasti senza numero: il trasferimento su un corpus di terzi (OWASP ASVS 4.0.3) è
+misurato ma non validato, Recall@5 1.0 e MRR 0.883–0.933; la precisione degli archi
+`IMPLEMENTS` dopo la doppia annotazione è 0.196, con un intervallo largo. Il passaggio
+correttivo `follow_ref` resta spento, e l'orchestrazione agentica su `/ask` e la multimodalità
+restano NO-GO (vedi [Eval](docs/eval-e-ci.md#link-audit-governance-corpus-esterno)).
 I numeri di un gate restano quelli del giorno in cui sono stati misurati. Lo stesso stato
 è in [`../README.md`](../README.md).
 

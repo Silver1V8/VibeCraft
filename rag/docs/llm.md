@@ -9,7 +9,7 @@ Italiano | [English](../README.en.md)
 ## LLM: un solo layer, provider intercambiabili per step
 
 Tutte le chiamate generative (drift, canvas, propose, validate, explore, canvas
-review) passano da [core/llm.py](../core/llm.py): `generate(prompt, purpose=...)`
+review, generazione documenti dell'Intake) passano da [core/llm.py](../core/llm.py): `generate(prompt, purpose=...)`
 (sincrona) e `agenerate(...)` (async). Provider e modello si risolvono da
 [rag_config.yaml](../rag_config.yaml): di default `llm_settings.active_provider` +
 `llm_settings.models`, con override opzionale **per singolo step** via
@@ -37,8 +37,10 @@ raggruppa lingua, tema e rain, e la scelta dei modelli LLM per tutti i progetti:
 - **Tutto in cloud**: ogni attività sul provider cloud scelto (Anthropic,
   OpenAI-compatibile o Claude con l'abbonamento) e sul suo modello;
 - **Per attività**: provider e modello per ciascuno degli scopi di `core.llm.PURPOSES`
-  (drift, canvas, propose, validate, explore, review, ask, judge); un modello vuoto
-  usa quello predefinito del provider.
+  (drift, canvas, propose, validate, explore, review, ask, judge, intake); un modello vuoto
+  usa quello predefinito del provider. Lo scopo `intake` (dal 2026-11-03) è la generazione
+  documenti della pagina Intake: senza un override proprio segue il Canvas, come prima,
+  così chi tiene il Canvas in locale non vede il corpus partire verso il cloud.
 
 **Claude (abbonamento)**, provider `claude_code`: chiama Claude attraverso la CLI di Claude
 Code (Agent SDK, un turno, nessuno strumento) con il login della macchina, quindi senza API
